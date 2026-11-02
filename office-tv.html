@@ -239,28 +239,13 @@
   .p-head{display:none}
   .p-body{flex:1 1 auto; min-height:0}
 
-  /* ── Today at HQ (screen 4): the pixel scene from app-hq.js, its team badges and
-     today's story. The canvas is 400x270 drawn pixel-for-pixel, so it is scaled up
-     with pixelated sampling to the full height of the stage. ── */
-  .panel[data-panel="hq"] .p-body{padding:0 40px; display:flex; gap:36px; align-items:stretch}
-  #hqCanvas{flex:0 0 auto; height:100%; aspect-ratio:400/270; border-radius:14px;
+  /* ── Today at HQ (screen 4): the pixel scene from app-hq.js fills the whole stage
+     (Jake, 2026-11-02 - the whole screen is the game; who's who and the badges are
+     drawn in the world). The canvas is 720x312 drawn pixel-for-pixel, so it is
+     scaled up with pixelated sampling to the stage width. ── */
+  .panel[data-panel="hq"] .p-body{padding:0 40px; display:flex; align-items:center; justify-content:center}
+  #hqCanvas{display:block; height:100%; width:auto; max-width:100%; aspect-ratio:720/330; border-radius:14px;
     image-rendering:crisp-edges; image-rendering:pixelated; box-shadow:0 10px 30px rgba(0,0,0,.35)}
-  .hq-side{flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:20px}
-  .hq-side h3{margin:0; font:800 19px/1 Inter; letter-spacing:.24em; text-transform:uppercase; color:var(--gold-line)}
-  #hqBadges{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px}
-  .hq-badge{display:grid; justify-items:center; align-content:start; gap:6px; text-align:center; padding:12px 6px;
-    border-radius:14px; border:1px dashed rgba(237,225,185,.22); color:var(--muted)}
-  .hq-badge canvas{width:45px; height:45px; image-rendering:crisp-edges; image-rendering:pixelated; filter:grayscale(1); opacity:.35}
-  .hq-badge b{font:800 17px/1.1 Inter; color:#cfc6a6}
-  .hq-badge span{font:500 14px/1.2 Inter}
-  .hq-badge.got{border-style:solid; border-color:var(--gold); background:rgba(242,193,78,.12); color:var(--cream)}
-  .hq-badge.got canvas{filter:none; opacity:1}
-  .hq-badge.got b{color:var(--gold)}
-  #hqStory{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px}
-  #hqStory li{display:grid; grid-template-columns:110px minmax(0,1fr); gap:14px; font:600 22px/1.25 Inter; color:var(--cream)}
-  #hqStory time{color:var(--gold-line); font-variant-numeric:tabular-nums}
-  #hqStory li.badge span{color:var(--gold)}
-  #hqStory li.empty span{color:var(--muted)}
 
   /* ── Trucks: the map is the whole board ──────────────────────────────────
      The stage leaves the flow so it can cover all 1920x1080, and the header and
@@ -652,45 +637,36 @@
      them. A road is a flat stroke; a ringed 45px disc is not, and that difference
      is what the eye picks out at wall distance, not the hue. */
   @keyframes tkping{0%{transform:scale(.7);opacity:.85}100%{transform:scale(2.1);opacity:0}}
-  .lo-tk{position:relative; display:flex; flex-direction:column; align-items:center; gap:5px}
-  /* The outer ring is the DRIVER's colour when the day has told us who is in the
-     truck (--ring, set inline by truckIcon from the same crew_members.color the bin
-     board strips and the bin chips use), so a truck and its stops read as one
-     colour across the wall. A truck with nobody named keeps the dark ring. */
-  .lo-tk .b{position:relative; display:grid; place-items:center; width:45px; height:45px; border-radius:50%;
-    box-shadow:0 9px 24px rgba(0,0,0,.38), 0 0 0 6px var(--plate), 0 0 0 11px var(--ring, rgba(20,29,17,.82))}
-  /* --glyph comes from TRUCK_GLYPH, set inline beside the disc colour, so the two
-     are always picked together. A light disc needs a dark truck. */
-  .lo-tk .b svg{width:24px; height:24px; stroke:var(--glyph); fill:none; stroke-width:2;
-    stroke-linecap:round; stroke-linejoin:round}
-  .lo-tk .ping{position:absolute; inset:-8px; border-radius:50%; border:3px solid currentColor;
+  /* Jake, 2026-11-02: "the trucks are too big, hard to see where they actually are" -
+     the old pin centred a 120px truck picture on the GPS point, so the picture hid
+     the spot. Now the marker box is ONLY the status dot (htmlMarker centres a marker
+     on its own box, and absolute children don't count towards it), so the dot sits
+     exactly where the truck is. The name and a small picture ride above it on a
+     short stem.
+     The dot's outer ring is the DRIVER's colour when the day has told us who is in
+     the truck (--ring, set inline by truckIcon from crew_members.color), so a truck
+     and its stops read as one colour across the wall. */
+  .lo-tk{position:relative; width:18px; height:18px}
+  .lo-tk .b{position:absolute; inset:0; border-radius:50%;
+    box-shadow:0 0 0 3px var(--plate), 0 0 0 7px var(--ring, rgba(20,29,17,.82)), 0 4px 10px rgba(0,0,0,.45)}
+  .lo-tk .ping{position:absolute; inset:-7px; border-radius:50%; border:3px solid currentColor;
     animation:tkping 1.7s ease-out infinite; pointer-events:none}
-  /* The driver's name in a big bubble over the truck (Jake, 2026-10-20): zoomed out,
-     the old 16px chip was unreadable from across the office. Absolutely placed so
-     htmlMarker, which centres a marker on its own box, keeps centring on the TRUCK -
-     an absolute child is not counted in offsetWidth/offsetHeight. --bub is the
-     driver's colour; a truck with nobody named gets the dark bubble, smaller,
-     because it carries a truck name rather than a first name. */
-  .lo-tk .bub{position:absolute; bottom:calc(100% + 16px); left:50%; transform:translateX(-50%);
-    padding:6px 20px 8px; border-radius:20px; border:4px solid var(--plate);
+  .lo-tk .flag{position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; pointer-events:none}
+  /* --bub is the driver's colour; a truck with nobody named gets the dark bubble,
+     smaller, because it carries a vehicle name rather than a first name. */
+  .lo-tk .bub{padding:3px 12px 5px; border-radius:14px; border:3px solid var(--plate);
     background:var(--bub, rgba(17,24,18,.92)); color:var(--cream);
-    font:900 36px/1 Inter; letter-spacing:-.02em; white-space:nowrap;
-    box-shadow:0 6px 18px rgba(0,0,0,.45)}
-  .lo-tk .bub::after{content:''; position:absolute; left:50%; top:calc(100% + 4px); transform:translateX(-50%);
-    border:12px solid transparent; border-top-color:var(--plate)}
-  .lo-tk .bub.none{font-size:24px}
-  /* The truck's real picture. The pale halo lifts green paint off green fields
-     and dark imagery the way the ring pair does for the disc. The status colour
-     rides on a dot at the corner instead of being the whole disc. */
-  .lo-tk .ph{position:relative; display:block; width:120px}
+    font:900 24px/1 Inter; letter-spacing:-.01em; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,.45)}
+  .lo-tk .bub.none{font-size:18px}
+  .lo-tk .ph{display:block; width:52px; margin-top:2px}
   .lo-tk .ph img{display:block; width:100%;
-    filter:drop-shadow(0 0 2px var(--plate)) drop-shadow(0 8px 10px rgba(0,0,0,.5))}
-  .lo-tk .ph .dot{position:absolute; top:-6px; right:-8px; width:26px; height:26px; border-radius:50%;
-    border:4px solid var(--plate); box-shadow:0 3px 8px rgba(0,0,0,.4)}
+    filter:drop-shadow(0 0 2px var(--plate)) drop-shadow(0 4px 6px rgba(0,0,0,.5))}
+  .lo-tk .stem{width:3px; height:10px; border-radius:2px; background:var(--plate); box-shadow:0 1px 3px rgba(0,0,0,.4)}
   /* the truck the map is currently focused on */
-  .lo-tk.sel .b{width:57px; height:57px}
-  .lo-tk.sel .b svg{width:30px; height:30px}
-  .lo-tk.sel .ph{width:150px}
+  .lo-tk.sel{width:24px; height:24px}
+  .lo-tk.sel .bub{font-size:30px}
+  .lo-tk.sel .ph{width:66px}
   .lo-yard{width:22px; height:22px; border-radius:50%; background:var(--gold);
     box-shadow:0 0 0 4px var(--plate), 0 4px 10px rgba(0,0,0,.35)}
   /* Today's work, pinned by town. Deliberately unlike a truck pin — no pale ring
@@ -868,11 +844,7 @@
           <div class="p-head"><span class="bar"></span><h2>Today at HQ</h2>
             <span class="tag" id="hqTag"></span></div>
           <div class="p-body">
-            <canvas id="hqCanvas" width="400" height="270"></canvas>
-            <div class="hq-side">
-              <h3>Team badges today</h3><div id="hqBadges"></div>
-              <h3>Today so far</h3><ol id="hqStory"></ol>
-            </div>
+            <canvas id="hqCanvas" width="720" height="330"></canvas>
           </div>
         </section>
 
@@ -899,7 +871,7 @@
   <div id="netdot"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app-hq.js?v=713"></script>
+  <script src="app-hq.js?v=714"></script>
   <script>
   (function(){
     "use strict";
@@ -1365,17 +1337,21 @@
         // when each zone saw a truck arrive and leave today, and which truck it was
         db.from('geofence_notifications').select('job_id,status,created_at').gte('created_at',dayStartIso),
         db.from('geofence_visits').select('device_id,job_id,entered_at,exited_at,inside').gte('entered_at',dayStartIso),
-        db.from('bin_items').select('status,rotation')
+        db.from('bin_items').select('status,rotation'),
+        // where every bin out on rental is, by town - the same rows the "Bins out" count reads
+        db.from('jobs').select('city').eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled')
       ]);
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error('HQ: '+res[i].error.message); }
-      var bins = {ready:0, off:0};
+      var bins = {ready:0, prep:0, off:0};
       (res[6].data||[]).forEach(function(b){
         if(b.status==='in' && b.rotation==='active') bins.ready++;
+        if(b.rotation==='prep') bins.prep++;
         if(b.rotation==='oor') bins.off++;
       });
       DATA.hq = { entered:res[0].data||[], tomorrow:res[1].count||0, quotesWeek:res[2].count||0,
                   quotesDue:(res[3].data||[]).filter(function(q){ return qfDue(q, today, qfSince); }).length,
-                  notifs:res[4].data||[], visits:res[5].data||[], bins:bins };
+                  notifs:res[4].data||[], visits:res[5].data||[], bins:bins,
+                  outTowns:(res[7].data||[]).map(function(j){ return j.city; }) };
     }
     // The dashboard's "due a call" rule (app-quote-followup.js _qfOpen/_qfDue: visited,
     // no outcome, never chased or chased 3+ days ago, inside the 14-day window) -
@@ -1402,8 +1378,8 @@
                                                    hasDriver:e.crewIds.length>0, done:e.completed }; }),
         // yesterday's last ping is not today's news - same cut as the trucks rail
         trucks: (DATA.trucks||[]).filter(function(t){ return !t.lastUpdate || Date.now()-Date.parse(t.lastUpdate) <= RAIL_STALE_MS; })
-                  .map(function(t){ return { id:t.id, driver:driverFor(t), state:truckState(t) }; }),
-        crewColor: colorByName, entered:h.entered, notifs:h.notifs, visits:h.visits, bins:h.bins,
+                  .map(function(t){ return { id:t.id, name:t.name, driver:driverFor(t), state:truckState(t) }; }),
+        crewColor: colorByName, entered:h.entered, notifs:h.notifs, visits:h.visits, bins:h.bins, outTowns:h.outTowns,
         counts: { tomorrow:h.tomorrow, week:(DATA.kpi||{}).weekJobs||0, quotesWeek:h.quotesWeek,
                   quotesDue:h.quotesDue, binsOut:(DATA.kpi||{}).binsOut||0 },
         wx: DATA.wxCode
@@ -1589,7 +1565,6 @@
     // Truck positions come from the geotab-proxy edge function (`device-status`) —
     // the same read-only feed the dashboard's Live Jobs map uses. Visual only: the
     // TV never writes to jobs or to MyGeotab.
-    var TRUCK_SVG = '<svg viewBox="0 0 24 24"><path d="M14 16.5V6.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1"/><path d="M14 8.5h4l3 3.2v4.8a1 1 0 0 1-1 1h-1"/><circle cx="7" cy="17.3" r="2"/><circle cx="17.4" cy="17.3" r="2"/><path d="M9 17.3h6.4"/></svg>';
     // Only trucks that are OUT get drawn, so there's no 'yard' pin colour.
     // Traffic-light, because that is already how the office says it out loud:
     // green is going, amber is between stops, red has settled somewhere.
@@ -1611,12 +1586,9 @@
     // Red is #f5544a rather than a deeper one so the dark glyph inside it still
     // clears 4.96:1; below about this lightness the truck starts to disappear
     // into its own disc at wall distance.
+    // (Since 2026-11-02 the pin is a small status dot on the exact GPS point; the
+    // name and picture ride above it - see .lo-tk.)
     var TRUCK_C = { moving:'#22c55e', idling:'#f59e0b', stopped:'#f5544a' };
-    // The glyph inside the disc, chosen WITH the disc rather than fixed in the
-    // stylesheet — a white truck on a white disc is an empty circle, which is
-    // what the first render of the white-pin change produced. All three of these
-    // carry a dark truck, each tinted to its own hue.
-    var TRUCK_GLYPH = { moving:'#0d2a16', idling:'#3a2503', stopped:'#3d0d0a' };
     // Colour and name come from one place, so a state can never be painted here
     // and named differently on the card or in the legend.
     var TRUCK_LABEL = { moving:'Moving', idling:'Idling', stopped:'Stopped' };
@@ -1998,9 +1970,9 @@
       return null;
     }
 
-    // A truck pin: the driver's name in a big bubble over the truck, the truck itself
-    // (its real picture, or the round icon), and the status colour with a ping ring
-    // while it's moving. `sel` is the truck the map is focused on.
+    // A truck pin: a status dot exactly on the GPS point (with a ping ring while it's
+    // moving), and above it on a stem the driver's name and the truck's small picture.
+    // `sel` is the truck the map is focused on.
     function truckIcon(t, sel){
       var st = truckState(t), c = TRUCK_C[st];
       var ping = st === 'moving' ? '<span class="ping" style="color:'+c+'"></span>' : '';
@@ -2012,16 +1984,11 @@
       var bub = crewId
         ? '<span class="bub" style="--bub:'+driverColor(crewId)+'; color:'+inkOn(driverColor(crewId))+'">'+esc(driver)+'</span>'
         : '<span class="bub none">'+esc(driver || t.name)+'</span>';
-      var photo = truckPhoto(t), body;
-      if(photo){
-        body = '<span class="ph"><img src="'+photo+'" alt="">'
-             +   '<span class="dot" style="background:'+c+'">'+ping+'</span></span>';
-      } else {
-        var gloss = 'radial-gradient(circle at 34% 28%, color-mix(in srgb, '+c+' 55%, #fff), '+c+')';
-        var ring = crewId ? '; --ring:'+driverColor(crewId) : '';
-        body = '<span class="b" style="background:'+gloss+'; --glyph:'+TRUCK_GLYPH[st]+ring+'">'
-             +   TRUCK_SVG+ping+'</span>';
-      }
+      var photo = truckPhoto(t);
+      var ring = crewId ? '; --ring:'+driverColor(crewId) : '';
+      var body = '<span class="flag">'+bub+(photo ? '<span class="ph"><img src="'+photo+'" alt=""></span>' : '')
+               + '<span class="stem"></span></span>'
+               + '<span class="b" style="background:'+c+ring+'">'+ping+'</span>';
       // Sizes live in CSS (.lo-tk / .lo-tk.sel), so there is no pixel size to
       // declare here the way a Leaflet icon needed one.
       return '<div class="lo-tk'+(sel ? ' sel' : '')+'">'+bub+body+'</div>';
@@ -2042,7 +2009,8 @@
     // 2020, and on 2026-09-04 he never left the yard while Max ran his stops.
     // A truck the day has not shown us yet simply has no name on it.
     var TRUCK_DRIVERS = [
-      { match:'Darrin Truck', driver:'Darrin' }
+      { match:'Darrin Truck', driver:'Darrin' },
+      { match:'1500-JOSH', driver:'Josh' }   // Josh's pickup (on the map since 2026-11-02)
     ];
     // Today's GPS evidence first (buildTruckDrivers), the regular pairing until there is any.
     // Which trucks earn a card on the right. A truck that has not moved inside
@@ -2686,7 +2654,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-02-hq';
+    var TV_BUILD = '2026-11-02-hq2';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
@@ -2901,7 +2869,7 @@
       checkBriefing(); setInterval(checkBriefing, 60000);   // 9 AM spoken briefing
       loadWeather(); setInterval(loadWeather, 30*60*1000);
       // Today at HQ: a failure here only ever costs that one screen
-      try{ JJHQ.mount({ canvas:el('hqCanvas'), badges:el('hqBadges'), story:el('hqStory') }); _hqMounted = true; }
+      try{ JJHQ.mount({ canvas:el('hqCanvas') }); _hqMounted = true; }
       catch(e){ console.error('HQ mount failed', e); tvLog('hq-mount-failed', String(e && e.message || e)); }
       if(_hqMounted) await loadHQSafe();
       startRotation();
