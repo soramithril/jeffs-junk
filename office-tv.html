@@ -239,6 +239,29 @@
   .p-head{display:none}
   .p-body{flex:1 1 auto; min-height:0}
 
+  /* ── Today at HQ (screen 4): the pixel scene from app-hq.js, its team badges and
+     today's story. The canvas is 400x270 drawn pixel-for-pixel, so it is scaled up
+     with pixelated sampling to the full height of the stage. ── */
+  .panel[data-panel="hq"] .p-body{padding:0 40px; display:flex; gap:36px; align-items:stretch}
+  #hqCanvas{flex:0 0 auto; height:100%; aspect-ratio:400/270; border-radius:14px;
+    image-rendering:crisp-edges; image-rendering:pixelated; box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .hq-side{flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:20px}
+  .hq-side h3{margin:0; font:800 19px/1 Inter; letter-spacing:.24em; text-transform:uppercase; color:var(--gold-line)}
+  #hqBadges{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px}
+  .hq-badge{display:grid; justify-items:center; align-content:start; gap:6px; text-align:center; padding:12px 6px;
+    border-radius:14px; border:1px dashed rgba(237,225,185,.22); color:var(--muted)}
+  .hq-badge canvas{width:45px; height:45px; image-rendering:crisp-edges; image-rendering:pixelated; filter:grayscale(1); opacity:.35}
+  .hq-badge b{font:800 17px/1.1 Inter; color:#cfc6a6}
+  .hq-badge span{font:500 14px/1.2 Inter}
+  .hq-badge.got{border-style:solid; border-color:var(--gold); background:rgba(242,193,78,.12); color:var(--cream)}
+  .hq-badge.got canvas{filter:none; opacity:1}
+  .hq-badge.got b{color:var(--gold)}
+  #hqStory{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px}
+  #hqStory li{display:grid; grid-template-columns:110px minmax(0,1fr); gap:14px; font:600 22px/1.25 Inter; color:var(--cream)}
+  #hqStory time{color:var(--gold-line); font-variant-numeric:tabular-nums}
+  #hqStory li.badge span{color:var(--gold)}
+  #hqStory li.empty span{color:var(--muted)}
+
   /* ── Trucks: the map is the whole board ──────────────────────────────────
      The stage leaves the flow so it can cover all 1920x1080, and the header and
      footer float on top of it. Both get their own scrim: live imagery is not a
@@ -840,6 +863,19 @@
           </div></div>
         </section>
 
+        <!-- Screen 4 · Today at HQ: the pixel scene (app-hq.js) -->
+        <section class="panel" data-panel="hq">
+          <div class="p-head"><span class="bar"></span><h2>Today at HQ</h2>
+            <span class="tag" id="hqTag"></span></div>
+          <div class="p-body">
+            <canvas id="hqCanvas" width="400" height="270"></canvas>
+            <div class="hq-side">
+              <h3>Team badges today</h3><div id="hqBadges"></div>
+              <h3>Today so far</h3><ol id="hqStory"></ol>
+            </div>
+          </div>
+        </section>
+
         <!-- Once-a-lap truck wipe. Same artwork as the ambient #tvtruck, so it is
              already cached and costs no extra download. -->
         <div id="tvWipe" aria-hidden="true"><span class="rig"><img src="assets/tv-truck.png" alt=""></span></div>
@@ -863,6 +899,7 @@
   <div id="netdot"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app-hq.js?v=713"></script>
   <script>
   (function(){
     "use strict";
@@ -879,13 +916,15 @@
     // read in seconds, and holding the wall on it for two minutes was showing the same
     // picture over and over (Jake, 2026-09-09). One lap of the highlight is enough.
     // Everything else stays at ROTATE_MS.
-    var PANEL_MS   = { liveops: 30000 };
+    // Today at HQ replays the day in 14s, then holds on right now.
+    var PANEL_MS   = { liveops: 30000, hq: 25000 };
     function panelMs(name){ return PANEL_MS[name] || ROTATE_MS; }
     var REFRESH_MS = 900000;  // how often data is refetched (15 min — keeps Supabase egress low; panels still rotate every 20s so the board stays lively)
     // The weekly crew schedule came off the wall on 2026-09-06 (Jake: "we don't
     // need it anymore"). The data behind it still loads — workingTodayCount()
     // reads the same rows for the Operations screen.
-    var PANELS = ['bins','kpis','liveops'];
+    // 'hq' (Today at HQ, app-hq.js) drops out of the lap whenever its data is missing.
+    var PANELS = ['bins','kpis','liveops','hq'];
     // 92 Davidson St — home base. Re-geocoded 2026-09-05: the old point (44.3683,
     // -79.6831) was Tower Crescent, 4 km south, so every truck parked at the depot
     // counted as OUT — "5 of 5 out" all night, and the overview framed the depot
@@ -1060,7 +1099,7 @@
         // Not real Jeff's Junk jobs: quotes aren't jobs, landscaping is the JWG side.
         if(j.service==='Junk Quote' || j.service==='Extra Jobs') return;
         function mk(label, time, crewIds, kind, done){
-          out.push({ service:label, time:time||'', name:j.name, business_name:j.business_name,
+          out.push({ job_id:j.job_id, service:label, time:time||'', name:j.name, business_name:j.business_name,
                      address:j.address, city:j.city, crewIds:(crewIds||[]).filter(Boolean),
                      kind:kind||null, completed: !!done });
         }
@@ -1298,6 +1337,82 @@
         junkMonth: res[14].count||0, junkLastYear: res[15].count||0, junkLastYearToDate: res[19].count||0,
         furnMonth: res[16].count||0, furnLastYear: res[17].count||0, furnLastYearToDate: res[20].count||0
       };
+    }
+
+    // ── Today at HQ (screen 4) ──────────────────────────────────────────────
+    // Its own reads, kept apart from loadAll on purpose: if any of them fail, only
+    // the HQ screen drops out of the lap (DATA.hq goes null and nextPanel skips it).
+    // The three screens above never depend on it. Counts are count-only queries;
+    // the rest is today's rows, which are small (Supabase egress).
+    var _hqMounted = false;
+    async function loadHQ(){
+      var today = todayStr(), monday = mondayStr();
+      var tomorrow = ymd(new Date(parseLocal(today).getTime()+864e5));
+      var dayStartIso = parseLocal(today).toISOString();
+      var dayEndIso   = new Date(parseLocal(today).getTime()+864e5).toISOString();
+      var qfSince = ymd(new Date(parseLocal(today).getTime()-14*864e5));   // QF_FRESH_DAYS in app-quote-followup.js
+      var res = await Promise.all([
+        // entered today - the same rows as the dashboard's "Entered Today" card
+        db.from('jobs').select('service,city,status,created_at,email_sent,email_confirmed,no_email').gte('created_at',dayStartIso).lt('created_at',dayEndIso),
+        // jobs tomorrow, any leg, not counting quotes or landscaping (same exclusions as weekJobs)
+        db.from('jobs').select('*',{count:'exact',head:true})
+          .or('date.eq.'+tomorrow+',junk_date.eq.'+tomorrow+',fb_date.eq.'+tomorrow+',bin_dropoff.eq.'+tomorrow+',bin_pickup.eq.'+tomorrow)
+          .neq('status','Cancelled').neq('service','Junk Quote').neq('service','Extra Jobs'),
+        // junk quotes entered this week
+        db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Quote').gte('created_at',parseLocal(monday).toISOString()),
+        // quotes in the follow-up window, for the "due a call" count
+        db.from('jobs').select('status,date,junk_date,quote_outcome,quote_followed_up_at').eq('service','Junk Quote').or('junk_date.gte.'+qfSince+',date.gte.'+qfSince),
+        // when each zone saw a truck arrive and leave today, and which truck it was
+        db.from('geofence_notifications').select('job_id,status,created_at').gte('created_at',dayStartIso),
+        db.from('geofence_visits').select('device_id,job_id,entered_at,exited_at,inside').gte('entered_at',dayStartIso),
+        db.from('bin_items').select('status,rotation')
+      ]);
+      for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error('HQ: '+res[i].error.message); }
+      var bins = {ready:0, off:0};
+      (res[6].data||[]).forEach(function(b){
+        if(b.status==='in' && b.rotation==='active') bins.ready++;
+        if(b.rotation==='oor') bins.off++;
+      });
+      DATA.hq = { entered:res[0].data||[], tomorrow:res[1].count||0, quotesWeek:res[2].count||0,
+                  quotesDue:(res[3].data||[]).filter(function(q){ return qfDue(q, today, qfSince); }).length,
+                  notifs:res[4].data||[], visits:res[5].data||[], bins:bins };
+    }
+    // The dashboard's "due a call" rule (app-quote-followup.js _qfOpen/_qfDue: visited,
+    // no outcome, never chased or chased 3+ days ago, inside the 14-day window) -
+    // copied, because this page loads no app.js.
+    function qfDue(q, today, since){
+      var day = q.junk_date || q.date || '';
+      if(!day || day < since || day > today) return false;
+      if(q.quote_outcome || q.status === 'Cancelled') return false;
+      if(!q.quote_followed_up_at) return true;
+      var back = new Date(q.quote_followed_up_at); back.setDate(back.getDate()+3);
+      return ymd(back) <= today;
+    }
+    async function loadHQSafe(){
+      try{ await loadHQ(); }
+      catch(e){ console.error('HQ load failed', e); DATA.hq = null; tvLog('hq-load-failed', String(e && e.message || e)); }
+    }
+    // Everything app-hq.js draws, from what this page has already loaded.
+    function hqSnapshot(){
+      var h = DATA.hq, colorByName = {};
+      Object.keys(DATA.crewAll).forEach(function(id){ if(DATA.crewColor[id]) colorByName[DATA.crewAll[id]] = DATA.crewColor[id]; });
+      return {
+        now: Date.now(), dayStart: parseLocal(todayStr()).getTime(),
+        stops: DATA.jobs.map(function(e){ return { jobId:e.job_id, kind:e.kind, service:e.service, town:e.city, time:e.time,
+                                                   hasDriver:e.crewIds.length>0, done:e.completed }; }),
+        // yesterday's last ping is not today's news - same cut as the trucks rail
+        trucks: (DATA.trucks||[]).filter(function(t){ return !t.lastUpdate || Date.now()-Date.parse(t.lastUpdate) <= RAIL_STALE_MS; })
+                  .map(function(t){ return { id:t.id, driver:driverFor(t), state:truckState(t) }; }),
+        crewColor: colorByName, entered:h.entered, notifs:h.notifs, visits:h.visits, bins:h.bins,
+        counts: { tomorrow:h.tomorrow, week:(DATA.kpi||{}).weekJobs||0, quotesWeek:h.quotesWeek,
+                  quotesDue:h.quotesDue, binsOut:(DATA.kpi||{}).binsOut||0 },
+        wx: DATA.wxCode
+      };
+    }
+    function renderHQ(){
+      var n = JJHQ.badgeCount(), tag = el('hqTag');
+      tag.innerHTML = n ? '<span>'+n+'</span> team badge'+(n===1?'':'s') : '';
+      tag.style.display = n ? '' : 'none';
     }
 
     function workingTodayCount(){
@@ -2413,7 +2528,7 @@
 
     // Which element feeds the pill beside the wordmark, per screen. The renderers
     // stay the single source of that text; this only moves it into the lockup.
-    var PILL_SRC = { bins:'binsTag', kpis:'kpiMeta', liveops:'loTag' };
+    var PILL_SRC = { bins:'binsTag', kpis:'kpiMeta', liveops:'loTag', hq:'hqTag' };
     function syncLockup(){
       var name = PANELS[panelIdx];
       var panel = document.querySelector('.panel[data-panel="' + name + '"]');
@@ -2433,6 +2548,7 @@
       if(name==='bins') renderBins();
       else if(name==='kpis') renderKpis();
       else if(name==='liveops') renderLiveOps();
+      else if(name==='hq') renderHQ();
       // Copy the pill BEFORE the count-up: countUp zeroes the numbers it animates,
       // and a copy taken after it froze the pill at "0 of 0 done".
       syncLockup();
@@ -2462,6 +2578,9 @@
     function showPanel(i){
       panelIdx = (i+PANELS.length)%PANELS.length;
       var name = PANELS[panelIdx];
+      // Today at HQ animates only while it is the screen up
+      if(name === 'hq') JJHQ.show(hqSnapshot());
+      else if(_hqMounted) JJHQ.hide();
       renderCurrent();
       syncFooter();
       // the trucks screen runs the map full bleed; the other two do not
@@ -2497,7 +2616,11 @@
     // throws, the re-arm never runs and the wall freezes on one screen forever. The
     // old setInterval kept firing regardless; the chain has to match that.
     function nextPanel(){
-      try { showPanel(panelIdx+1); }
+      try {
+        var n = panelIdx+1;
+        if(PANELS[n % PANELS.length] === 'hq' && !DATA.hq) n++;   // HQ data missing - skip that screen this lap
+        showPanel(n);
+      }
       catch(e){ console.error('panel render failed', e); }
       finally { armRotation(); }
     }
@@ -2540,6 +2663,7 @@
         var w = await r.json();
         var cur = w.current||{}, d = w.daily||{};
         if(cur.temperature_2m==null) return;
+        DATA.wxCode = cur.weather_code;   // Today at HQ rains and snows when it really is
         el('wxI').textContent = WMO[cur.weather_code]||'🌡️';
         el('wxT').textContent = Math.round(cur.temperature_2m)+'°';
         el('wxHL').innerHTML = 'H '+Math.round((d.temperature_2m_max||[])[0])+'°<br>L '+Math.round((d.temperature_2m_min||[])[0])+'°';
@@ -2562,7 +2686,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-10-14b';
+    var TV_BUILD = '2026-11-02-hq';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
@@ -2776,6 +2900,10 @@
       tickClock(); setInterval(tickClock, 1000);
       checkBriefing(); setInterval(checkBriefing, 60000);   // 9 AM spoken briefing
       loadWeather(); setInterval(loadWeather, 30*60*1000);
+      // Today at HQ: a failure here only ever costs that one screen
+      try{ JJHQ.mount({ canvas:el('hqCanvas'), badges:el('hqBadges'), story:el('hqStory') }); _hqMounted = true; }
+      catch(e){ console.error('HQ mount failed', e); tvLog('hq-mount-failed', String(e && e.message || e)); }
+      if(_hqMounted) await loadHQSafe();
       startRotation();
       // Prime the pins so the map screen has trucks on it the first time it rotates in.
       if(!inQuietHours()) refreshTrucks();
@@ -2787,7 +2915,9 @@
         if(inQuietHours()) return;
         try{
           await ensureFreshSession();
-          await loadAll(); net(true); renderCurrent();
+          await loadAll(); net(true);
+          if(_hqMounted) await loadHQSafe();
+          renderCurrent();
         }catch(e){
           console.error('refresh failed', e); net(false);
           // one recovery attempt: force a fresh sign-in, then retry the load
