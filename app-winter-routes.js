@@ -306,7 +306,7 @@ window.WinterRoutes = (function(){
       var group = loc.winter_group || await suggestGroup(pt, W.locations.filter(function(l){ return l.id !== id; }), W.groups);
       await sbWrite(id, {lat: pt.lat, lng: pt.lng, winter_group: group});
       Object.assign(loc, {lat: pt.lat, lng: pt.lng, winter_group: group});
-      await renumberGroup(group, W.locations);
+      await renumberGroup(group, await JWG.freshWinterSites());
       JWG.toast('Pin placed · ' + groupOf(W, group).name);
     } catch(e){
       JWG.toast('Could not save the pin: ' + e.message, 'error');
