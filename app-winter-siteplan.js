@@ -35,10 +35,18 @@ window.WinterSitePlan = (function(){
           url: loc.photo_path ? await signedUrl(loc.photo_path) : null};
     var code = WinterRoutes.code(loc);
     var grp = JWG.WIN.groups.find(function(g){ return g.code === loc.winter_group; });
+    var run = JWG.WIN.locations.slice().sort(JWG.winterRouteSort);
+    var pos = run.findIndex(function(l){ return l.id === id; });
+    st.next = run[pos + 1] ? run[pos + 1].id : null;
     JWG.openModal('<div class="sp-wrap">'
       + '<div class="sp-head">' + (code ? '<span class="wr-code" style="background:' + grp.color + '">' + code + '</span>' : '')
       + '<div><div class="sp-addr">' + esc(loc.address) + '</div>'
-      + (loc.client_name && loc.client_name !== loc.address ? '<div class="sp-nick">Crew calls it ' + esc(loc.client_name) + '</div>' : '') + '</div></div>'
+      + (loc.client_name && loc.client_name !== loc.address ? '<div class="sp-nick">Crew calls it ' + esc(loc.client_name) + '</div>' : '') + '</div>'
+      + '<span class="sp-pos">' + (pos + 1) + ' of ' + run.length + '</span>'
+      // Save sits up here so the photo gets the height a bottom button row would take.
+      + '<div class="si-modal-actions"><button class="modal-done" id="sp-save">Save site plan</button>'
+      + (st.next ? '<button class="modal-done" id="sp-save-next">Save &amp; next →</button>' : '')
+      + '<button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button></div></div>'
       + '<div class="sp-tools">'
       + '<div class="sp-mode"><button type="button" data-mode="zone">Drop zones</button><button type="button" data-mode="walk">Sidewalks</button></div>'
       + '<label class="si-action-btn secondary sp-upload">Upload photo<input type="file" accept="image/*" id="sp-file" hidden></label>'
@@ -50,14 +58,14 @@ window.WinterSitePlan = (function(){
       + '</div>'
       + '<div class="sp-note" id="sp-note"></div>'
       + '<div class="sp-stage" id="sp-stage"></div>'
-      + '<div class="si-modal-actions"><button class="modal-done" id="sp-save">Save site plan</button><button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button></div>'
       + '</div>', null, true);
     document.querySelectorAll('.sp-mode button').forEach(function(b){ b.onclick = function(){ setMode(b.dataset.mode); }; });
     document.getElementById('sp-file').onchange = function(e){ if(e.target.files[0]) takePhoto(e.target.files[0]); };
     document.getElementById('sp-finish').onclick = finishWalk;
     document.getElementById('sp-del').onclick = deleteSelected;
     document.getElementById('sp-clear').onclick = function(){ st.marks = []; st.draft = null; st.sel = null; renderMarks(); };
-    document.getElementById('sp-save').onclick = save;
+    document.getElementById('sp-save').onclick = function(){ save(false); };
+    if(st.next) document.getElementById('sp-save-next').onclick = function(){ save(true); };
     document.addEventListener('paste', onPaste);
     document.addEventListener('keydown', onKey);
     setMode('zone');
@@ -111,7 +119,10 @@ window.WinterSitePlan = (function(){
       return;
     }
     stage.innerHTML = '<div class="sp-photo" id="sp-photo"><img src="' + st.url + '" alt="Aerial photo of ' + esc(st.loc.address) + '" draggable="false"></div>';
-    wirePhoto(document.getElementById('sp-photo'));
+    var ph = document.getElementById('sp-photo');
+    // The photo's shape lets the CSS grow it to fill the space without stretching.
+    ph.querySelector('img').onload = function(){ ph.style.setProperty('--ar', this.naturalWidth / this.naturalHeight); };
+    wirePhoto(ph);
     setMode(st.mode);
   }
 
@@ -253,10 +264,12 @@ window.WinterSitePlan = (function(){
     renderStage();
   }
 
-  async function save(){
+  // goNext: after saving, open the next site in route order in the same editor.
+  async function save(goNext){
     finishWalk();
-    var btn = document.getElementById('sp-save');
-    btn.disabled = true;
+    var btns = document.querySelectorAll('#sp-save,#sp-save-next');
+    btns.forEach(function(b){ b.disabled = true; });
+    var next = st.next;
     var loc = st.loc, oldPath = loc.photo_path, path = oldPath;
     var r4 = function(v){ return Math.round(v * 10000) / 10000; };
     try {
@@ -273,11 +286,12 @@ window.WinterSitePlan = (function(){
         var rm = await db.storage.from(BUCKET).remove([oldPath]);
         if(rm.error) console.warn('old site photo not removed', oldPath, rm.error.message);
       }
-      JWG.closeModal();
       JWG.toast('Site plan saved');
+      if(goNext){ await open(next); return; }
+      JWG.closeModal();
       await JWG.reloadWinter();
     } catch(e){
-      btn.disabled = false;
+      btns.forEach(function(b){ b.disabled = false; });
       JWG.toast('Could not save the site plan: ' + (e.message || e), 'error');
       throw e;
     }

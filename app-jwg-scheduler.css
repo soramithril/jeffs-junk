@@ -1412,9 +1412,13 @@
 #view-jwgscheduler .inv-td-name {font-size:14px;}
 #view-jwgscheduler .inv-row .card-actions, #view-jwgscheduler .win-row .card-actions, #view-jwgscheduler .sum-row .card-actions {flex-direction:row;justify-content:flex-end;}
 #view-jwgscheduler .sum-row .loc-services, #view-jwgscheduler .win-row .loc-services {margin-top:0;gap:4px;}
+#view-jwgscheduler .win-row button.service-badge {cursor:pointer;font-family:inherit;}
+#view-jwgscheduler .win-row .service-badge.svc-off {background:transparent;color:var(--fg-muted);border:1.5px dashed var(--border);opacity:.7;}
+#view-jwgscheduler .win-row .service-badge.svc-off:hover {opacity:1;}
 #view-jwgscheduler .inv-thumb {width:52px;height:52px;}
 #view-jwgscheduler .salt-inline {display:flex;align-items:center;gap:4px;white-space:nowrap;}
 @media print {
+#view-jwgscheduler .service-badge.svc-off {display:none !important;}
 #view-jwgscheduler #header, #view-jwgscheduler #mobile-nav, #view-jwgscheduler #fab, #view-jwgscheduler #scroll-top, #view-jwgscheduler #toast, #view-jwgscheduler #tooltip-el, #view-jwgscheduler #modal-overlay, #view-jwgscheduler .si-filter-bar, #view-jwgscheduler .si-actions, #view-jwgscheduler .card-actions, #view-jwgscheduler .loc-action-btn, #view-jwgscheduler .inv-action-btn, #view-jwgscheduler .si-header, #view-jwgscheduler .si-empty-sub, #view-jwgscheduler .sum-th-actions, #view-jwgscheduler .sum-cal-wrap, #view-jwgscheduler nav, #view-jwgscheduler .emp-badge, #view-jwgscheduler .user-section {display:none !important;}
 #view-jwgscheduler {background:white !important;padding:0;margin:0;font-size:11px;color:#000 !important;}
 #view-jwgscheduler * {box-shadow:none !important;text-shadow:none !important;}

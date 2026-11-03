@@ -23,9 +23,13 @@ window.WinterBook = (function(){
     var W = JWG.WIN;
     var count = function(c){ return W.locations.filter(function(l){ return l.winter_group === c && l.winter_stop; }).length; };
     var total = W.locations.filter(function(l){ return l.winter_group && l.winter_stop; }).length;
+    // A site without a code has no place in a run, so it has no page. Name them so
+    // the book never quietly drifts from the site list.
+    var missing = W.locations.filter(function(l){ return !(l.winter_group && l.winter_stop); });
     JWG.openModal('<div style="display:flex;flex-direction:column;gap:8px">'
       + '<h3 style="margin-bottom:6px">Print the winter book</h3>'
       + '<div style="font-size:13px;color:var(--fg-muted);margin-bottom:6px">One page per site, in route order. It opens in a new window to look over, with a Print button on top.</div>'
+      + (missing.length ? '<div style="font-size:13px;font-weight:600;color:#c2410c;margin-bottom:6px">Not in the book — no code yet: ' + missing.map(function(l){ return esc(l.client_name); }).join(', ') + '. Place the pin on the Route map or pick a group in Edit.</div>' : '')
       + '<button class="si-action-btn" onclick="WinterBook.print(null)">Whole book · ' + total + ' sites</button>'
       + W.groups.map(function(g){
           return '<button class="si-action-btn secondary wb-pick" onclick="WinterBook.print(\'' + g.code + '\')"><span class="wr-code" style="background:' + g.color + '">' + g.code + '</span> ' + esc(g.name) + ' · ' + count(g.code) + '</button>';

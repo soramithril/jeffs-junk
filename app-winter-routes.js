@@ -3,9 +3,10 @@
 //
 // Every winter site has a group (jwg_winter_groups: E, N, W, A, SB, SV) and a stop
 // number inside it. Its code is group + stop, e.g. SV-04, and that code is what the
-// printed book and the crew use. Codes follow the order the truck drives: whenever a
-// site joins a group, leaves it, moves on the map or is deleted, that group is put
-// back in driving order from the shop and renumbered (renumberGroup).
+// printed book and the crew use. Codes stay where the office puts them: a new site
+// slots in at the stop picked in the form, or at the spot that adds the least
+// driving, and only the sites after it move down one (placeInGroup). A site that
+// leaves a group closes its gap (closeGap). Nothing reshuffles a whole group.
 //
 // Drive times come from the free OSRM router as one table per job — the same
 // service the dispatch board uses. The map is Google's: only CREATING the map is
@@ -38,45 +39,53 @@ window.WinterRoutes = (function(){
     return json.durations;
   }
 
-  // Order stops 1..n of the table (0 is the shop) as one drive out from the shop:
-  // always go to the nearest stop left, then untangle crossings (2-opt). The drive
-  // from the shop counts, so the run starts where the truck naturally arrives.
-  function driveOrder(dur, n){
-    var left = [], route = [0];
-    for(var i = 1; i <= n; i++) left.push(i);
-    while(left.length){
-      var from = route[route.length - 1];
-      var next = left.reduce(function(a, b){ return dur[from][b] < dur[from][a] ? b : a; });
-      route.push(next);
-      left.splice(left.indexOf(next), 1);
+  // Where a site slots into a run with the least extra driving. dur is a drive
+  // table of [shop, the site, the run's stops in order]; returns 0 for "first",
+  // run length for "last".
+  function bestSlot(dur, runLength){
+    var best = 0, bestCost = Infinity;
+    for(var k = 0; k <= runLength; k++){
+      var prev = k === 0 ? 0 : k + 1;            // the shop, or the stop before
+      var next = k === runLength ? null : k + 2;  // the stop after, if any
+      var cost = dur[prev][1] + (next === null ? 0 : dur[1][next] - dur[prev][next]);
+      if(cost < bestCost){ bestCost = cost; best = k; }
     }
-    function cost(r){ var c = 0; for(var k = 0; k < r.length - 1; k++) c += dur[r[k]][r[k + 1]]; return c; }
-    var better = true;
-    while(better){
-      better = false;
-      for(var a = 1; a < route.length - 1; a++){
-        for(var b = a + 1; b < route.length; b++){
-          var r2 = route.slice(0, a).concat(route.slice(a, b + 1).reverse(), route.slice(b + 1));
-          if(cost(r2) < cost(route) - 1){ route = r2; better = true; }
-        }
-      }
-    }
-    return route.slice(1);
+    return best;
   }
 
-  // Put one group back in driving order and write the new stop numbers. Sites not
-  // on the map yet have no place in a run, so they carry no stop number.
-  async function renumberGroup(group, locations){
-    var members = locations.filter(function(l){ return l.winter_group === group && located(l); });
-    var unplaced = locations.filter(function(l){ return l.winter_group === group && !located(l) && l.winter_stop != null; });
-    var writes = unplaced.map(function(l){ return sbWrite(l.id, {winter_stop: null}); });
-    if(members.length){
-      var dur = await driveTable([SHOP].concat(members.map(function(l){ return {lat: l.lat, lng: l.lng}; })));
-      driveOrder(dur, members.length).forEach(function(idx, k){
-        var loc = members[idx - 1];
-        if(loc.winter_stop !== k + 1) writes.push(sbWrite(loc.id, {winter_stop: k + 1}));
-      });
+  // Put a site into its group's run without reshuffling anyone else: at stop
+  // `want`, or (want null) at the spot that adds the least driving. The sites after
+  // it move down one. Codes stay where the office put them (Jake, 2026-11-03).
+  async function placeInGroup(group, locations, site, want){
+    var run = runOf(group, locations, site.id);
+    var at;
+    if(want) at = Math.min(want, run.length + 1) - 1;
+    else {
+      var dur = await driveTable([SHOP, site].concat(run).map(function(l){ return {lat: l.lat, lng: l.lng}; }));
+      at = bestSlot(dur, run.length);
     }
+    run.splice(at, 0, site);
+    await writeStops(group, locations, run);
+  }
+
+  // A site left the group (moved, deleted, lost its pin): number the rest 1..n in
+  // the order they already had.
+  async function closeGap(group, locations){
+    await writeStops(group, locations, runOf(group, locations, null));
+  }
+
+  // The group's sites on the map, in their current order, leaving one out.
+  function runOf(group, locations, leaveOut){
+    return locations.filter(function(l){ return l.winter_group === group && l.id !== leaveOut && located(l); })
+      .sort(function(a, b){ return (a.winter_stop || 999) - (b.winter_stop || 999); });
+  }
+
+  // Number the run 1..n. Sites not on the map yet have no place in a run, so they
+  // carry no stop number.
+  async function writeStops(group, locations, run){
+    var writes = locations.filter(function(l){ return l.winter_group === group && !located(l) && l.winter_stop != null; })
+      .map(function(l){ return sbWrite(l.id, {winter_stop: null}); });
+    run.forEach(function(l, k){ if(l.winter_stop !== k + 1) writes.push(sbWrite(l.id, {winter_stop: k + 1})); });
     await Promise.all(writes);
   }
   function sbWrite(id, patch){
@@ -297,8 +306,8 @@ window.WinterRoutes = (function(){
     if(l) renderSide(l.side, l.W);
   }
 
-  // A pin placed or moved by hand: save the spot, give it a group if it has none,
-  // then renumber the group it sits in.
+  // A pin placed or moved by hand: save the spot, give it a group if it has none.
+  // A site that already has a stop keeps it; one without slots in at its best spot.
   async function placeSite(id, pt){
     var W = JWG.WIN;
     var loc = W.locations.find(function(l){ return l.id === id; });
@@ -306,7 +315,9 @@ window.WinterRoutes = (function(){
       var group = loc.winter_group || await suggestGroup(pt, W.locations.filter(function(l){ return l.id !== id; }), W.groups);
       await sbWrite(id, {lat: pt.lat, lng: pt.lng, winter_group: group});
       Object.assign(loc, {lat: pt.lat, lng: pt.lng, winter_group: group});
-      await renumberGroup(group, W.locations);
+      var locs = await JWG.freshWinterSites();
+      var site = locs.find(function(l){ return l.id === id; });
+      await placeInGroup(group, locs, site, site.winter_stop);
       JWG.toast('Pin placed · ' + groupOf(W, group).name);
     } catch(e){
       JWG.toast('Could not save the pin: ' + e.message, 'error');
@@ -316,5 +327,5 @@ window.WinterRoutes = (function(){
     }
   }
 
-  return {code: code, located: located, renumberGroup: renumberGroup, suggestGroup: suggestGroup, findAddress: findAddress, render: render};
+  return {code: code, located: located, placeInGroup: placeInGroup, closeGap: closeGap, bestSlot: bestSlot, suggestGroup: suggestGroup, findAddress: findAddress, render: render};
 })();
