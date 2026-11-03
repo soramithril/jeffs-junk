@@ -3375,7 +3375,7 @@ function clDesignsHtml(formerIds){
     </div>`;
   }).join("");
   return`<div class="cl-shelf">${cards}
-    <button class="cl-design cl-design-add" onclick="JWG.clOpenDesign('')"><span class="cl-plus">+</span><b>Add a design</b><span class="cl-muted">Snap a photo of it</span></button>
+    <button class="cl-design cl-design-add" onclick="JWG.clOpenDesign('')"><span class="cl-plus">+</span><b>Add a design</b><span class="cl-muted">Photo now or later</span></button>
   </div>`;
 }
 
@@ -3548,7 +3548,6 @@ async function clSaveDesign(){
   if(!ed.company){toast("Pick the company","error");return;}
   if(!ed.logo){toast("Pick Embroidered or Screen printed","error");return;}
   if(!ed.colour){toast("Pick a colour","error");return;}
-  if(!ed.id&&!ed.blob){toast("Add a photo of the design","error");return;}
   const btn=document.getElementById("cl-de-save");btn.disabled=true;
   const old=ed.id?clDesign(ed.id):null,oldPath=old?old.photo_path:null;
   try{
