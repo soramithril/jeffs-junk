@@ -1202,7 +1202,7 @@ sur('cropcircle',14000,NO_SNOW,function(p,t){var cx=560,cy=334,rings=Math.floor(
   if(p>.8){var ux=cx+(p-.8)/.2*120,uy=cy-20-(p-.8)/.2*60;rect(ctx,'#9aa3ad',ux,uy,10,2);rect(ctx,C.glass,ux+3,uy-2,4,2);}});
 sur('dustdevil',12000,ANY,function(p,t){var bx=DX+160+p*90,by=124;
   for(var i=0;i<26;i++){var lvl=i/26,a=t/80+i*1.7,r=2+lvl*9;rect(ctx,i%3?'#c9b38a':(SE.leaves?SE.leaves[i%4]:'#a8a294'),bx+Math.cos(a)*r,by-lvl*34+Math.sin(a)*2,2,1);}});
-sur('tubeman',14000,ANY,function(p,t){var x=DX+58,y=RT-30;
+sur('tubeman',14000,ANY,function(p,t){var x=BOARD_X-7,y=RT-31;   /* at the parking lot entrance */
   for(var s=0;s<7;s++){var off=Math.round(Math.sin(t/120+s*.8)*(s*.6));rect(ctx,s%2?C.red:'#e8590c',x+off,y+s*4,4,4);}
   var top=Math.round(Math.sin(t/120+5.6)*4);rect(ctx,C.gold,x+top,y-4,4,4);rect(ctx,C.ink,x+top+1,y-3,1,1);rect(ctx,C.ink,x+top+3,y-3,1,1);
   rect(ctx,C.red,x+top-4,y+2+Math.round(Math.sin(t/90)*3),4,1);rect(ctx,C.red,x+top+4,y+2-Math.round(Math.sin(t/90)*3),4,1);rect(ctx,'#3a3f47',x-2,y+28,8,2);});

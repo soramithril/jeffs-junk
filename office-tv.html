@@ -881,7 +881,7 @@
   <div id="netdot"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app-hq.js?v=717"></script>
+  <script src="app-hq.js?v=718"></script>
   <script>
   (function(){
     "use strict";
@@ -2671,7 +2671,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-03-hq5';
+    var TV_BUILD = '2026-11-03-hq6';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
