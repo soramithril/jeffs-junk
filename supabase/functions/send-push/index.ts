@@ -11,7 +11,12 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
-const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+// 2026-11-03: reads with the SB_SECRET_KEY secret, not the auto-injected
+// SUPABASE_SERVICE_ROLE_KEY - that one is the retired legacy key, refused since
+// 2026-11-02. Deployed with verify_jwt off: the dashboard calls this with the
+// publishable key (not a JWT) and the trigger/cron send no key at all; 'notify'
+// is locked by push_config.trigger_secret above, and 'public-key' is public anyway.
+const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SB_SECRET_KEY')!);
 
 const RECIPIENTS: Record<string, string[]> = {
   'quote-created': ['jeff@jeffwhitegroup.com'],
