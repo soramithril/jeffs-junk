@@ -3254,302 +3254,359 @@ const PRIO_CLASS={high:"ph",medium:"pm",low:"pl"};
 
 async function loadWorkshopTasks(){return sbF("GET","jwg_workshop_tasks?order=created_at.desc");}
 /* ===== clothing.js ===== */
-// ── CLOTHING.JS ──────────────────────────────────────────
-// Part of JWG Staff Scheduler
+// ── CLOTHING ─────────────────────────────────────────────
+// The design shelf (Jake picked mockup B, 2026-11-03). Every garment the shop hands out
+// is a DESIGN with a photo, taken once ("Hoodie, grey, back logo"); a handout is "this
+// design, to these people". Which company it is for is set on the design, so there is no
+// company switch on the page.
+// Sizes are kept per person PER KIND OF ITEM (Kevin is XL in tees, 2XL in hoodies). A
+// person's size for a kind is the size on their newest record of that kind, so there is
+// no size list to keep up. Prices are not shown or written: all 8 records were $0 and the
+// money side lives in QuickBooks.
 
 const CLOTHING_TYPES=["T-Shirt","Long Sleeve","Crewneck Sweater","Hoodie","Coat","Toque","Cap","Windbreaker"];
+const CLOTHING_SHORT={"T-Shirt":"tee","Long Sleeve":"long sleeve","Crewneck Sweater":"crewneck","Hoodie":"hoodie","Coat":"coat","Toque":"toque","Cap":"cap","Windbreaker":"windbreaker"};
 const CLOTHING_SIZES=["XS","S","M","L","XL","2XL","3XL","One Size"];
 const CLOTHING_COMPANIES=["Jeffs Junk","Jeff White Group"];
-const BADGE_CLASS={"T-Shirt":"cl-badge-tshirt","Long Sleeve":"cl-badge-longsleeve","Crewneck Sweater":"cl-badge-crewneck","Hoodie":"cl-badge-hoodie","Coat":"cl-badge-coat","Toque":"cl-badge-toque","Cap":"cl-badge-cap","Windbreaker":"cl-badge-windbreaker"};
-let CL={items:[],filter:"all",period:"all",company:"all",search:"",former:false};
+const CL_BUCKET="clothing-designs",CL_PHOTO_PX=1000;
+// ho = the open hand-out, ed = the design being added or changed
+let CL={items:[],designs:[],urls:{},tab:"designs",former:false,search:"",ho:null,ed:null};
 
 // People no longer here (removed on the Team page) keep every clothing record, but out of
 // sight unless asked for (Jake, 2026-10-06: "keep all the info ... hidden"). A record whose
 // person is gone from the roster altogether counts as former too.
 function clIsFormer(eid){const e=S.employees.find(x=>x.id===eid);return !e||e.hidden;}
+// esc() leaves quotes alone; design names and notes also go into attribute values.
+function clEsc(s){return esc(String(s==null?"":s)).replace(/"/g,"&quot;");}
+function clCoLabel(c){return c==="Jeffs Junk"?"Jeff's Junk":c;}
+function clDate(s){return new Date(s+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}
+function clDesign(id){const d=CL.designs.find(x=>x.id===id);if(!d)throw new Error("Unknown clothing design "+id);return d;}
+function clEmpName(eid){const e=S.employees.find(x=>x.id===eid);if(e)return e.name;const r=CL.items.find(i=>i.employee_id===eid);return r&&r.employees?r.employees.name:"Unknown";}
+// Newest first, so the first record of a kind holds the person's current size for it.
+function clSort(){CL.items.sort((a,b)=>b.date_given.localeCompare(a.date_given)||String(b.created_at).localeCompare(String(a.created_at)));}
+function clSizeFor(eid,type){const r=CL.items.find(i=>i.employee_id===eid&&i.item_type===type&&i.size);return r?r.size:"";}
+function clSizesOf(eid){const out={};CL.items.forEach(i=>{if(i.employee_id===eid&&i.size&&!out[i.item_type])out[i.item_type]=i.size;});return out;}
 
-async function loadClothingItems(){
-  const rows=await sbF("GET","jwg_employee_clothing?select=*,jwg_employees(name)&order=date_given.desc")||[];
-  // merged build embeds under the jwg_-prefixed key; normalise so the UI key (employees) works in both
-  rows.forEach(r=>{var je=r["jwg_employees"];if(!r.employees&&je)r.employees=je;});
-  return rows;
+// Crew groups in the Team page's order; anyone outside them goes last.
+function clGroups(emps){
+  const order=crewGroupOrder(),by={};
+  emps.forEach(e=>{const g=order.includes(e.group)?e.group:UNGROUPED;(by[g]=by[g]||[]).push(e);});
+  return [...order,UNGROUPED].filter(g=>by[g]).map(g=>({name:g,emps:by[g].sort((a,b)=>a.name.localeCompare(b.name))}));
 }
-async function saveClothingItem(data){return sbF("POST","jwg_employee_clothing",data);}
-async function updateClothingItem(id,data){return sbF("PATCH","jwg_employee_clothing?id=eq."+id,data);}
-async function deleteClothingItem(id){return sbF("DELETE","jwg_employee_clothing?id=eq."+id);}
+
+async function loadClothing(){
+  const [designs,items]=await Promise.all([
+    sbF("GET","jwg_clothing_designs?select=*&order=created_at"),
+    sbF("GET","jwg_employee_clothing?select=*,jwg_employees(name)")
+  ]);
+  // merged build embeds under the jwg_-prefixed key; normalise so the UI key (employees) works in both
+  items.forEach(r=>{var je=r["jwg_employees"];if(!r.employees&&je)r.employees=je;});
+  CL.designs=designs;CL.items=items;clSort();
+  const paths=designs.map(d=>d.photo_path).filter(p=>p&&!CL.urls[p]);
+  if(!paths.length)return;
+  const r=await db.storage.from(CL_BUCKET).createSignedUrls(paths,43200);
+  if(r.error)throw r.error;
+  r.data.forEach(x=>{if(x.error)throw new Error("Photo "+x.path+": "+x.error);CL.urls[x.path]=x.signedUrl;});
+}
+
+function clPhoto(d,size){
+  const cls="cl-ph"+(size?" "+size:"");
+  return d.photo_path
+    ?`<img class="${cls}" src="${CL.urls[d.photo_path]}" alt="${clEsc(d.name)}">`
+    :`<span class="${cls} none" title="${clEsc(d.name)}">${size==="xs"?"":"No photo"}</span>`;
+}
 
 function buildClothingPage(){
-  return`<div class="card"><div class="cl-wrap" id="cl-root"><div style="text-align:center;padding:40px;color:var(--fg-subtle)">Loading clothing records…</div></div></div>`;
+  return`<div class="card"><div class="cl-wrap" id="cl-root"><div style="text-align:center;padding:40px;color:var(--fg-subtle)">Loading clothing…</div></div></div>`;
 }
 
 async function initClothingPage(){
   try{
-    CL.items=await loadClothingItems()||[];
+    await loadClothing();
     renderClothingBoard();
   }catch(e){
     const root=document.getElementById("cl-root");
-    if(root)root.innerHTML=`<div style="color:#dc2626;padding:20px">Failed to load: ${e.message}</div>`;
+    if(root)root.innerHTML=`<div style="color:#dc2626;padding:20px">Failed to load: ${clEsc(e.message)}</div>`;
+    throw e;
   }
 }
 
-function clSetFilter(f){CL.filter=f;renderClothingBoard();}
+function clSetTab(t){CL.tab=t;renderClothingBoard();}
 function clToggleFormer(){CL.former=!CL.former;renderClothingBoard();}
-function clSetPeriod(p){CL.period=p;renderClothingBoard();}
-function clSetCompany(c){CL.company=c;renderClothingBoard();}
 function clSetSearch(v){CL.search=v;renderClothingBoard();const el=document.getElementById("cl-search");if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}}
-
-function clGetPeriodRange(period){
-  const now=new Date();
-  const y=now.getFullYear();
-  const m=now.getMonth();
-  if(period==="q1")return{start:`${y}-01-01`,end:`${y}-03-31`,label:"Q1 "+y};
-  if(period==="q2")return{start:`${y}-04-01`,end:`${y}-06-30`,label:"Q2 "+y};
-  if(period==="q3")return{start:`${y}-07-01`,end:`${y}-09-30`,label:"Q3 "+y};
-  if(period==="q4")return{start:`${y}-10-01`,end:`${y}-12-31`,label:"Q4 "+y};
-  if(period==="h1")return{start:`${y}-01-01`,end:`${y}-06-30`,label:"H1 "+y};
-  if(period==="h2")return{start:`${y}-07-01`,end:`${y}-12-31`,label:"H2 "+y};
-  if(period==="year")return{start:`${y}-01-01`,end:`${y}-12-31`,label:""+y};
-  if(period==="last-year"){const ly=y-1;return{start:`${ly}-01-01`,end:`${ly}-12-31`,label:""+ly};}
-  return null;
-}
 
 function renderClothingBoard(){
   const root=document.getElementById("cl-root");
   if(!root)return;
-
-  let items=[...CL.items];
-
-  // Former staff stay out of everything below (list and totals) until "Show former staff"
   const formerIds=new Set(CL.items.map(i=>i.employee_id).filter(clIsFormer));
-  if(!CL.former)items=items.filter(i=>!formerIds.has(i.employee_id));
-
-  // Filter by company
-  if(CL.company!=="all")items=items.filter(i=>(i.company||"Jeffs Junk")===CL.company);
-
-  // Filter by period
-  const range=clGetPeriodRange(CL.period);
-  if(range)items=items.filter(i=>i.date_given>=range.start&&i.date_given<=range.end);
-
-  // Filter by item type
-  if(CL.filter!=="all")items=items.filter(i=>i.item_type===CL.filter);
-
-  // Filter by employee name search
-  if(CL.search){const q=CL.search.toLowerCase();items=items.filter(i=>(i.employees?.name||"").toLowerCase().includes(q));}
-
-  // Summary stats
-  const totalItems=items.length;
-  const totalEmployeePrice=items.reduce((s,i)=>s+(+i.price||0),0);
-  const totalPurchaseCost=items.reduce((s,i)=>s+(+i.purchase_price||0),0);
-  const uniqueEmps=new Set(items.map(i=>i.employee_id)).size;
-
-  // Company stats
-  const jjItems=items.filter(i=>(i.company||"Jeffs Junk")==="Jeffs Junk");
-  const jwgItems=items.filter(i=>(i.company||"Jeffs Junk")==="Jeff White Group");
-  const jjCost=jjItems.reduce((s,i)=>s+(+i.purchase_price||0),0);
-  const jwgCost=jwgItems.reduce((s,i)=>s+(+i.purchase_price||0),0);
-
-  const types=["all",...CLOTHING_TYPES];
-  const periods=[
-    {v:"all",l:"All Time"},{v:"q1",l:"Q1"},{v:"q2",l:"Q2"},{v:"q3",l:"Q3"},{v:"q4",l:"Q4"},
-    {v:"h1",l:"H1"},{v:"h2",l:"H2"},{v:"year",l:"This Year"},{v:"last-year",l:"Last Year"}
-  ];
-
-  // Group items by employee
-  const grouped={};
-  items.forEach(i=>{
-    const eid=i.employee_id;
-    if(!grouped[eid])grouped[eid]={name:i.employees?.name||"Unknown",former:formerIds.has(eid),items:[]};
-    grouped[eid].items.push(i);
-  });
-  const empList=Object.entries(grouped).sort((a,b)=>a[1].name.localeCompare(b[1].name));
-
-  // Build employee cards
-  let cards="";
-  empList.forEach(([eid,emp],idx)=>{
-    const grpClass=(idx%2===0?"cl-group-a":"cl-group-b")+(emp.former?" cl-former":"");
-    const empTotal=emp.items.reduce((s,i)=>s+(+i.price||0),0);
-    const empPurchase=emp.items.reduce((s,i)=>s+(+i.purchase_price||0),0);
-    const empJJ=emp.items.filter(i=>(i.company||"Jeffs Junk")==="Jeffs Junk");
-    const empJWG=emp.items.filter(i=>(i.company||"Jeffs Junk")==="Jeff White Group");
-    const empJJCost=empJJ.reduce((s,i)=>s+(+i.purchase_price||0),0);
-    const empJWGCost=empJWG.reduce((s,i)=>s+(+i.purchase_price||0),0);
-    let itemRows="";
-    emp.items.forEach(i=>{
-      const d=i.date_given?new Date(i.date_given+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"—";
-      const co=i.company||"Jeffs Junk";
-      const coBadge=co==="Jeff White Group"?`<span class="cl-co-badge jwg">JWG</span>`:`<span class="cl-co-badge jj">JJ</span>`;
-      itemRows+=`<tr class="${grpClass}">
-        <td><span class="cl-item-badge ${BADGE_CLASS[i.item_type]||''}">${esc(i.item_type)}</span></td>
-        <td><span class="cl-size">${esc(i.size||"—")}</span></td>
-        <td><span class="cl-price">$${(+i.price||0).toFixed(2)}</span></td>
-        <td><span class="cl-price" style="color:var(--fg-muted)">$${(+i.purchase_price||0).toFixed(2)}</span></td>
-        <td>${coBadge}</td>
-        <td>${d}</td>
-        <td style="font-size:12px;color:var(--fg-muted)">${esc(i.notes||"")}</td>
-        <td><div class="cl-actions">
-          <button class="cl-act-btn" onclick="JWG.clOpenEdit('${i.id}')">Edit</button>
-          <button class="cl-act-btn del" onclick="JWG.clDelete('${i.id}')">Remove</button>
-        </div></td>
-      </tr>`;
-    });
-    const coParts=[];
-    if(empJJ.length)coParts.push(`<span class="cl-co-badge jj" style="font-size:10px;padding:1px 5px;vertical-align:middle">JJ</span> $${empJJCost.toFixed(2)}`);
-    if(empJWG.length)coParts.push(`<span class="cl-co-badge jwg" style="font-size:10px;padding:1px 5px;vertical-align:middle">JWG</span> $${empJWGCost.toFixed(2)}`);
-    cards+=`<tr class="cl-emp-header ${grpClass}">
-      <td colspan="8">
-        <span class="cl-emp-name">${esc(emp.name)}</span>${emp.former?`<span class="cl-former-tag">Former staff</span>`:""}
-        <span class="cl-emp-count">${emp.items.length} item${emp.items.length!==1?"s":""} · Staff: $${empTotal.toFixed(2)} · Our cost: $${empPurchase.toFixed(2)}${coParts.length?" · "+coParts.join(" · "):""}</span>
-      </td>
-    </tr>${itemRows}`;
-  });
-
-  const periodLabel=range?range.label:"All Time";
-
   root.innerHTML=`
     <div class="cl-header">
-      <div class="cl-title">Employee Clothing <span>Track what's been given out</span></div>
-      <button class="cl-add-btn" onclick="JWG.clOpenAdd()">Give item</button>
+      <div class="cl-title">Clothing</div>
+      ${formerIds.size?`<button class="cl-link" onclick="JWG.clToggleFormer()">${CL.former?"Hide":"Show"} former staff (${formerIds.size})</button>`:""}
     </div>
-    <div class="cl-summary">
-      <div class="cl-stat"><div class="cl-stat-val">${totalItems}</div><div class="cl-stat-lbl">Items (${periodLabel})</div></div>
-      <div class="cl-stat"><div class="cl-stat-val">$${totalEmployeePrice.toFixed(2)}</div><div class="cl-stat-lbl">Staff value</div></div>
-      <div class="cl-stat"><div class="cl-stat-val" style="color:#dc2626">$${totalPurchaseCost.toFixed(2)}</div><div class="cl-stat-lbl">Our cost</div></div>
-      <div class="cl-stat"><div class="cl-stat-val">${uniqueEmps}</div><div class="cl-stat-lbl">Employees</div></div>
-      <div class="cl-stat"><div class="cl-stat-val" style="font-size:16px">$${jjCost.toFixed(2)} <span style="font-size:11px;color:var(--fg-muted)">(${jjItems.length})</span></div><div class="cl-stat-lbl">Jeff's Junk cost</div></div>
-      <div class="cl-stat"><div class="cl-stat-val" style="font-size:16px">$${jwgCost.toFixed(2)} <span style="font-size:11px;color:var(--fg-muted)">(${jwgItems.length})</span></div><div class="cl-stat-lbl">Jeff White Group cost</div></div>
+    <div class="cl-tabs">
+      <button class="${CL.tab==="designs"?"on":""}" onclick="JWG.clSetTab('designs')">Designs</button>
+      <button class="${CL.tab==="people"?"on":""}" onclick="JWG.clSetTab('people')">People</button>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px">
-      <input id="cl-search" class="si-filter-input" placeholder="Search by name…" value="${esc(CL.search||"")}" oninput="JWG.clSetSearch(this.value)" style="max-width:240px">
-      <select class="si-filter-select" onchange="JWG.clSetPeriod(this.value)">${periods.map(p=>`<option value="${p.v}"${CL.period===p.v?" selected":""}>${p.l}</option>`).join("")}</select>
-      <select class="si-filter-select" onchange="JWG.clSetFilter(this.value)">${types.map(t=>`<option value="${esc(t)}"${CL.filter===t?" selected":""}>${t==="all"?"All items":t}</option>`).join("")}</select>
-      <select class="si-filter-select" onchange="JWG.clSetCompany(this.value)"><option value="all"${CL.company==="all"?" selected":""}>Both companies</option>${CLOTHING_COMPANIES.map(c=>`<option value="${esc(c)}"${CL.company===c?" selected":""}>${c}</option>`).join("")}</select>
-      ${formerIds.size?`<button class="cl-act-btn" onclick="JWG.clToggleFormer()">${CL.former?"Hide":"Show"} former staff (${formerIds.size})</button>`:""}
-    </div>
-    ${empList.length?`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 8px">Showing ${items.length} of ${CL.items.length} item${CL.items.length!==1?"s":""}</div><div class="cl-table-wrap"><table class="cl-table">
-      <thead><tr>
-        <th>Item</th>
-        <th>Size</th>
-        <th>Staff pays</th>
-        <th>Our cost</th>
-        <th>Company</th>
-        <th>Date Given</th>
-        <th>Notes</th>
-        <th>Actions</th>
-      </tr></thead>
-      <tbody>${cards}</tbody>
-    </table></div>`:`<div class="cl-empty"><div class="cl-empty-icon">👕</div>${CL.search||CL.filter!=="all"||CL.company!=="all"||CL.period!=="all"?"No matching clothing records.":`No clothing records yet. Click "Give item" to get started.`}</div>`}`;
+    ${CL.tab==="designs"?clDesignsHtml(formerIds):clPeopleHtml(formerIds)}`;
 }
 
-function clOpenAdd(){clOpenForm(null);}
-function clOpenEdit(id){clOpenForm(id);}
-
-function clOpenForm(id){
-  const item=id?CL.items.find(x=>x.id===id):null;
-  // New items only go to people still here. Editing a former person's old record keeps them
-  // in the list, marked, so the record does not silently move to someone else.
-  const pick=visEmps().slice();
-  if(item&&!pick.some(e=>e.id===item.employee_id)){const f=S.employees.find(e=>e.id===item.employee_id);if(f)pick.push(f);}
-  const empOpts=pick.map(e=>`<option value="${e.id}"${item&&item.employee_id===e.id?" selected":""}>${esc(e.name)}${e.hidden?" (former)":""}</option>`).join("");
-  const typeOpts=CLOTHING_TYPES.map(t=>`<option value="${t}"${item&&item.item_type===t?" selected":""}>${t}</option>`).join("");
-  const sizeOpts=CLOTHING_SIZES.map(s=>`<option value="${s}"${item&&item.size===s?" selected":""}>${s}</option>`).join("");
-  const companyOpts=CLOTHING_COMPANIES.map(c=>`<option value="${c}"${item&&item.company===c?" selected":""}>${c}</option>`).join("");
-  const today=localDateStr(new Date());
-
-  const h=`
-    <div class="modal-title">${item?"Edit Clothing Item":"Add Clothing Item"}</div>
-    <div class="modal-sub">${item?"Update the details below.":"Record a clothing item given to an employee."}</div>
-    <div class="cl-form-row">
-      <div class="cl-form-label">Employee *</div>
-      <select class="cl-select" id="cl_emp">${empOpts}</select>
-    </div>
-    <div class="cl-form-row">
-      <div class="cl-form-label">Company *</div>
-      <select class="cl-select" id="cl_company">${companyOpts}</select>
-    </div>
-    <div class="cl-form-grid">
-      <div class="cl-form-row">
-        <div class="cl-form-label">Item Type *</div>
-        <select class="cl-select" id="cl_type">${typeOpts}</select>
-      </div>
-      <div class="cl-form-row">
-        <div class="cl-form-label">Size</div>
-        <select class="cl-select" id="cl_size"><option value="">—</option>${sizeOpts}</select>
-      </div>
-    </div>
-    ${item?"":`<div class="cl-form-row">
-      <div class="cl-form-label">Quantity <span style="opacity:.5;font-weight:400;text-transform:none">add several of the same item at once</span></div>
-      <input class="cl-input" type="number" min="1" max="50" step="1" id="cl_qty" value="1">
-    </div>`}
-    <div class="cl-form-grid">
-      <div class="cl-form-row">
-        <div class="cl-form-label">Employee Price ($) <span style="opacity:.5;font-weight:400;text-transform:none">what they "pay"</span></div>
-        <input class="cl-input" type="number" step="0.01" min="0" id="cl_price" placeholder="0.00" value="${item?((+item.price)||""):""}">
-      </div>
-      <div class="cl-form-row">
-        <div class="cl-form-label">Purchase Cost ($) <span style="opacity:.5;font-weight:400;text-transform:none">what we actually paid</span></div>
-        <input class="cl-input" type="number" step="0.01" min="0" id="cl_purchase" placeholder="0.00" value="${item?((+item.purchase_price)||""):""}">
-      </div>
-    </div>
-    <div class="cl-form-row">
-      <div class="cl-form-label">Date Given</div>
-      <input class="cl-input" type="date" id="cl_date" value="${item?.date_given||today}">
-    </div>
-    <div class="cl-form-row">
-      <div class="cl-form-label">Notes <span style="opacity:.5;font-weight:400;text-transform:none">(optional)</span></div>
-      <input class="cl-input" id="cl_notes" placeholder="Any extra details…" value="${esc(item?.notes||"")}">
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-      <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
-      <button class="modal-done" onclick="JWG.clSaveForm('${id||""}')">${item?"Save changes":"Give item"}</button>
+// ── Designs tab: the shelf ──
+function clDesignsHtml(formerIds){
+  const cards=CL.designs.map(d=>{
+    const who={};
+    CL.items.forEach(i=>{if(i.design_id!==d.id||(!CL.former&&formerIds.has(i.employee_id)))return;const n=clEmpName(i.employee_id);who[n]=(who[n]||0)+1;});
+    const names=Object.keys(who).sort().map(n=>clEsc(n)+(who[n]>1?" ×"+who[n]:"")).join(", ");
+    return`<div class="cl-design">
+      <button class="cl-design-photo" onclick="JWG.clOpenDesign('${d.id}')" title="Change this design">${clPhoto(d)}</button>
+      <div class="cl-design-name">${clEsc(d.name)}</div>
+      <span class="cl-co ${d.company==="Jeff White Group"?"jwg":"jj"}">${clCoLabel(d.company)}</span>
+      <div class="cl-design-who">${names||`<span class="cl-muted">Nobody yet</span>`}</div>
+      <button class="cl-btn primary" onclick="JWG.clOpenHandout('${d.id}')">Hand out</button>
     </div>`;
-  openModal(h,"480px");
+  }).join("");
+  return`<div class="cl-shelf">${cards}
+    <button class="cl-design cl-design-add" onclick="JWG.clOpenDesign('')"><span class="cl-plus">+</span><b>Add a design</b><span class="cl-muted">Snap a photo of it</span></button>
+  </div>`;
 }
 
-async function clSaveForm(id){
-  const emp=document.getElementById("cl_emp")?.value;
-  const type=document.getElementById("cl_type")?.value;
-  const company=document.getElementById("cl_company")?.value;
-  if(!emp){toast("Select an employee","error");return;}
-  if(!type){toast("Select an item type","error");return;}
-  if(!company){toast("Select a company","error");return;}
-  const data={
-    employee_id:emp,
-    item_type:type,
-    size:document.getElementById("cl_size")?.value||"",
-    price:parseFloat(document.getElementById("cl_price")?.value)||0,
-    purchase_price:parseFloat(document.getElementById("cl_purchase")?.value)||0,
-    company:company,
-    date_given:document.getElementById("cl_date")?.value||localDateStr(new Date()),
-    notes:document.getElementById("cl_notes")?.value.trim()||"",
-  };
+// ── People tab: sizes and what each person has ──
+function clPeopleHtml(formerIds){
+  const q=CL.search.toLowerCase(),match=n=>!q||n.toLowerCase().includes(q);
+  const groups=clGroups(visEmps().filter(e=>match(e.name)));
+  if(CL.former){
+    const fm=[...formerIds].map(id=>({id,name:clEmpName(id)})).filter(e=>match(e.name)).sort((a,b)=>a.name.localeCompare(b.name));
+    if(fm.length)groups.push({name:"Former staff",emps:fm,former:true});
+  }
+  const body=groups.map(g=>`<div class="cl-group-lbl">${clEsc(g.name)}</div><div class="cl-people">${g.emps.map(e=>clPersonCard(e,g.former)).join("")}</div>`).join("");
+  return`<input id="cl-search" class="cl-input cl-search" placeholder="Find a person…" value="${clEsc(CL.search)}" oninput="JWG.clSetSearch(this.value)">
+    ${body||`<div class="cl-empty">Nobody matches.</div>`}`;
+}
+
+function clPersonCard(e,former){
+  const sizes=clSizesOf(e.id);
+  const sz=Object.keys(sizes).sort((a,b)=>CLOTHING_TYPES.indexOf(a)-CLOTHING_TYPES.indexOf(b))
+    .map(t=>`<span><b>${CLOTHING_SHORT[t]}</b> ${clEsc(sizes[t])}</span>`).join("");
+  const per={};CL.items.forEach(i=>{if(i.employee_id===e.id)per[i.design_id]=(per[i.design_id]||0)+1;});
+  const thumbs=Object.keys(per).map(id=>`<span class="cl-thumb">${clPhoto(clDesign(id),"xs")}${per[id]>1?`<i>${per[id]}</i>`:""}</span>`).join("");
+  return`<button class="cl-person${thumbs?"":" empty"}" onclick="JWG.clOpenPerson('${e.id}')">
+    <span class="cl-person-name">${clEsc(e.name)}${former?` <span class="cl-former-tag">Former</span>`:""}</span>
+    <span class="cl-sizes">${sz||`<span class="cl-muted">No sizes yet</span>`}</span>
+    <span class="cl-thumbs">${thumbs||`<span class="cl-muted">Nothing yet</span>`}</span>
+  </button>`;
+}
+
+// ── Hand out one design to several people ──
+function clOpenHandout(did){
+  clDesign(did);
+  CL.ho={did,picked:{},q:"",date:localDateStr(new Date())};
+  openModal(clHandoutHtml(),"560px");
+}
+function clHoGroups(){const q=CL.ho.q.toLowerCase();return clGroups(visEmps().filter(e=>!q||e.name.toLowerCase().includes(q)));}
+function clHandoutHtml(){
+  const h=CL.ho,d=clDesign(h.did),n=Object.keys(h.picked).length;
+  const list=clHoGroups().map((g,gi)=>{
+    const all=g.emps.every(e=>e.id in h.picked);
+    return`<div class="cl-ho-group"><span class="cl-group-lbl">${clEsc(g.name)}</span><button class="cl-link" onclick="JWG.clHoTickGroup(${gi})">${all?"Untick all":"Tick all "+g.emps.length}</button></div>`
+      +g.emps.map(e=>clHoRow(e,d)).join("");
+  }).join("");
+  return`<div class="cl-ho-head">${clPhoto(d,"sm")}<div><div class="modal-title" style="margin:0">${clEsc(d.name)}</div><div class="cl-muted">${clCoLabel(d.company)}</div></div></div>
+    <div class="cl-ho-bar">
+      <input id="cl-ho-q" class="cl-input" placeholder="Find a person…" value="${clEsc(h.q)}" oninput="JWG.clHoSearch(this.value)">
+      <label class="cl-ho-date">Given <input type="date" class="cl-input" value="${h.date}" onchange="JWG.clHoDate(this.value)"></label>
+    </div>
+    <div class="cl-ho-list">${list||`<div class="cl-empty">Nobody matches.</div>`}</div>
+    <div class="cl-foot">
+      <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
+      <button class="modal-done" id="cl-ho-save" ${n?"":"disabled"} onclick="JWG.clHoSave()">${n?`Give to ${n} ${n===1?"person":"people"}`:"Tick who gets one"}</button>
+    </div>`;
+}
+function clHoRow(e,d){
+  const on=e.id in CL.ho.picked,known=clSizeFor(e.id,d.item_type),size=on?CL.ho.picked[e.id]:known;
+  const has=CL.items.filter(i=>i.employee_id===e.id&&i.design_id===d.id).length;
+  // No size for this kind yet: show one of their other sizes as a hint, never as the answer.
+  let hint="";
+  if(!known){const s=clSizesOf(e.id),t=Object.keys(s)[0];if(t)hint=CLOTHING_SHORT[t]+" "+s[t];}
+  const picker=on?`<div class="cl-ho-sizes">${CLOTHING_SIZES.map(s=>`<button class="${s===size?"on":""}" onclick="JWG.clHoSize('${e.id}','${s}')">${s}</button>`).join("")}</div>`:"";
+  return`<div class="cl-ho-row${on?" on":""}">
+    <label><input type="checkbox" ${on?"checked":""} onchange="JWG.clHoTick('${e.id}')">
+      <span class="cl-ho-name">${clEsc(e.name)}</span>
+      ${has?`<span class="cl-has">has ${has}</span>`:""}
+      ${hint?`<span class="cl-muted">${clEsc(hint)}</span>`:""}
+      <span class="cl-size${size?"":" unknown"}">${size?clEsc(size):CLOTHING_SHORT[d.item_type]+" ?"}</span>
+    </label>${picker}</div>`;
+}
+function clHoRender(){updateModal(clHandoutHtml());}
+function clHoTick(eid){
+  const h=CL.ho;
+  if(eid in h.picked)delete h.picked[eid];else h.picked[eid]=clSizeFor(eid,clDesign(h.did).item_type);
+  clHoRender();
+}
+function clHoTickGroup(gi){
+  const h=CL.ho,g=clHoGroups()[gi],type=clDesign(h.did).item_type;
+  if(g.emps.every(e=>e.id in h.picked))g.emps.forEach(e=>{delete h.picked[e.id];});
+  else g.emps.forEach(e=>{if(!(e.id in h.picked))h.picked[e.id]=clSizeFor(e.id,type);});
+  clHoRender();
+}
+function clHoSize(eid,s){CL.ho.picked[eid]=s;clHoRender();}
+function clHoDate(v){CL.ho.date=v;}
+function clHoSearch(v){
+  CL.ho.q=v;clHoRender();
+  const el=document.getElementById("cl-ho-q");if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}
+}
+async function clHoSave(){
+  const h=CL.ho,d=clDesign(h.did),ids=Object.keys(h.picked);
+  const missing=ids.filter(id=>!h.picked[id]).map(clEmpName);
+  if(missing.length){toast("Pick a size for "+clEsc(missing.join(", ")),"error");return;}
+  if(!h.date){toast("Pick the date it was given","error");return;}
+  const btn=document.getElementById("cl-ho-save");btn.disabled=true;
   try{
-    const qty=id?1:Math.max(1,Math.min(50,parseInt(document.getElementById("cl_qty")?.value,10)||1));
-    if(id){
-      await updateClothingItem(id,data);
-      const idx=CL.items.findIndex(x=>x.id===id);
-      if(idx>=0){
-        const empObj=S.employees.find(e=>e.id===data.employee_id);
-        CL.items[idx]={...CL.items[idx],...data,employees:{name:empObj?.name||"Unknown"}};
-      }
-    }else{
-      const body=qty>1?Array.from({length:qty},()=>({...data})):data;
-      const created=await saveClothingItem(body);
-      const empObj=S.employees.find(e=>e.id===data.employee_id);
-      (Array.isArray(created)?created:[created]).forEach(c=>{c.employees={name:empObj?.name||"Unknown"};CL.items.unshift(c);});
-    }
-    closeModal();renderClothingBoard();toast(id?"Item updated":(qty>1?qty+" items added":"Item added"));
-  }catch(e){toast(e.message,"error");}
+    const created=await sbF("POST","jwg_employee_clothing",ids.map(id=>({employee_id:id,design_id:d.id,item_type:d.item_type,company:d.company,size:h.picked[id],date_given:h.date})));
+    created.forEach(c=>{c.employees={name:clEmpName(c.employee_id)};CL.items.push(c);});
+    clSort();closeModal();renderClothingBoard();
+    toast(`${clEsc(d.name)} given to ${ids.length} ${ids.length===1?"person":"people"}`);
+  }catch(e){btn.disabled=false;toast(clEsc(e.message),"error");throw e;}
 }
 
+// ── Add or change a design ──
+function clOpenDesign(id){
+  const d=id?clDesign(id):null;
+  CL.ed={id,blob:null,type:d?d.item_type:"",company:d?d.company:""};
+  const used=d?CL.items.filter(i=>i.design_id===d.id).length:0;
+  const photo=d&&d.photo_path?CL.urls[d.photo_path]:"";
+  openModal(`<div class="modal-title">${d?"Change design":"New design"}</div>
+    <div class="cl-de">
+      <label class="cl-de-photo">
+        <img id="cl-de-img" src="${photo}" alt="" ${photo?"":"hidden"}>
+        <span id="cl-de-snap" ${photo?"hidden":""}>Snap or pick a photo</span>
+        <span class="cl-de-retake">${photo?"Change photo":"Add photo"}</span>
+        <input type="file" accept="image/*" hidden onchange="JWG.clEdPhoto(this.files[0])">
+      </label>
+      <div class="cl-de-fields">
+        <div class="cl-form-label">Name it</div>
+        <input id="cl-de-name" class="cl-input" placeholder="e.g. Hoodie, grey, big back logo" value="${d?clEsc(d.name):""}">
+        <div class="cl-form-label">Type</div>
+        <div class="cl-chips">${CLOTHING_TYPES.map(t=>`<button type="button" class="${t===CL.ed.type?"on":""}" onclick="JWG.clEdPick(this,'type','${t}')">${t}</button>`).join("")}</div>
+        <div class="cl-form-label">Company</div>
+        <div class="cl-chips">${CLOTHING_COMPANIES.map(c=>`<button type="button" class="${c===CL.ed.company?"on":""}" onclick="JWG.clEdPick(this,'company','${c}')">${clCoLabel(c)}</button>`).join("")}</div>
+      </div>
+    </div>
+    ${used?`<div class="cl-muted" style="margin-top:12px">Given out ${used} time${used===1?"":"s"}. A change shows on all of them.</div>`:""}
+    <div class="cl-foot">
+      ${d&&!used?`<button class="cl-btn del" onclick="JWG.clDeleteDesign('${d.id}')">Delete design</button>`:"<span></span>"}
+      <div class="cl-foot-r"><button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button><button class="modal-done" id="cl-de-save" onclick="JWG.clSaveDesign()">Save design</button></div>
+    </div>`,"560px");
+}
+function clEdPick(btn,key,val){CL.ed[key]=val;btn.parentNode.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b===btn));}
+// Shrink the photo on the device before upload, like the winter site plans do.
+async function clEdPhoto(file){
+  if(!file)return;
+  try{
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error("That file is not a picture the browser can read"));i.src=URL.createObjectURL(file);});
+    const scale=Math.min(1,CL_PHOTO_PX/Math.max(img.naturalWidth,img.naturalHeight));
+    const c=document.createElement("canvas");
+    c.width=Math.round(img.naturalWidth*scale);c.height=Math.round(img.naturalHeight*scale);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    URL.revokeObjectURL(img.src);
+    CL.ed.blob=await new Promise(res=>c.toBlob(res,"image/jpeg",.85));
+    const el=document.getElementById("cl-de-img");el.src=URL.createObjectURL(CL.ed.blob);el.hidden=false;
+    document.getElementById("cl-de-snap").hidden=true;
+  }catch(e){toast(clEsc(e.message),"error");throw e;}
+}
+async function clSaveDesign(){
+  const ed=CL.ed,name=document.getElementById("cl-de-name").value.trim();
+  if(!name){toast("Give the design a name","error");return;}
+  if(!ed.type){toast("Pick what kind of item it is","error");return;}
+  if(!ed.company){toast("Pick the company","error");return;}
+  if(!ed.id&&!ed.blob){toast("Add a photo of the design","error");return;}
+  const btn=document.getElementById("cl-de-save");btn.disabled=true;
+  const old=ed.id?clDesign(ed.id):null,oldPath=old?old.photo_path:null;
+  try{
+    let path=oldPath;
+    if(ed.blob){
+      path="designs/"+Date.now()+".jpg";
+      const up=await db.storage.from(CL_BUCKET).upload(path,ed.blob,{contentType:"image/jpeg"});
+      if(up.error)throw up.error;
+      CL.urls[path]=URL.createObjectURL(ed.blob);
+    }
+    const data={name,item_type:ed.type,company:ed.company,photo_path:path};
+    if(old){
+      await sbF("PATCH","jwg_clothing_designs?id=eq."+old.id,data);
+      // Records carry the design's kind and company too, so sizes-per-kind stay right.
+      if(old.item_type!==ed.type||old.company!==ed.company){
+        await sbF("PATCH","jwg_employee_clothing?design_id=eq."+old.id,{item_type:ed.type,company:ed.company});
+        CL.items.forEach(i=>{if(i.design_id===old.id){i.item_type=ed.type;i.company=ed.company;}});
+      }
+      Object.assign(old,data);
+      if(ed.blob&&oldPath){const rm=await db.storage.from(CL_BUCKET).remove([oldPath]);if(rm.error)console.warn("old clothing photo not removed",oldPath,rm.error.message);}
+    }else{
+      const created=await sbF("POST","jwg_clothing_designs",data);
+      CL.designs.push(created[0]);
+    }
+    closeModal();renderClothingBoard();toast(old?"Design saved":"Design added");
+  }catch(e){btn.disabled=false;toast("Could not save the design: "+clEsc(e.message),"error");throw e;}
+}
+async function clDeleteDesign(id){
+  const d=clDesign(id);
+  if(!(await jwgConfirm({title:"Delete design",target:d.name,confirmLabel:"Delete"})))return;
+  try{
+    await sbF("DELETE","jwg_clothing_designs?id=eq."+id);
+    if(d.photo_path){const rm=await db.storage.from(CL_BUCKET).remove([d.photo_path]);if(rm.error)console.warn("clothing photo not removed",d.photo_path,rm.error.message);}
+    CL.designs=CL.designs.filter(x=>x.id!==id);
+    closeModal();renderClothingBoard();toast("Design deleted");
+  }catch(e){toast(clEsc(e.message),"error");throw e;}
+}
+
+// ── One person: everything they have, with change and remove ──
+function clOpenPerson(eid){
+  const rows=CL.items.filter(i=>i.employee_id===eid).map(i=>{
+    const d=clDesign(i.design_id);
+    return`<div class="cl-rec">${clPhoto(d,"sm")}
+      <div class="cl-rec-txt"><b>${clEsc(d.name)}</b><span>${[i.size,clDate(i.date_given),i.notes].filter(Boolean).map(clEsc).join(" · ")}</span></div>
+      <button class="cl-btn" onclick="JWG.clOpenEdit('${i.id}')">Change</button>
+      <button class="cl-btn del" onclick="JWG.clDelete('${i.id}')">Remove</button>
+    </div>`;
+  }).join("");
+  openModal(`<div class="modal-title">${clEsc(clEmpName(eid))}</div>
+    <div class="cl-recs">${rows||`<div class="cl-empty">Nothing given out yet. Hand something out from the Designs tab.</div>`}</div>
+    <div class="cl-foot"><span></span><button class="modal-cancel" onclick="JWG.closeModal()">Close</button></div>`,"520px");
+}
+function clOpenEdit(id){
+  const i=CL.items.find(x=>x.id===id);
+  if(!i)throw new Error("Unknown clothing record "+id);
+  const sizes=CLOTHING_SIZES.includes(i.size)?CLOTHING_SIZES:[i.size,...CLOTHING_SIZES];
+  openModal(`<div class="modal-title">Change item</div>
+    <div class="modal-sub">${clEsc(clEmpName(i.employee_id))}</div>
+    <div class="cl-form-row"><div class="cl-form-label">Design</div>
+      <select class="cl-select" id="cl_ed_design">${CL.designs.map(d=>`<option value="${d.id}"${d.id===i.design_id?" selected":""}>${clEsc(d.name)} (${clCoLabel(d.company)})</option>`).join("")}</select></div>
+    <div class="cl-form-grid">
+      <div class="cl-form-row"><div class="cl-form-label">Size</div>
+        <select class="cl-select" id="cl_ed_size">${sizes.map(s=>`<option value="${clEsc(s)}"${s===i.size?" selected":""}>${s?clEsc(s):"—"}</option>`).join("")}</select></div>
+      <div class="cl-form-row"><div class="cl-form-label">Date given</div><input class="cl-input" type="date" id="cl_ed_date" value="${i.date_given}"></div>
+    </div>
+    <div class="cl-form-row"><div class="cl-form-label">Note</div><input class="cl-input" id="cl_ed_notes" value="${clEsc(i.notes||"")}"></div>
+    <div class="cl-foot"><button class="modal-cancel" onclick="JWG.clOpenPerson('${i.employee_id}')">Back</button><button class="modal-done" onclick="JWG.clSaveEdit('${i.id}')">Save</button></div>`,"440px");
+}
+async function clSaveEdit(id){
+  const i=CL.items.find(x=>x.id===id),d=clDesign(document.getElementById("cl_ed_design").value);
+  const data={design_id:d.id,item_type:d.item_type,company:d.company,
+    size:document.getElementById("cl_ed_size").value,
+    date_given:document.getElementById("cl_ed_date").value,
+    notes:document.getElementById("cl_ed_notes").value.trim()};
+  if(!data.date_given){toast("Pick the date it was given","error");return;}
+  try{
+    await sbF("PATCH","jwg_employee_clothing?id=eq."+id,data);
+    Object.assign(i,data);clSort();renderClothingBoard();clOpenPerson(i.employee_id);toast("Item updated");
+  }catch(e){toast(clEsc(e.message),"error");throw e;}
+}
 async function clDelete(id){
   const rec=CL.items.find(x=>x.id===id);
-  const tgt=[rec&&rec.employees?.name,rec&&rec.item_type].filter(Boolean).join(" — ");
-  if(!(await jwgConfirm({title:"Remove clothing record",target:tgt,confirmLabel:"Remove"})))return;
+  if(!(await jwgConfirm({title:"Remove clothing record",target:clEmpName(rec.employee_id)+" — "+clDesign(rec.design_id).name,confirmLabel:"Remove"})))return;
   try{
-    await deleteClothingItem(id);
+    await sbF("DELETE","jwg_employee_clothing?id=eq."+id);
     CL.items=CL.items.filter(x=>x.id!==id);
-    renderClothingBoard();toast("Item removed");
-  }catch(e){toast(e.message,"error");}
+    renderClothingBoard();clOpenPerson(rec.employee_id);toast("Item removed");
+  }catch(e){toast(clEsc(e.message),"error");throw e;}
 }
 
 /* ===== realtime.js ===== */
@@ -3788,5 +3845,5 @@ function renderJwgScheduler(){
 window.renderJwgScheduler=renderJwgScheduler;
 // The Team page (app-team.js) calls these when someone is removed there.
 window.JWGRoster={forwardSummary:rosterForwardSummary,clearForward:rosterClearForward};
-window.JWG={addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,closeModal:closeModal,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,prevW:prevW,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setWinterSalt:setWinterSalt,setWinterView:setWinterView,toggleWinterService:toggleWinterService,reloadWinter:reloadWinter,freshWinterSites:freshWinterSites,winterRouteSort:winterRouteSort,winterStopOptions:winterStopOptions,sbF:sbF,toast:toast,openModal:openModal,jwgConfirm:jwgConfirm,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render,closeEditor:closeEditor,edJob:edJob,edAway:edAway,edHrs:edHrs,edAllDay:edAllDay,edCustom:edCustom,edCustomSet:edCustomSet,edSel:edSel,edAdd:edAdd,edRemove:edRemove,edClear:edClear,edNote:edNote,edApply:edApply,mSetCrew:mSetCrew};
+window.JWG={addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,clDelete:clDelete,clOpenEdit:clOpenEdit,clSaveEdit:clSaveEdit,clOpenPerson:clOpenPerson,clSetTab:clSetTab,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,clOpenHandout:clOpenHandout,clHoTick:clHoTick,clHoTickGroup:clHoTickGroup,clHoSize:clHoSize,clHoDate:clHoDate,clHoSearch:clHoSearch,clHoSave:clHoSave,clOpenDesign:clOpenDesign,clEdPick:clEdPick,clEdPhoto:clEdPhoto,clSaveDesign:clSaveDesign,clDeleteDesign:clDeleteDesign,closeModal:closeModal,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,prevW:prevW,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setWinterSalt:setWinterSalt,setWinterView:setWinterView,toggleWinterService:toggleWinterService,reloadWinter:reloadWinter,freshWinterSites:freshWinterSites,winterRouteSort:winterRouteSort,winterStopOptions:winterStopOptions,sbF:sbF,toast:toast,openModal:openModal,jwgConfirm:jwgConfirm,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render,closeEditor:closeEditor,edJob:edJob,edAway:edAway,edHrs:edHrs,edAllDay:edAllDay,edCustom:edCustom,edCustomSet:edCustomSet,edSel:edSel,edAdd:edAdd,edRemove:edRemove,edClear:edClear,edNote:edNote,edApply:edApply,mSetCrew:mSetCrew};
 })();
