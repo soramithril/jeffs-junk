@@ -2720,7 +2720,7 @@ async function deleteSummerServiceType(typeId){
 // Part of JWG Staff Scheduler
 
 // Route groups and the Route map live in app-winter-routes.js (window.WinterRoutes).
-let WIN={locations:[],serviceTypes:[],locationServices:[],saltBins:[],groups:[],view:"list",filter:"",sortBy:"route",serviceFilter:"",lowOnly:false};
+let WIN={locations:[],serviceTypes:[],locationServices:[],saltBins:[],groups:[],view:"list",filter:"",sortBy:"route",serviceFilter:"",lowOnly:false,pendingOnly:false};
 const DEFAULT_SALT_THRESHOLD=5;
 
 async function loadWinterData(){
@@ -2780,7 +2780,9 @@ function renderWinterPage(){
       ${WIN.serviceTypes.map(t=>`<option value="${t.id}"${WIN.serviceFilter===t.id?" selected":""}>${esc(t.name)}</option>`).join("")}
     </select>
     <button onclick="JWG.WIN.lowOnly=!JWG.WIN.lowOnly;JWG.filterAndSortWinter()" style="border:1.5px solid ${WIN.lowOnly?"#f97316":"var(--border)"};background:${WIN.lowOnly?"#f97316":"transparent"};color:${WIN.lowOnly?"#fff":"var(--fg-muted)"};border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Low on salt</button>
+    <button onclick="JWG.WIN.pendingOnly=!JWG.WIN.pendingOnly;JWG.filterAndSortWinter()" style="border:1.5px solid ${WIN.pendingOnly?"#d97706":"var(--border)"};background:${WIN.pendingOnly?"#d97706":"transparent"};color:${WIN.pendingOnly?"#fff":"var(--fg-muted)"};border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Pending only</button>
   </div>
+  ${WIN.locations.length?`<div style="padding:12px 2px 0;font-size:13px;font-weight:700;color:var(--fg-muted)">${WIN.locations.filter(l=>l.winter_contract==="confirmed").length} of ${WIN.locations.length} contracts confirmed</div>`:""}
   ${(function(){const wb=WIN.locations.filter(l=>WIN.saltBins.some(s=>s.location_id===l.id));const lc=wb.filter(l=>{const s=WIN.saltBins.find(x=>x.location_id===l.id);return s&&s.current_bags<=s.min_threshold;}).length;return wb.length?`<div style="padding:12px 2px 0;font-size:13px;font-weight:700;color:${lc?"#c2410c":"var(--fg-muted)"}">${lc} of ${wb.length} low on salt</div>`:"";})()}
   <div style="padding:0 0 14px 0;overflow-x:auto;">`;
 
@@ -2794,6 +2796,7 @@ function renderWinterPage(){
       const salt=WIN.saltBins.find(s=>s.location_id===loc.id);
       if(!salt||salt.current_bags>salt.min_threshold)return false;
     }
+    if(WIN.pendingOnly&&loc.winter_contract!=="pending")return false;
     return true;
   });
 
@@ -2819,6 +2822,7 @@ function renderWinterPage(){
         <th class="win-th">Client</th>
         <th class="win-th">Address</th>
         <th class="win-th">City</th>
+        <th class="win-th">Contract</th>
         <th class="win-th">Services</th>
         <th class="win-th">Salt</th>
         <th class="win-th">Notes</th>
@@ -2835,6 +2839,7 @@ function renderWinterPage(){
         <td class="win-td win-td-client">${esc(loc.client_name)}</td>
         <td class="win-td" data-label="Address">${esc(loc.address)}</td>
         <td class="win-td" data-label="City">${esc(loc.city)}</td>
+        <td class="win-td" data-label="Contract">${winterContractTag(loc.winter_contract)}</td>
         <td class="win-td" data-label="Services"><div class="loc-services">${wServices.map(s=>{
           const type=WIN.serviceTypes.find(t=>t.id===s.service_type_id);
           const ci=WIN.serviceTypes.findIndex(t=>t.id===s.service_type_id)%8;
@@ -2886,6 +2891,22 @@ async function writeSalt(salt,newCount){
 
 function setWinterView(v){WIN.view=v;renderWinterPage();}
 async function reloadWinter(){await loadWinterData();renderWinterPage();}
+
+// Contract status is 'confirmed' or 'pending' (database check constraint).
+function winterContractTag(status){
+  if(status!=="confirmed"&&status!=="pending")throw new Error("Unknown winter contract status: "+status);
+  const ok=status==="confirmed";
+  return`<span style="display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;background:${ok?"#dcfce7":"#fef3c7"};color:${ok?"#166534":"#92400e"}">${ok?"Confirmed":"Pending"}</span>`;
+}
+function winterContractField(current){
+  return`<div class="si-form-group">
+      <label class="si-form-label">Contract</label>
+      <select class="si-form-input" id="win-contract">
+        <option value="pending"${current==="pending"?" selected":""}>Pending</option>
+        <option value="confirmed"${current==="confirmed"?" selected":""}>Confirmed</option>
+      </select>
+    </div>`;
+}
 
 // The route group picker in the Add and Edit forms. Blank lets the app choose the
 // group whose sites are the shortest drive from this address.
@@ -2941,6 +2962,7 @@ function openAddWinterLocation(){
       <input type="text" class="si-form-input" id="win-city" placeholder="City">
     </div>
     ${winterGroupField("")}
+    ${winterContractField("pending")}
     <div class="si-form-group">
       <label class="si-form-label">Notes</label>
       <textarea class="si-form-textarea" id="win-notes" placeholder="Optional notes…"></textarea>
@@ -2973,9 +2995,10 @@ async function saveWinterLocation(){
   const city=(document.getElementById("win-city")?.value||"").trim();
   const notes=(document.getElementById("win-notes")?.value||"").trim();
   const group=document.getElementById("win-group")?.value||"";
+  const contract=document.getElementById("win-contract").value;
   if(!name||!addr||!city){toast("Please fill in required fields","error");return;}
   try{
-    const result=await sbF("POST","jwg_service_locations",{client_name:name,address:addr,city,notes,has_winter_service:true,has_summer_service:false,is_archived:false});
+    const result=await sbF("POST","jwg_service_locations",{client_name:name,address:addr,city,notes,winter_contract:contract,has_winter_service:true,has_summer_service:false,is_archived:false});
     const locId=result[0].id;
     await sbF("POST","jwg_salt_bins",{location_id:locId,current_bags:0,min_threshold:DEFAULT_SALT_THRESHOLD});
     // Save service toggles
@@ -3030,6 +3053,7 @@ function editWinterLocation(locId){
       <input type="text" class="si-form-input" id="win-city" value="${esc(loc.city)}">
     </div>
     ${winterGroupField(loc.winter_group||"")}
+    ${winterContractField(loc.winter_contract)}
     <div class="si-form-group">
       <label class="si-form-label">Notes</label>
       <textarea class="si-form-textarea" id="win-notes">${esc(loc.notes||"")}</textarea>
@@ -3070,12 +3094,13 @@ async function updateWinterLocation(locId){
   const city=(document.getElementById("win-city")?.value||"").trim();
   const notes=(document.getElementById("win-notes")?.value||"").trim();
   const group=document.getElementById("win-group")?.value||"";
+  const contract=document.getElementById("win-contract").value;
   if(!name||!addr||!city){toast("Please fill in required fields","error");return;}
   const before=WIN.locations.find(l=>l.id===locId);
   const moved=before.address!==addr||before.city!==city;
   const oldGroup=before.winter_group;
   try{
-    await sbF("PATCH",`jwg_service_locations?id=eq.${locId}`,{client_name:name,address:addr,city,notes,updated_at:new Date().toISOString()});
+    await sbF("PATCH",`jwg_service_locations?id=eq.${locId}`,{client_name:name,address:addr,city,notes,winter_contract:contract,updated_at:new Date().toISOString()});
     // Save service toggles
     const checkboxes=document.querySelectorAll('.win-svc-toggle');
     const existing=WIN.locationServices.filter(ls=>ls.location_id===locId);
