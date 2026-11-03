@@ -193,6 +193,7 @@ function person(g,x,y,p,f){f=f||{};x=Math.round(x);y=Math.round(y);var face=f.fa
   else if(p.sunhat){rect(g,'#d8c27a',x-2,y,9,1);rect(g,'#d8c27a',x,y-2,5,2);rect(g,'#a8632a',x,y-1,5,1);}
   else if(cap){rect(g,cap,x,y-1,5,2);rect(g,cap,face>0?x+4:x-2,y,3,1);}
   rect(g,p.shirt,x-1,y+5,7,f.seated?6:4);
+  if(p.long){rect(g,p.hair,x-1,y+5,1,4);rect(g,p.hair,x+5,y+5,1,4);}   /* long hair falls over the shoulders, so it shows when seated too */
   if(p.tie)rect(g,C.red,x+2,y+5,1,f.seated?5:4);
   if(p.chain){rect(g,C.gold,x,y+5,5,1);rect(g,C.gold,x+2,y+6,1,1);}
   if(p.pearls)for(var pq=0;pq<5;pq+=2)rect(g,C.white,x+pq,y+5,1,1);
