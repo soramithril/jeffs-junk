@@ -881,7 +881,7 @@
   <div id="netdot"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app-hq.js?v=716"></script>
+  <script src="app-hq.js?v=717"></script>
   <script>
   (function(){
     "use strict";
@@ -1354,7 +1354,8 @@
         db.from('jobs').select('city').eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled')
       ]);
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error('HQ: '+res[i].error.message); }
-      var bins = {ready:0, prep:0, off:0};
+      // total: every bin we have, for the yard sign's "in the yard / total"
+      var bins = {ready:0, prep:0, off:0, total:(res[6].data||[]).length};
       (res[6].data||[]).forEach(function(b){
         if(b.status==='in' && b.rotation==='active') bins.ready++;
         if(b.rotation==='prep') bins.prep++;
@@ -2670,7 +2671,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-03-hq4';
+    var TV_BUILD = '2026-11-03-hq5';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
