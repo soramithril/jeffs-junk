@@ -3275,6 +3275,25 @@ const CLOTHING_LOGOS=["Embroidered","Screen printed"];
 const CLOTHING_COLOURS=["Grey","Black","Green"];
 function clColourChoices(){const out=[...CLOTHING_COLOURS];CL.designs.forEach(d=>{if(d.colour&&!out.some(c=>c.toLowerCase()===d.colour.toLowerCase()))out.push(d.colour);});return out;}
 // Every Clothing pop-up gets a clear X in its top corner.
+// Stock on hand per design and size (Jake, 2026-11-03). design.stock = {"L":3,...}; every change
+// goes through the clothing_stock_change database function, which never lets a count go below 0.
+// Records given before stock was counted never came out of it, so removing or changing one of
+// those leaves the counts alone.
+const CL_STOCK_FROM="2026-11-03";
+const CL_HAT_TYPES=["Toque","Cap"];
+function clStockSizes(d){
+  const base=CL_HAT_TYPES.includes(d.item_type)?["One Size"]:CLOTHING_SIZES.filter(s=>s!=="One Size");
+  return [...base,...Object.keys(d.stock||{}).filter(s=>!base.includes(s))];
+}
+function clStock(d,size){return +((d.stock||{})[size]||0);}
+function clStockTotal(d){return Object.values(d.stock||{}).reduce((a,b)=>a+(+b||0),0);}
+function clCounted(rec){return String(rec.created_at).slice(0,10)>=CL_STOCK_FROM;}
+async function clStockChange(did,add,set){
+  clDesign(did).stock=await sbF("POST","rpc/clothing_stock_change",{p_design:did,p_add:add||{},p_set:set||{}});
+}
+function clTags(d){
+  return`<div class="cl-tags"><span class="cl-co ${d.company==="Jeff White Group"?"jwg":"jj"}">${clCoLabel(d.company)}</span>${d.colour?`<span class="cl-logo">${clEsc(d.colour)}</span>`:""}${d.logo?`<span class="cl-logo">${d.logo}</span>`:""}</div>`;
+}
 const CL_X=`<button type="button" class="cl-x" onclick="JWG.closeModal()" aria-label="Close">✕</button>`;
 function clHead(title){return`<div class="cl-mhead"><div class="modal-title">${title}</div>${CL_X}</div>`;}
 const CL_BUCKET="clothing-designs",CL_PHOTO_PX=1000;
@@ -3356,8 +3375,9 @@ function renderClothingBoard(){
     <div class="cl-tabs">
       <button class="${CL.tab==="designs"?"on":""}" onclick="JWG.clSetTab('designs')">Designs</button>
       <button class="${CL.tab==="people"?"on":""}" onclick="JWG.clSetTab('people')">People</button>
+      <button class="${CL.tab==="stock"?"on":""}" onclick="JWG.clSetTab('stock')">Stock</button>
     </div>
-    ${CL.tab==="designs"?clDesignsHtml(formerIds):clPeopleHtml(formerIds)}`;
+    ${CL.tab==="designs"?clDesignsHtml(formerIds):CL.tab==="people"?clPeopleHtml(formerIds):clStockHtml()}`;
 }
 
 // ── Designs tab: the shelf ──
@@ -3369,7 +3389,8 @@ function clDesignsHtml(formerIds){
     return`<div class="cl-design">
       <button class="cl-design-photo" onclick="JWG.clOpenDesign('${d.id}')" title="Change this design">${clPhoto(d)}</button>
       <div class="cl-design-name">${clEsc(d.name)}</div>
-      <div class="cl-tags"><span class="cl-co ${d.company==="Jeff White Group"?"jwg":"jj"}">${clCoLabel(d.company)}</span>${d.colour?`<span class="cl-logo">${clEsc(d.colour)}</span>`:""}${d.logo?`<span class="cl-logo">${d.logo}</span>`:""}</div>
+      ${clTags(d)}
+      <div class="cl-design-stock">${clStockLine(d)}</div>
       <div class="cl-design-who">${names||`<span class="cl-muted">Nobody yet</span>`}</div>
       <div class="cl-design-btns"><button class="cl-btn primary" onclick="JWG.clOpenHandout('${d.id}')">Hand out</button><button class="cl-btn" onclick="JWG.clOpenDesign('${d.id}')">Edit</button></div>
     </div>`;
@@ -3436,7 +3457,7 @@ function clHoRow(e,d){
   // No size for this kind yet: show one of their other sizes as a hint, never as the answer.
   let hint="";
   if(!known){const s=clSizesOf(e.id),t=Object.keys(s)[0];if(t)hint=CLOTHING_SHORT[t]+" "+s[t];}
-  const picker=on?`<div class="cl-ho-sizes">${CLOTHING_SIZES.map(s=>`<button class="${s===size?"on":""}" onclick="JWG.clHoSize('${e.id}','${s}')">${s}</button>`).join("")}</div>`:"";
+  const picker=on?`<div class="cl-ho-sizes">${CLOTHING_SIZES.map(s=>{const n=clStock(d,s);return`<button class="${s===size?"on":""}${n?"":" out"}" onclick="JWG.clHoSize('${e.id}','${s}')">${s}<small>${n} left</small></button>`;}).join("")}</div>`:"";
   return`<div class="cl-ho-row${on?" on":""}">
     <label><input type="checkbox" ${on?"checked":""} onchange="JWG.clHoTick('${e.id}')">
       <span class="cl-ho-name">${clEsc(e.name)}</span>
@@ -3472,9 +3493,68 @@ async function clHoSave(){
   try{
     const created=await sbF("POST","jwg_employee_clothing",ids.map(id=>({employee_id:id,design_id:d.id,item_type:d.item_type,company:d.company,size:h.picked[id],date_given:h.date})));
     created.forEach(c=>{c.employees={name:clEmpName(c.employee_id)};CL.items.push(c);});
-    clSort();closeModal();renderClothingBoard();
-    toast(`${clEsc(d.name)} given to ${ids.length} ${ids.length===1?"person":"people"}`);
+    clSort();closeModal();
   }catch(e){btn.disabled=false;toast(clEsc(e.message),"error");throw e;}
+  const take={};ids.forEach(id=>{const s=h.picked[id];take[s]=(take[s]||0)-1;});
+  const short=Object.keys(take).filter(s=>clStock(d,s)<-take[s]);
+  try{await clStockChange(d.id,take);}
+  catch(e){renderClothingBoard();toast("Given out, but the stock count did not change: "+clEsc(e.message),"error");throw e;}
+  renderClothingBoard();
+  toast(`${clEsc(d.name)} given to ${ids.length} ${ids.length===1?"person":"people"}`
+    +(short.length?`. Stock said there weren't enough ${short.join(", ")}, so that count is now 0. Worth a recount.`:""));
+}
+
+// ── Stock tab: on hand per design and size ──
+function clStockLine(d){
+  const total=clStockTotal(d);
+  if(!Object.keys(d.stock||{}).length)return`<span class="cl-muted">No stock counted yet</span>`;
+  const out=Object.keys(d.stock).filter(s=>!clStock(d,s));
+  return`<b>${total}</b> in stock${out.length?` · <span class="cl-out">out of ${out.join(", ")}</span>`:""}`;
+}
+function clStockHtml(){
+  if(!CL.designs.length)return`<div class="cl-empty">Add a design on the Designs tab first.</div>`;
+  return`<p class="cl-muted">Tap + or − as things come and go, or type the number when you count. Handing something out takes it off here automatically.</p>
+  <div class="cl-stock">${CL.designs.map(d=>`<div class="cl-stock-row">
+    <div class="cl-stock-head">${clPhoto(d,"sm")}
+      <div class="cl-stock-name"><b>${clEsc(d.name)}</b>${clTags(d)}</div>
+      <div class="cl-stock-total">${clStockLine(d)}</div>
+      <button class="cl-btn" onclick="JWG.clOpenDelivery('${d.id}')">Got a delivery</button>
+    </div>
+    <div class="cl-sc-grid">${clStockSizes(d).map(s=>{const n=clStock(d,s);return`<div class="cl-sc${n?"":" zero"}">
+      <span class="cl-sc-size">${s}</span>
+      <div class="cl-sc-ctrl"><button onclick="JWG.clStockStep('${d.id}','${s}',-1)" aria-label="One less ${s}">−</button><input type="number" min="0" inputmode="numeric" value="${n}" aria-label="${s} on hand" onchange="JWG.clStockSet('${d.id}','${s}',this.value)"><button onclick="JWG.clStockStep('${d.id}','${s}',1)" aria-label="One more ${s}">+</button></div>
+    </div>`;}).join("")}</div>
+  </div>`).join("")}</div>`;
+}
+async function clStockStep(did,size,n){
+  try{await clStockChange(did,{[size]:n});renderClothingBoard();}
+  catch(e){toast(clEsc(e.message),"error");throw e;}
+}
+async function clStockSet(did,size,v){
+  const n=Number(v);
+  if(v===""||!Number.isInteger(n)||n<0){toast("Type a whole number, 0 or more","error");renderClothingBoard();return;}
+  try{await clStockChange(did,null,{[size]:n});renderClothingBoard();}
+  catch(e){toast(clEsc(e.message),"error");throw e;}
+}
+function clOpenDelivery(did){
+  const d=clDesign(did);
+  openModal(`${clHead("Got a delivery")}
+    <div class="cl-ho-head">${clPhoto(d,"sm")}<div><b>${clEsc(d.name)}</b><div class="cl-muted">How many of each size came in. They're added to what's on hand.</div></div></div>
+    <div class="cl-deliv">${clStockSizes(d).map(s=>`<label><span>${s}</span><input type="number" min="0" inputmode="numeric" class="cl-input" data-size="${s}" placeholder="0"><em>${clStock(d,s)} now</em></label>`).join("")}</div>
+    <div class="cl-foot"><button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button><button class="modal-done" id="cl-dl-save" onclick="JWG.clSaveDelivery('${d.id}')">Add to stock</button></div>`,"460px");
+}
+async function clSaveDelivery(did){
+  const add={};let total=0;
+  for(const el of document.querySelectorAll("#moverlay [data-size]")){
+    if(el.value==="")continue;
+    const n=Number(el.value);
+    if(!Number.isInteger(n)||n<0){toast("Type whole numbers, 0 or more","error");return;}
+    if(n){add[el.dataset.size]=n;total+=n;}
+  }
+  if(!total){toast("Type how many came in","error");return;}
+  const btn=document.getElementById("cl-dl-save");btn.disabled=true;
+  try{await clStockChange(did,add);closeModal();renderClothingBoard();toast(`Added ${total} to stock`);}
+  catch(e){btn.disabled=false;toast(clEsc(e.message),"error");throw e;}
 }
 
 // ── Add or change a design ──
@@ -3624,16 +3704,26 @@ async function clSaveEdit(id){
     notes:document.getElementById("cl_ed_notes").value.trim()};
   if(!data.date_given){toast("Pick the date it was given","error");return;}
   try{
+    const from={design:i.design_id,size:i.size};
     await sbF("PATCH","jwg_employee_clothing?id=eq."+id,data);
-    Object.assign(i,data);clSort();renderClothingBoard();clOpenPerson(i.employee_id);toast("Item updated");
+    Object.assign(i,data);
+    // A different design or size: the old one goes back on the shelf, the new one comes off.
+    if(clCounted(i)&&(from.design!==data.design_id||from.size!==data.size)){
+      if(from.design===data.design_id){const mv={[data.size]:-1};if(from.size)mv[from.size]=1;await clStockChange(data.design_id,mv);}
+      else{if(from.size)await clStockChange(from.design,{[from.size]:1});await clStockChange(data.design_id,{[data.size]:-1});}
+    }
+    clSort();renderClothingBoard();clOpenPerson(i.employee_id);toast("Item updated");
   }catch(e){toast(clEsc(e.message),"error");throw e;}
 }
 async function clDelete(id){
   const rec=CL.items.find(x=>x.id===id);
-  if(!(await jwgConfirm({title:"Remove clothing record",target:clEmpName(rec.employee_id)+" — "+clDesign(rec.design_id).name,confirmLabel:"Remove"})))return;
+  const back=clCounted(rec)&&rec.size;
+  if(!(await jwgConfirm({title:"Remove clothing record",target:clEmpName(rec.employee_id)+" — "+clDesign(rec.design_id).name,
+    message:back?"It goes back into stock.":"",confirmLabel:"Remove"})))return;
   try{
     await sbF("DELETE","jwg_employee_clothing?id=eq."+id);
     CL.items=CL.items.filter(x=>x.id!==id);
+    if(back)await clStockChange(rec.design_id,{[rec.size]:1});
     renderClothingBoard();clOpenPerson(rec.employee_id);toast("Item removed");
   }catch(e){toast(clEsc(e.message),"error");throw e;}
 }
@@ -3874,5 +3964,5 @@ function renderJwgScheduler(){
 window.renderJwgScheduler=renderJwgScheduler;
 // The Team page (app-team.js) calls these when someone is removed there.
 window.JWGRoster={forwardSummary:rosterForwardSummary,clearForward:rosterClearForward};
-window.JWG={addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,clDelete:clDelete,clOpenEdit:clOpenEdit,clSaveEdit:clSaveEdit,clOpenPerson:clOpenPerson,clSetTab:clSetTab,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,clOpenHandout:clOpenHandout,clHoTick:clHoTick,clHoTickGroup:clHoTickGroup,clHoSize:clHoSize,clHoDate:clHoDate,clHoSearch:clHoSearch,clHoSave:clHoSave,clOpenDesign:clOpenDesign,clEdPick:clEdPick,clEdColour:clEdColour,clEdColourNew:clEdColourNew,clEdAddColour:clEdAddColour,clEdPhoto:clEdPhoto,clSaveDesign:clSaveDesign,clDeleteDesign:clDeleteDesign,closeModal:closeModal,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,prevW:prevW,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setWinterSalt:setWinterSalt,setWinterView:setWinterView,toggleWinterService:toggleWinterService,reloadWinter:reloadWinter,freshWinterSites:freshWinterSites,winterRouteSort:winterRouteSort,winterStopOptions:winterStopOptions,sbF:sbF,toast:toast,openModal:openModal,jwgConfirm:jwgConfirm,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render,closeEditor:closeEditor,edJob:edJob,edAway:edAway,edHrs:edHrs,edAllDay:edAllDay,edCustom:edCustom,edCustomSet:edCustomSet,edSel:edSel,edAdd:edAdd,edRemove:edRemove,edClear:edClear,edNote:edNote,edApply:edApply,mSetCrew:mSetCrew};
+window.JWG={addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,clDelete:clDelete,clOpenEdit:clOpenEdit,clSaveEdit:clSaveEdit,clOpenPerson:clOpenPerson,clSetTab:clSetTab,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,clOpenHandout:clOpenHandout,clHoTick:clHoTick,clHoTickGroup:clHoTickGroup,clHoSize:clHoSize,clHoDate:clHoDate,clHoSearch:clHoSearch,clHoSave:clHoSave,clOpenDesign:clOpenDesign,clEdPick:clEdPick,clEdColour:clEdColour,clEdColourNew:clEdColourNew,clEdAddColour:clEdAddColour,clStockStep:clStockStep,clStockSet:clStockSet,clOpenDelivery:clOpenDelivery,clSaveDelivery:clSaveDelivery,clEdPhoto:clEdPhoto,clSaveDesign:clSaveDesign,clDeleteDesign:clDeleteDesign,closeModal:closeModal,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,prevW:prevW,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setWinterSalt:setWinterSalt,setWinterView:setWinterView,toggleWinterService:toggleWinterService,reloadWinter:reloadWinter,freshWinterSites:freshWinterSites,winterRouteSort:winterRouteSort,winterStopOptions:winterStopOptions,sbF:sbF,toast:toast,openModal:openModal,jwgConfirm:jwgConfirm,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render,closeEditor:closeEditor,edJob:edJob,edAway:edAway,edHrs:edHrs,edAllDay:edAllDay,edCustom:edCustom,edCustomSet:edCustomSet,edSel:edSel,edAdd:edAdd,edRemove:edRemove,edClear:edClear,edNote:edNote,edApply:edApply,mSetCrew:mSetCrew};
 })();
