@@ -287,7 +287,26 @@ var MIXES=[['brick','bungalow'],['big','brick'],['bungalow','big']];
 function houseKinds(T){var n=T.name.toLowerCase();
   if(CITY.test(n))return['town','town'];if(LAKE.test(n))return['cottage','cottage'];if(FARM.test(n))return['farm','barn'];
   var h=0;for(var i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))|0;return MIXES[Math.abs(h)%MIXES.length];}
-function roofRow(g,c,x,y,w){rect(g,SE.snow?C.snow:c,x,y,w,1);}
+/* a roof row, with a shingle every few pixels on alternate rows */
+function roofRow(g,c,x,y,w){rect(g,SE.snow?C.snow:c,x,y,w,1);
+  if(y%2===0){g.globalAlpha=.28;for(var i=x+1+(y%4?1:0);i<x+w-1;i+=3)rect(g,C.ink,i,y,1,1);g.globalAlpha=1;}}
+/* houses in the RPG-village style (Jake, 2026-11-03): each house is drawn once per
+   showing onto a little sprite, which then gets a dark outline traced round its own
+   shape and a soft purple-tinted shadow, so every kind of house reads the same way */
+var HOUSE_OL='#2a1e24',HOUSE_SHADOW='#2e2a4a',HOUSE_SPR={};
+function tinted(img,col){var c=document.createElement('canvas');c.width=img.width;c.height=img.height;var t=c.getContext('2d');
+  t.drawImage(img,0,0);t.globalCompositeOperation='source-in';t.fillStyle=col;t.fillRect(0,0,c.width,c.height);return c;}
+function houseSprite(kind){
+  var key=kind+(SE.snow?'-snow':'');if(HOUSE_SPR[key])return HOUSE_SPR[key];
+  var a=document.createElement('canvas');a.width=18;a.height=19;var wins=[];drawTownHouse(a.getContext('2d'),kind,3,2,wins);
+  var ring=document.createElement('canvas');ring.width=18;ring.height=19;var rg=ring.getContext('2d');
+  [[-1,0],[1,0],[0,-1],[0,1]].forEach(function(d){rg.drawImage(a,d[0],d[1]);});
+  var s={house:a,outline:tinted(ring,HOUSE_OL),shadow:tinted(ring,HOUSE_SHADOW),wins:wins.map(function(w){return[w[0]-3,w[1]-2,w[2],w[3]];})};
+  return HOUSE_SPR[key]=s;}
+function stampHouse(g,kind,x,y,wins){var s=houseSprite(kind);
+  g.globalAlpha=.3;g.drawImage(s.shadow,x-1,y-1);g.globalAlpha=1;
+  g.drawImage(s.outline,x-3,y-2);g.drawImage(s.house,x-3,y-2);
+  s.wins.forEach(function(w){wins.push([x+w[0],y+w[1],w[2],w[3]]);});}
 function hwin(g,wins,x,y,w,h){rect(g,C.sky,x,y,w,h);wins.push([x,y,w,h]);}
 function drawTownHouse(g,kind,x,y,wins){
   var r;
@@ -327,7 +346,7 @@ function drawTownBlock(g,T){
   for(var px=x+1;px<x+w-1;px+=2)rect(g,fence,px,top+BLOCK_H-1,1,1);
   rect(g,fence,x+1,top+BLOCK_H-2,w-2,1);rect(g,C.wood,x+w-1,top+10,1,BLOCK_H-9);
   var kinds=houseKinds(T);B.wins=[];
-  for(var h=0;h<B.houses;h++)drawTownHouse(g,kinds[h],x+2+h*14,top+11,B.wins);
+  for(var h=0;h<B.houses;h++)stampHouse(g,kinds[h],x+2+h*14,top+11,B.wins);
   if(SE.flowers)for(var f=0;f<B.houses*12;f+=3)rect(g,['#f4b6c8','#ffe28a','#ffffff','#c4482b'][f%4],x+3+f,top+26,1,1);
   if(SE.pumpkins)rect(g,'#e8590c',x+3,top+25,3,2);
   if(SE.leafPiles)for(var q=0;q<4;q++)rect(g,SE.leaves[q%4],x+4+q*3,top+26,2,1);
@@ -342,22 +361,30 @@ function drawParking(g,r2){
 
 /* ---------- roads: asphalt, sidewalk, edge lines, a double yellow centre, crosswalks ---------- */
 function asphalt(g,r2,x,y,w,h){rect(g,'#4f555f',x,y,w,h);for(var i=0;i<w*h/10;i++)rect(g,r2()<.5?'#5b626d':'#454a53',x+(r2()*w|0),y+(r2()*h|0),1,1);}
+/* roads in the RPG-village style (Jake, 2026-11-03): packed dirt with worn darker edges,
+   a wheel rut down each lane, pebbles, grass tufts nibbling the edges; a cobblestone
+   sidewalk, and stone crossings at the office door and the yard gate. In snow the dirt
+   goes pale and the tufts turn to snow. */
+function dirtRoad(g,r2,x,y,w,h,ruts){
+  var flat=w>=h,snow=SE.snow,base=snow?'#d8d2c4':'#c9a46c',edge=snow?'#b9b2a2':'#9a7a4a',rut=snow?'#c4bcac':'#b8925a',
+      peb=snow?C.white:'#dcbf92',tuft=snow?C.snow2:SE.grass2,i,t;
+  rect(g,edge,x,y,w,h);rect(g,base,flat?x:x+1,flat?y+1:y,flat?w:w-2,flat?h-2:h);
+  ruts.forEach(function(o){if(flat)rect(g,rut,x,y+o,w,2);else rect(g,rut,x+o,y,2,h);});
+  for(i=0;i<w*h/14;i++)rect(g,r2()<.5?peb:rut,x+r2()*w,y+r2()*h,r2()<.3?2:1,1);
+  for(t=0;t<(flat?w:h);t+=3+(r2()*5|0)){var a=1+(r2()*2|0),b=1+(r2()*2|0);
+    if(flat){rect(g,tuft,x+t,y,a,b);rect(g,tuft,x+t+2,y+h-b,a,b);}else{rect(g,tuft,x,y+t,b,a);rect(g,tuft,x+w-b,y+t+2,b,a);}}
+}
+function cobbles(g,r2,x,y,w,h){rect(g,'#7f796d',x,y,w,h);
+  for(var yy=y;yy<y+h;yy+=2)for(var xx=x+((yy-y)/2%2)*2-2;xx<x+w;xx+=4)rect(g,r2()<.5?'#b8b2a4':'#a39d8f',Math.max(x,xx),yy,Math.min(3,x+w-Math.max(x,xx)),1);}
 function drawRoads(g,r2){
-  var x,y;
-  /* the main road: two lanes, one each way */
-  rect(g,'#cfcabd',0,RT-1,W,2);for(x=0;x<W;x+=8)rect(g,'#b2ac9c',x,RT-1,1,2);
-  asphalt(g,r2,0,RT+1,W,17);
-  rect(g,'#e6e4dc',0,RT+2,W,1);rect(g,'#e6e4dc',0,RT+16,W,1);
-  rect(g,'#e9c23a',0,RT+8,W,1);rect(g,'#e9c23a',0,RT+10,W,1);
-  [64+DX,198+DX].forEach(function(cx){for(var k=0;k<5;k++)rect(g,'#f2f0e8',cx+k*4,RT+3,2,13);});   /* office door, yard gate */
-  /* the side road down to the lane */
-  asphalt(g,r2,0,RT+18,26,LANE_TOP-RT-18);rect(g,'#e6e4dc',25,RT+18,1,LANE_TOP-RT-18);
-  for(y=RT+20;y<LANE_TOP;y+=5)rect(g,'#e9c23a',12,y,1,3);
-  /* the lane: narrower, with one dashed white centre line */
-  rect(g,'#b2ac9c',26,LANE_TOP-1,W,1);asphalt(g,r2,0,LANE_TOP,W,13);rect(g,'#b2ac9c',0,LANE_TOP+13,W,1);
-  for(x=30;x<W;x+=10)rect(g,'#e6e4dc',x,LANE_TOP+6,5,1);
-  if(SE.snow){rect(g,C.snow,0,RT-2,W,2);rect(g,C.snow,0,RT+18,W,1);rect(g,C.snow,26,LANE_TOP-1,W,1);rect(g,C.snow,0,LANE_TOP+13,W,1);
-    for(x=0;x<W;x+=3){rect(g,'#6b727e',x,RT+5,2,1);rect(g,'#6b727e',x+1,RT+13,2,1);}}
+  /* the main road: two lanes, one each way, a rut down each */
+  cobbles(g,r2,0,RT-1,W,2);
+  dirtRoad(g,r2,0,RT+1,W,17,[5,12]);
+  [64+DX,198+DX].forEach(function(cx){cobbles(g,r2,cx-2,RT+1,22,17);rect(g,'#6b6559',cx-2,RT+1,1,17);rect(g,'#6b6559',cx+19,RT+1,1,17);});   /* office door, yard gate */
+  /* the side road down to the lane, and the lane: narrower, one rut each way */
+  dirtRoad(g,r2,0,RT+18,26,LANE_TOP-RT-18,[7,16]);
+  dirtRoad(g,r2,26,LANE_TOP,W-26,13,[3,8]);dirtRoad(g,r2,0,LANE_TOP,26,13,[]);
+  if(SE.snow){rect(g,C.snow,0,RT-2,W,1);rect(g,C.snow,26,LANE_TOP-1,W,1);rect(g,C.snow,0,LANE_TOP+13,W,1);}
 }
 /* lamps along the sidewalk, drawn after the buildings so they stand in front of them */
 function drawStreetBits(g){
