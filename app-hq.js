@@ -882,24 +882,17 @@ function stepAmbient(dt){
     A.office.forEach(function(w){updWorker(w,d);});A.roam.forEach(function(o){updRoamer(o,d);});}
 }
 
-/* ---------- scenery that keeps the picture busy: people on the sidewalk, gulls
-   over the dump and a loader on the pile. None of it is data. (No passing cars -
-   Jake took them out 2026-11-02: the road is for our trucks.) ---------- */
+/* ---------- scenery that keeps the picture busy: gulls over the dump, a loader on the
+   pile and the hockey game. None of it is data. (No passing cars - Jake took them out
+   2026-11-02: the road is for our trucks. No strangers on the sidewalk either - Jake
+   took them out 2026-11-03: only our own people walk about.) ---------- */
 var SC=null;
 function newScenery(){
-  SC={peds:[{x:20,v:7,look:{hair:'#3b2416',shirt:'#c4482b',pants:'#2b2f36'}},{x:260,v:-6,look:{hair:'#d8b46a',shirt:'#4f6d8a',pants:'#3a3f47'}},
-      {x:150,v:5,look:{hair:'#2b2b2b',shirt:'#e3b13a',pants:'#3a3f47'},dog:true}],
-    gulls:[0,1.6,3.1,4.4],loader:{x:360,dir:1},hockey:newHockey()};
+  SC={gulls:[0,1.6,3.1,4.4],loader:{x:360,dir:1},hockey:newHockey()};
 }
 function updScenery(dtR){
   if(M&&M.frozen)updHockey(dtR);
-  SC.peds.forEach(function(p){p.x+=p.v*dtR;if(p.x>W+6)p.x=-8;if(p.x<-8)p.x=W+6;});
   var L=SC.loader;L.x+=L.dir*4*dtR;if(L.x>378){L.dir=-1;}if(L.x<354){L.dir=1;}
-}
-function drawScenery(nowT){
-  SC.peds.forEach(function(p){
-    person(ctx,p.x,RT-13,p.look,{face:p.v>0?1:-1,step:Math.floor(nowT/220)%2});
-    if(p.dog){var dx=p.x+(p.v>0?9:-6);rect(ctx,'#8a5a3c',dx,RT-4,5,2);rect(ctx,'#8a5a3c',p.v>0?dx+4:dx-1,RT-5,2,2);rect(ctx,'#5a3a24',dx,RT-2,1,1);rect(ctx,'#5a3a24',dx+4,RT-2,1,1);}});
 }
 /* the dump's own life, in the shifted coordinates: gulls, the loader and (in October) the ghost */
 function drawDumpBits(nowT){
@@ -1376,7 +1369,7 @@ function draw(nowT){
   drawOffice(nowT,t,vals,news);drawBooking(nowT,t);drawWing(nowT,t);drawYard(nowT,t);drawRoamers(nowT);drawDumpBits(nowT);
   ctx.restore();
   drawWhoBoard(t);
-  drawJWG(nowT,t);drawPond(nowT);drawTowns(nowT,t,tt.replaying);drawScenery(nowT);
+  drawJWG(nowT,t);drawPond(nowT);drawTowns(nowT,t,tt.replaying);
   var placed=M.trucks.map(function(T,idx){return{T:T,pos:placeTruck(T,t,idx,nowT)};}).sort(function(a,b){return a.pos.y-b.pos.y;});
   placed.forEach(function(o){drawTruck(o.T,o.pos,t,nowT);});
   drawSurprise(nowT);
