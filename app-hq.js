@@ -18,7 +18,7 @@
 /* 720x312 fills the TV's whole stage (Jake, 2026-11-02: the whole screen is the game) */
 /* 640x360 is exactly a third of the TV's 1920x1080, so the whole TV is the game and
    every pixel lands as a clean 3x3 block (Jake, 2026-11-02) */
-var W=640,H=360,RT=178,ROADY=RT+5,YARD_Y=150,SPEED=14;
+var W=640,H=360,RT=178,ROADY=RT+5,YARD_Y=150,SPEED=22;   /* SPEED: px a second for trucks lapping the town */
 /* the right-hand block: the "who's out" board and the badge wall, with a parking lot under them */
 var BOARD_X=404,BOARD_H=136,LOT_Y=152;
 /* below the main road (Jake, 2026-11-02: "all info on the board", no "+N more"):
@@ -125,11 +125,12 @@ var binPal={O:C.out,B:C.bin,b:C.bin2},offPal={O:C.out,B:C.binOff,b:C.binOff2};
 /* everyone looks different, so you know who's who without reading a tag
    (Jake, 2026-11-02): their own colour and one signature detail each */
 var P={
-  kelly:{hair:'#3b2416',long:true,shirt:'#2f74c8',headset:true},                    /* blue, phone headset */
-  rachel:{hair:'#b5532a',ponytail:true,shirt:'#d6336c',glasses:true},               /* pink, auburn ponytail, glasses */
-  sam:{hair:'#1d1d1d',shirt:'#3a5168',pants:'#2b2f36',tie:true},                     /* navy, red tie */
-  barb:{hair:'#d8d4cc',shirt:'#8b5cf6',pearls:true},                                 /* purple, silver hair, pearls */
-  jake:{hair:'#5a4030',shirt:'#3a3f47',hood:true,phones:'#d9412b',logo:true},       /* dark hoodie, red headphones */
+  /* hair per Jake, 2026-11-03: Kelly big red, Rachel and Barb brown, Sam long brown, Jake blonde */
+  kelly:{hair:'#c4401f',big:true,shirt:'#2f74c8',headset:true},                     /* blue, big red hair, phone headset */
+  rachel:{hair:'#6b4226',ponytail:true,shirt:'#d6336c',glasses:true},               /* pink, brown ponytail, glasses */
+  sam:{hair:'#7a4e2c',long:true,shirt:'#3a5168',pants:'#2b2f36'},                    /* navy, long brown hair */
+  barb:{hair:'#4a3020',shirt:'#8b5cf6',pearls:true},                                 /* purple, short brown hair, pearls */
+  jake:{hair:'#ecc95c',shirt:'#3a3f47',hood:true,phones:'#d9412b',logo:true},       /* blonde, dark hoodie, red headphones */
   shop:{hair:'#2b2b2b',shirt:'#56606e',pants:'#3a3f47',hardhat:'#f2c14e',belt:true}, /* Darrin: hard hat, tool belt */
   jeff:{hair:'#5a4030',cap:'#1f7a33',shirt:C.staff,pants:'#3a3f47',coffee:true,beard:true},  /* green cap, beard, coffee */
   josh:{hair:'#3b2416',shirt:'#1d1d1d',pants:'#1d1d1d',pimp:true,chain:true,cane:true},     /* the hat, the chain, the cane */
@@ -141,7 +142,7 @@ var CUSTOMERS=[{hair:'#3b2416',shirt:'#c4482b'},{hair:'#d8b46a',shirt:'#5f7f9e'}
 var AISLE=96,FLOOR=134,GAPX=54;
 var OFFICE=[
   {key:'kelly',seat:[26,69],home:[30,AISLE],left:40},
-  {key:'rachel',seat:[68,69],home:[72,AISLE],left:15},
+  {key:'rachel',seat:[68,69],home:[72,AISLE],left:15,from:15},   /* Rachel comes in at 3 pm (Jake, 2026-11-03) */
   {key:'sam',seat:[110,69],home:[114,AISLE],left:22},
   {key:'barb',seat:[26,111],home:[30,FLOOR],left:55},
   {key:'jake',seat:[74,111],home:[80,FLOOR],left:32}];
@@ -174,6 +175,7 @@ var SE=SEASONS.fall,WX=null;
 /* ---------- drawing helpers ---------- */
 function person(g,x,y,p,f){f=f||{};x=Math.round(x);y=Math.round(y);var face=f.face||1,dk='#2b2f36';
   if(p.long)rect(g,p.hair,x-1,y,7,8);
+  if(p.big){rect(g,p.hair,x-2,y-1,9,9);rect(g,p.hair,x-1,y-2,7,1);rect(g,p.hair,x-3,y+1,1,6);rect(g,p.hair,x+7,y+1,1,6);}
   if(p.ponytail)rect(g,p.hair,face>0?x-2:x+5,y+1,2,4);
   rect(g,C.skin,x,y+1,5,4);
   rect(g,p.hair,x,y,5,2);
@@ -536,13 +538,18 @@ function along(pts,p){
 }
 /* on the main road a truck keeps to its own side: eastbound on the near lane, westbound on the far one */
 function keepRight(p){if(Math.abs(p.y-ROADY)<.5)p.y+=p.face>0?2:-4;return p;}
-function placeTruck(T,t,idx){
+/* out on the road but not at a stop (Jake, 2026-11-03: "drive around the town"): laps
+   of the town - along the main road and back, down the side road, along the lane and
+   back, up again - each truck starting a different way round so they spread out */
+var LOOP=[[CX,ROADY],[W-TRUCK_W-2,ROADY],[CX,ROADY],[CX,LANEY],[W-TRUCK_W-2,LANEY],[CX,LANEY],[CX,ROADY]],
+    LOOP_LEN=LOOP.reduce(function(s,p,i){return i?s+Math.abs(p[0]-LOOP[i-1][0])+Math.abs(p[1]-LOOP[i-1][1]):0;},0);
+function placeTruck(T,t,idx,nowT){
   var st=truckAt(T,t);
   if(st.mode==='yard')return{x:T.yard.x,y:T.yard.y,face:1,st:st};
   if(st.mode==='stop'){var L=locOf(T,st.stop);return keepRight({x:L.x,y:L.y,face:1,st:st});}
   if(st.mode==='drive'){var q=along(route(locOf(T,st.from),locOf(T,st.to)),st.p);return keepRight({x:q.x,y:q.y,face:q.face,st:st,moving:true});}
-  var nx=st.near&&st.near.loc?st.near.loc.x+TRUCK_W+4:60+idx*70;
-  return keepRight({x:clamp(nx+idx*3,4,W-TRUCK_W-2),y:ROADY,face:1,st:st,moving:T.state==='moving'});
+  var c=along(LOOP,(nowT/1000*SPEED/LOOP_LEN+idx*.29)%1);
+  return keepRight({x:c.x,y:c.y,face:c.face,st:st,moving:true});
 }
 function stopDone(st,t){return st.doneAt!=null?t>=st.doneAt:(st.done&&t>=M.now);}
 
@@ -615,10 +622,14 @@ function walkPath(o,dt,speed){
 function wanderer(x,y,region,speed){return{x:x,y:y,tx:x,ty:y,wait:1,face:1,moving:false,region:region,speed:speed};}
 function newAmbient(){
   rng=mulberry32(20261102);
-  A={office:OFFICE.map(function(o){return{key:o.key,seat:o.seat,home:o.home,mode:'seat',left:o.left,x:o.home[0],y:o.home[1],face:1,target:null,pts:[]};}),
+  A={office:OFFICE.map(function(o){return{key:o.key,seat:o.seat,home:o.home,from:o.from,mode:'seat',left:o.left,x:o.home[0],y:o.home[1],face:1,target:null,pts:[]};}),
      yard:[wanderer(200,100,[156,248,84,132],5),wanderer(170,90,[156,232,82,128],4)],t:0};
   A.ow={};A.office.forEach(function(w){A.ow[w.key]=w;});
+  /* Sawyer (Jake, 2026-11-03): the shop dog, tearing round the yard with short rests */
+  A.dog=wanderer(190,110,[158,246,84,128],18);A.dog.rest=.25;
 }
+/* someone who starts later in the day (from: hour) isn't in the office before then */
+function inOffice(w,t){return!w.from||new Date(t).getHours()>=w.from;}
 function updWorker(w,dt){
   if(w.mode==='seat'||w.mode==='visit'){w.left-=dt;if(w.left>0)return;
     if(w.mode==='seat'){w.x=w.home[0];w.y=w.home[1];
@@ -661,6 +672,7 @@ function runBookings(nowT){
   var q=BQ.filter(function(b){return!b.pinned;})[0];if(!q)return;
   bookActive=q;
   var w=bookerWorker(q.e);
+  if(w&&!inOffice(w,M.now))w=null;   /* booked before coming in: it comes out of the printer */
   if(w){if(w.mode==='seat'){w.x=w.home[0];w.y=w.home[1];}
     w.ticket=q;w.target=BOOK_SPOT;w.pts=officeRoute([w.x,w.y],BOOK_SPOT.p);w.mode='walk';}
   else{q.printAt=nowT;printUntil=nowT+1500;}
@@ -685,12 +697,12 @@ function drawBooking(nowT,t){
 function updWander(j,dt){
   if(j.wait>0){j.wait-=dt;j.moving=false;return;}
   var dx=j.tx-j.x,dy=j.ty-j.y,d=Math.sqrt(dx*dx+dy*dy),can=j.speed*dt,R=j.region;
-  if(d<=can){j.x=j.tx;j.y=j.ty;j.wait=3+rng()*9;j.tx=R[0]+rng()*(R[1]-R[0]);j.ty=R[2]+rng()*(R[3]-R[2]);j.moving=false;}
+  if(d<=can){j.x=j.tx;j.y=j.ty;j.wait=(j.rest||1)*(3+rng()*9);j.tx=R[0]+rng()*(R[1]-R[0]);j.ty=R[2]+rng()*(R[3]-R[2]);j.moving=false;}
   else{j.x+=dx/d*can;j.y+=dy/d*can;j.moving=true;if(Math.abs(dx)>0.05)j.face=dx>0?1:-1;}
 }
 function stepAmbient(dt){
   while(dt>0){var d=Math.min(.5,dt);dt-=d;A.t+=d;
-    A.office.forEach(function(w){updWorker(w,d);});A.yard.forEach(function(j){updWander(j,d);});}
+    A.office.forEach(function(w){updWorker(w,d);});A.yard.forEach(function(j){updWander(j,d);});updWander(A.dog,d);}
 }
 
 /* ---------- scenery that keeps the picture busy: people on the sidewalk, gulls
@@ -816,12 +828,12 @@ function pile(x,base,n,col){
   badge(ctx,String(n),x+4,base-h-9,col);
 }
 function phone(x,y){rect(ctx,C.dark,x+1,y+1,5,3);rect(ctx,C.dark,x,y,7,1);}
-function drawSeat(w,f){
-  if(w.mode==='seat'){person(ctx,w.seat[0],w.seat[1],P[w.key],{seated:true});return true;}
+function drawSeat(w,t){
+  if(w.mode==='seat'&&inOffice(w,t)){person(ctx,w.seat[0],w.seat[1],P[w.key],{seated:true});return true;}
   rect(ctx,'#3a3f47',w.seat[0]-1,w.seat[1]+4,7,7);return false;
 }
-function drawWalkers(nowT,lower){
-  A.office.filter(function(w){return w.mode!=='seat'&&(w.y>=110)===lower;}).sort(function(a,b){return a.y-b.y;}).forEach(function(w){
+function drawWalkers(nowT,t,lower){
+  A.office.filter(function(w){return w.mode!=='seat'&&inOffice(w,t)&&(w.y>=110)===lower;}).sort(function(a,b){return a.y-b.y;}).forEach(function(w){
     person(ctx,w.x,w.y,P[w.key],{face:w.face,step:w.mode!=='visit'&&Math.floor(nowT/180)%2});
     if(w.ticket){var tx=w.face>0?w.x+6:w.x-3;rect(ctx,C.white,tx,w.y+4,3,4);rect(ctx,TICKET_COL[w.ticket.e.service]||'#9aa0a6',tx,w.y+5,3,1);}
     badge(ctx,w.key.toUpperCase(),w.x+2,w.y-9,C.sign);});   /* away from the desk nameplate, they carry their name */
@@ -829,14 +841,14 @@ function drawWalkers(nowT,lower){
 function drawOffice(nowT,t,vals,news){
   var O=A.ow,tk=Math.floor(nowT/200)%2,tr=Math.floor(nowT/230)%2,tb=Math.floor(nowT/260)%2,tj=Math.floor(nowT/150)%2,ts=Math.floor(nowT/400)%2;
   drawWindow(nowT);drawBoard(nowT,vals,news);drawClock(t);
-  var sk=drawSeat(O.kelly),sr=drawSeat(O.rachel),ss=drawSeat(O.sam);
+  var sk=drawSeat(O.kelly,t),sr=drawSeat(O.rachel,t),ss=drawSeat(O.sam,t);
   desk(12,80,39,'KELLY');desk(54,80,39,'RACHEL');desk(96,80,39,'SAM');
   if(sk)arms(26,79,tk);if(sr)arms(68,79,tr);if(ss)arms(110,79,ts);
   monitor(35,70);monitor(77,70);monitor(119,70);
   pile(14,79,M.noDriver,C.red);pile(56,79,M.emails,C.blue);
   phone(46,76);phone(88,76);phone(98,76);
-  drawWalkers(nowT,false);
-  var sb=drawSeat(O.barb),sj=drawSeat(O.jake);
+  drawWalkers(nowT,t,false);
+  var sb=drawSeat(O.barb,t),sj=drawSeat(O.jake,t);
   desk(12,122,39,'BARB');desk(60,122,52,'JAKE');
   if(sb)arms(26,121,tb);if(sj)arms(74,121,tj);
   monitor(35,112);monitor(84,112);monitor(96,112);
@@ -844,7 +856,7 @@ function drawOffice(nowT,t,vals,news){
   pile(14,121,M.counts.quotesDue,C.amber);
   rect(ctx,C.white,47,119,3,3);
   for(var r=0;r<9;r++)for(var c=0;c<3;c++){var on=((r*3+c)*7+Math.floor(nowT/(180+c*70)))%5<2;rect(ctx,on?(c===1?'#f2c14e':'#3cc46f'):'#1d2a22',121+c*3,99+r*4,2,1);}
-  drawWalkers(nowT,true);
+  drawWalkers(nowT,t,true);
   if(Math.floor(nowT/400)%2)rect(ctx,'#e8eef2',20,140,1,2);else rect(ctx,'#e8eef2',21,139,1,2);
   if(SE.lights){var cols=['#d9412b','#f2c14e','#3cc46f','#2f74c8'],sh=Math.floor(nowT/500);
     for(var lx=6;lx<142;lx+=4)rect(ctx,cols[(lx/4+sh)%4|0],lx,10,1,1);
@@ -862,13 +874,34 @@ function drawYard(nowT,t){
      he is in its cab. */
   var joshTruck=M.trucks.filter(function(T){return T.driver==='Josh';})[0],
       joshOut=joshTruck&&truckAt(joshTruck,t).mode!=='yard';
-  [{j:A.yard[0],p:P.jeff,name:'JEFF'},{j:A.yard[1],p:P.josh,name:'JOSH'}]
+  [{j:A.yard[0],p:P.jeff,name:'JEFF'},{j:A.yard[1],p:P.josh,name:'JOSH'},{j:A.dog,name:'SAWYER'}]
     .filter(function(o){return!(o.name==='JOSH'&&joshOut);})
     .sort(function(a,c){return a.j.y-c.j.y;}).forEach(function(o){var j=o.j;
+      if(o.name==='SAWYER'){drawDog(j.x,j.y+5,j.face,j.moving,nowT);badge(ctx,o.name,j.x+7,j.y-4,C.sign);return;}
       person(ctx,j.x,j.y,o.p,{face:j.face,step:j.moving&&Math.floor(nowT/180)%2,santa:SE.lights&&o.name==='JEFF'});
       badge(ctx,o.name,j.x+2,j.y-(o.name==='JOSH'?14:9),C.sign);});
   person(ctx,290,44,P.shop,{arm:Math.floor(nowT/300)%2});
   badge(ctx,'DARRIN',292,33,C.sign);
+}
+/* Sawyer: a big brown German shepherd / husky / golden mix - shepherd saddle, husky
+   ears and curled tail, golden feathering. 14x9, facing right unless face<0. */
+function drawDog(x,y,face,moving,nowT){
+  x=Math.round(x);y=Math.round(y);var flip=face<0;
+  function r(x0,y0,w,h,c){rect(ctx,c,flip?x+14-x0-w:x+x0,y+y0,w,h);}
+  var coat='#a8713f',saddle='#4a3426',light='#e0b77e',leg='#7a5230',run=moving?Math.floor(nowT/110)%2:2;
+  ctx.globalAlpha=.3;r(2,9,10,1,C.ink);ctx.globalAlpha=1;
+  /* tail: a fluffy curl over the back, wagging while he runs */
+  var wag=moving&&Math.floor(nowT/90)%2?1:0;
+  r(0,1-wag,2,2,'#c8904f');r(1,3,2,1,'#c8904f');r(0,1-wag,1,1,light);
+  /* body, saddle, belly */
+  r(2,3,8,4,coat);r(3,3,6,2,saddle);r(3,6,6,1,light);
+  /* head: husky ears, golden mask, dark nose */
+  r(9,1,3,4,coat);r(9,0,1,1,saddle);r(11,0,1,1,saddle);r(10,3,2,2,light);r(12,2,2,2,light);r(13,2,1,1,C.ink);r(11,2,1,1,C.ink);
+  r(9,4,2,3,light);
+  /* legs: stretched, then tucked - a gallop; standing still, square */
+  if(run===0){r(1,7,1,2,leg);r(3,7,1,2,leg);r(10,7,1,2,leg);r(12,6,1,2,leg);}
+  else if(run===1){r(4,7,1,2,leg);r(5,7,1,1,leg);r(8,7,1,2,leg);r(9,7,1,1,leg);}
+  else{r(3,7,1,2,leg);r(5,7,1,2,leg);r(8,7,1,2,leg);r(10,7,1,2,leg);}
 }
 /* whether the hook is carrying a bin, read off the stops: on the way to a drop-off,
    or on the way out of a pick-up - the only times a bin has to be on the truck */
@@ -998,7 +1031,7 @@ function draw(nowT){
   ctx.drawImage(bgc,0,0);
   drawOffice(nowT,t,vals,news);drawBooking(nowT,t);drawYard(nowT,t);drawWhoBoard(t);drawBadgeWall(t);
   drawJWG(nowT,t);drawTowns(nowT,t,tt.replaying);drawScenery(nowT);
-  M.trucks.map(function(T,idx){return{T:T,pos:placeTruck(T,t,idx)};}).sort(function(a,b){return a.pos.y-b.pos.y;})
+  M.trucks.map(function(T,idx){return{T:T,pos:placeTruck(T,t,idx,nowT)};}).sort(function(a,b){return a.pos.y-b.pos.y;})
     .forEach(function(o){drawTruck(o.T,o.pos,t,nowT);});
   drawWeather(nowT);drawStamps(nowT);drawTint(t);drawBanner(nowT);
   return tt;
@@ -1074,6 +1107,7 @@ window.JJHQ={
     /* the yard crew walk below however many bins are stacked today */
     var ytop=clamp(19+Math.ceil(M.bins.ready/7)*7+2,84,118);
     A.yard.forEach(function(j){j.region=[176,232,ytop,118];j.x=clamp(j.x,176,232);j.y=clamp(j.y,ytop,118);j.tx=clamp(j.tx,176,232);j.ty=clamp(j.ty,ytop,118);});
+    var D=A.dog;D.region=[158,236,ytop,124];D.x=clamp(D.x,158,236);D.y=clamp(D.y,ytop,124);D.tx=clamp(D.tx,158,236);D.ty=clamp(D.ty,ytop,124);
     drawBG();resetWeather();
     stamps=[];parts=[];conf=[];banner=null;boardReady=false;flaps={};tick={msg:'',pages:[''],page:0,pageAt:0};lastEv=-1;flashUntil=0;
     bookNews=null;bellUntil=0;printUntil=0;queueBookings();
