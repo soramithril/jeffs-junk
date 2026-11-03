@@ -130,11 +130,12 @@ var binPal={O:C.out,B:C.bin,b:C.bin2},offPal={O:C.out,B:C.binOff,b:C.binOff2};
 /* everyone looks different, so you know who's who without reading a tag
    (Jake, 2026-11-02): their own colour and one signature detail each */
 var P={
-  /* hair per Jake, 2026-11-03: Kelly big red, Rachel and Barb brown, Sam long brown, Jake blonde */
-  kelly:{hair:'#c4401f',big:true,shirt:'#2f74c8',headset:true},                     /* blue, big red hair, phone headset */
-  rachel:{hair:'#6b4226',ponytail:true,shirt:'#d6336c',glasses:true},               /* pink, brown ponytail, glasses */
-  sam:{hair:'#7a4e2c',long:true,shirt:'#3a5168',pants:'#2b2f36'},                    /* navy, long brown hair */
-  barb:{hair:'#4a3020',shirt:'#8b5cf6',pearls:true},                                 /* purple, short brown hair, pearls */
+  /* hair per Jake, 2026-11-03: all the girls have big long hair - Kelly red, Rachel, Sam
+     and Barb brown - and Jake is blonde */
+  kelly:{hair:'#c4401f',big:true,long:true,shirt:'#2f74c8',headset:true},           /* blue, big red hair, phone headset */
+  rachel:{hair:'#6b4226',big:true,long:true,shirt:'#d6336c',glasses:true},          /* pink, big brown hair, glasses */
+  sam:{hair:'#7a4e2c',big:true,long:true,shirt:'#3a5168',pants:'#2b2f36'},           /* navy, big brown hair */
+  barb:{hair:'#4a3020',big:true,long:true,shirt:'#8b5cf6',pearls:true},             /* purple, big dark brown hair, pearls */
   jake:{hair:'#ecc95c',shirt:'#3a3f47',hood:true,phones:'#d9412b',logo:true},       /* blonde, dark hoodie, red headphones */
   shop:{hair:'#2b2b2b',shirt:'#56606e',pants:'#3a3f47',hardhat:'#f2c14e',belt:true}, /* Darrin: hard hat, tool belt */
   jeff:{hair:'#5a4030',cap:'#1f7a33',shirt:C.staff,pants:'#3a3f47',coffee:true,beard:true},  /* green cap, beard, coffee */
@@ -219,7 +220,6 @@ var SE=SEASONS.fall,WX=null;
 function person(g,x,y,p,f){f=f||{};x=Math.round(x);y=Math.round(y);var face=f.face||1,dk='#2b2f36';
   if(p.long)rect(g,p.hair,x-1,y,7,8);
   if(p.big){rect(g,p.hair,x-2,y-1,9,9);rect(g,p.hair,x-1,y-2,7,1);rect(g,p.hair,x-3,y+1,1,6);rect(g,p.hair,x+7,y+1,1,6);}
-  if(p.ponytail)rect(g,p.hair,face>0?x-2:x+5,y+1,2,4);
   rect(g,C.skin,x,y+1,5,4);
   rect(g,p.hair,x,y,5,2);
   if(!p.long){rect(g,p.hair,x,y+2,1,1);rect(g,p.hair,x+4,y+2,1,1);}
@@ -236,7 +236,8 @@ function person(g,x,y,p,f){f=f||{};x=Math.round(x);y=Math.round(y);var face=f.fa
   else if(p.sunhat){rect(g,'#d8c27a',x-2,y,9,1);rect(g,'#d8c27a',x,y-2,5,2);rect(g,'#a8632a',x,y-1,5,1);}
   else if(cap){rect(g,cap,x,y-1,5,2);rect(g,cap,face>0?x+4:x-2,y,3,1);}
   rect(g,p.shirt,x-1,y+5,7,f.seated?6:4);
-  if(p.long){rect(g,p.hair,x-1,y+5,1,4);rect(g,p.hair,x+5,y+5,1,4);}   /* long hair falls over the shoulders, so it shows when seated too */
+  /* long hair falls over the shoulders, so it shows when seated too - big long hair, thick and lower */
+  if(p.long){var lw=p.big?2:1,lh=p.big?5:4;rect(g,p.hair,x-lw,y+5,lw,lh);rect(g,p.hair,x+5,y+5,lw,lh);}
   if(p.tie)rect(g,C.red,x+2,y+5,1,f.seated?5:4);
   if(p.chain){rect(g,C.gold,x,y+5,5,1);rect(g,C.gold,x+2,y+6,1,1);}
   if(p.pearls)for(var pq=0;pq<5;pq+=2)rect(g,C.white,x+pq,y+5,1,1);
@@ -462,7 +463,6 @@ function drawBG(){
   for(i=0;i<4;i++){rect(g,'#22252b',253,92+i*3,8,2);rect(g,'#3a3f47',255,92+i*3,4,1);}
   rect(g,'#d9412b',236,108,20,6);rect(g,'#a8321f',236,113,20,1);rect(g,'#6b727e',238,114,2,2);rect(g,'#6b727e',252,114,2,2);text(g,'FUEL',238,108,C.white);
   rect(g,'#e3b13a',156,121,11,6);rect(g,'#2b2f36',158,118,6,4);rect(g,'#bfe2f2',159,119,4,2);rect(g,'#22252b',156,127,3,2);rect(g,'#22252b',164,127,3,2);rect(g,'#6b727e',167,123,4,1);rect(g,'#6b727e',170,122,2,4);
-  sign(g,'YARD',207,9);
   /* back shop: 270..326 x 22..176 */
   rect(g,C.metal,270,22,57,155);for(x=270;x<327;x+=3)rect(g,C.metal2,x,22,1,155);
   if(SE.snow)rect(g,C.snow,270,22,57,2);
@@ -787,7 +787,15 @@ function roamer(key,look,at,places,speed){
   return{key:key,look:look,dog:!look,x:at[0],y:at[1],tx:at[0],ty:at[1],face:1,places:places,speed:speed,rest:look?1:.25,
          mode:'wander',place:null,left:8+rng()*20,wait:0,moving:false,pts:[]};}
 function regionFor(o,pl){return pl.wander==='yard'?(o.dog?A.dogYard:A.yardR):A.floorR;}
+/* Winnie sticks with Jeff half the time (Jake, 2026-11-03): each time she picks what to
+   do next it's a coin toss between tagging along at his heels and her own dog things */
+/* chance is high because part of each turn goes on catching him up across the yard or
+   between buildings: measured on a sample day, this puts her right beside him about half
+   the time */
+var JEFF_PAL={key:'winnie',chance:.75,dur:[30,70]};
 function nextPlace(o){
+  if(o.key===JEFF_PAL.key&&rng()<JEFF_PAL.chance){o.mode='follow';o.place={follow:true};o.pts=[];o.goal=null;
+    o.left=JEFF_PAL.dur[0]+rng()*(JEFF_PAL.dur[1]-JEFF_PAL.dur[0]);return;}
   var tot=0,i;o.places.forEach(function(p){tot+=p.w;});var r=rng()*tot;
   for(i=0;i<o.places.length-1;i++){r-=o.places[i].w;if(r<=0)break;}
   var pl=o.places[i],to;
@@ -795,6 +803,18 @@ function nextPlace(o){
   o.place=pl;o.pts=route2([o.x,o.y],to);o.mode='travel';
 }
 function updRoamer(o,dt){
+  if(o.mode==='follow'){
+    /* trot to a spot just behind Jeff, re-aiming whenever he's moved on - but never while
+       she's partway through a doorway, since a route planned from there starts back at
+       that door and she'd shuffle in place */
+    var J=A.roam[0],to=[J.x+(J.face>0?-10:8),J.y+4];o.left-=dt;
+    var movedOn=!o.goal||Math.abs(to[0]-o.goal[0])+Math.abs(to[1]-o.goal[1])>8,
+        inDoor=o.pts.length&&zoneOf([o.x,o.y])!==zoneOf(o.pts[0]);
+    if(movedOn&&!inDoor&&Math.abs(to[0]-o.x)+Math.abs(to[1]-o.y)>6){o.pts=route2([o.x,o.y],to);o.goal=to;}
+    o.moving=o.pts.length>0;
+    if(o.moving)walkPath(o,dt,o.speed);else o.face=J.x>o.x?1:-1;
+    if(o.left<=0)nextPlace(o);
+    return;}
   if(o.mode==='travel'){o.moving=true;
     if(walkPath(o,dt,o.speed)){o.mode=o.place.wander?'wander':'stay';o.left=o.place.dur[0]+rng()*(o.place.dur[1]-o.place.dur[0]);
       o.tx=o.x;o.ty=o.y;o.wait=0;o.moving=false;}
@@ -1158,6 +1178,8 @@ function drawYard(nowT,t){
   for(k=0;k<b.ready;k++)spr(ctx,BIN,binPal,153+(k%7)*13,19+Math.floor(k/7)*7,false);
   for(k=0;k<b.prep;k++){spr(ctx,BIN,binPal,250,19+k*7,false);rect(ctx,C.amber,258,20+k*7,2,2);}
   for(k=0;k<b.off;k++){var oy=19+(b.prep+k)*7;spr(ctx,BIN,offPal,250,oy,false);rect(ctx,C.red,258,oy+1,2,2);}
+  /* the sign: bins in the yard out of every bin we have (Jake, 2026-11-03) */
+  sign(ctx,'YARD '+(b.ready+b.prep+b.off)+'/'+b.total,207,9);
   if(!darrinOut(nowT)){person(ctx,290,44,P.shop,{arm:Math.floor(nowT/300)%2});badge(ctx,'DARRIN',292,33,C.sign);}
 }
 /* the wing, live: the dogs asleep on their beds, Jeff behind his desk, tomorrow's job
@@ -1191,7 +1213,7 @@ function drawRoamers(nowT){
    Sawyer - big brown German shepherd / husky / golden mix: shepherd saddle, husky ears
      and curled tail, golden feathering
    Vincent - medium white labradoodle: curly white coat, floppy ears, pom tail
-   Winnie - small Australian doodle: blue merle with black patches, white chest, tan cheeks */
+   Winnie - small Australian doodle, brown (Jake, 2026-11-03): darker brown patches, white chest */
 var DOGS={sawyer:{w:14,h:9},vincent:{w:12,h:8},winnie:{w:9,h:6}};
 function drawDog(key,x,y,face,moving,nowT,lying){
   x=Math.round(x);y=Math.round(y);var flip=face<0,D=DOGS[key],ly=lying?2:0;
@@ -1213,11 +1235,11 @@ function drawDog(key,x,y,face,moving,nowT,lying){
     r(2,2,8,4,fur);r(3,2,1,1,curl);r(6,3,1,1,curl);r(8,2,1,1,curl);r(4,5,1,1,curl);r(7,5,1,1,curl);
     r(8,0,4,4,fur);r(11,2,2,2,fur);r(8,1,1,3,curl);r(9,1,1,1,curl);r(10,1,1,1,C.ink);r(12,2,1,1,C.ink);
     legs(6,[3,5,7,9],'#e6dfd0');}
-  else{var merle='#8e96a0',patch='#2b2f36',white='#f2f0e8',tan='#c8904f';
-    r(0,2-wag,1,1,merle);
-    r(1,2,6,3,merle);r(2,2,2,1,patch);r(5,3,1,1,patch);r(3,3,1,1,patch);r(2,4,4,1,white);
-    r(6,0,3,3,merle);r(6,0,1,2,patch);r(7,2,2,1,white);r(7,1,1,1,C.ink);r(8,2,1,1,tan);r(8,1,1,1,C.ink);
-    legs(5,[2,3,5,6],'#5b6270');}
+  else{var brown='#8a5a3c',patch='#5a3a24',white='#f2f0e8',tan='#c8904f';
+    r(0,2-wag,1,1,brown);
+    r(1,2,6,3,brown);r(2,2,2,1,patch);r(5,3,1,1,patch);r(3,3,1,1,patch);r(2,4,4,1,white);
+    r(6,0,3,3,brown);r(6,0,1,2,patch);r(7,2,2,1,white);r(7,1,1,1,C.ink);r(8,2,1,1,tan);r(8,1,1,1,C.ink);
+    legs(5,[2,3,5,6],patch);}
 }
 /* whether the hook is carrying a bin, read off the stops: on the way to a drop-off,
    or on the way out of a pick-up - the only times a bin has to be on the truck */
