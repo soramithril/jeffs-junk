@@ -158,7 +158,7 @@ var OFFICE=[
 var HALLX=-8,RWALL=-15,JEFF_DOOR=26,OUTY=165,YARD_IN=122;
 var JEFF_SEAT=[-45,27],JEFF_VISIT=[-24,40],COFFEE=[-46,80],COFFEE2=[-36,84],BREAK_SIT=[-58,100],BREAK_SIT2=[-26,98],
     MEET1=[-64,140],MEET2=[-28,144],MEET3=[-50,137];
-var BEDS=[[-68,32],[-68,50],[-29,54]];   /* the dogs' beds in Jeff's office */
+var BEDS=[[-68,32],[-68,50],[-29,54],[-50,55]];   /* the dogs' beds in Jeff's office */
 /* where a booking is pinned: in front of the ticket wall in the booking room */
 var BOOK_SPOT={p:[101,148]};
 var PLACES=[BOOK_SPOT,{p:[38,FLOOR]},{p:[46,FLOOR]},{p:[86,AISLE],not:'jake'},{p:[33,AISLE],not:'kelly'},
@@ -804,10 +804,12 @@ function newAmbient(){
     roamer('josh',P.josh,[170,90],[{wander:'yard',dur:[30,70],w:4},{spot:JEFF_VISIT,dur:[8,16],w:1},{spot:COFFEE,dur:[6,12],w:1}],6),
     roamer('sawyer',null,[190,110],dogPlaces(0),14),
     roamer('vincent',null,[30,150],dogPlaces(1),12),
-    roamer('winnie',null,BEDS[2].slice(),dogPlaces(2),12)];
+    roamer('winnie',null,BEDS[2].slice(),dogPlaces(2),12),
+    roamer('leo',null,[40,150],dogPlaces(3),11)];
   A.roam[0].place=A.roam[0].places[0];A.roam[1].place=A.roam[1].places[0];
   A.roam[2].place=A.roam[2].places[0];A.roam[3].place=A.roam[3].places[1];
   A.roam[4].place=A.roam[4].places[2];A.roam[4].mode='stay';
+  A.roam[5].place=A.roam[5].places[1];
 }
 function dogPlaces(i){return[{wander:'yard',dur:[20,50],w:3},{wander:'floor',dur:[15,40],w:2},{spot:BEDS[i],lie:true,dur:[30,80],w:2}];}
 function roamer(key,look,at,places,speed){
@@ -1236,7 +1238,7 @@ sur('tubeman',14000,ANY,function(p,t){var x=BOARD_X-7,y=RT-31;   /* at the parki
 /* the dogs chase a squirrel across the yard */
 sur('squirrel',10000,ANY,function(p,t){var x=DX+150+p*100,y=112;
   rect(ctx,'#8a5a3c',x,y,4,3);rect(ctx,'#a8714d',x-3,y-3,3,4);
-  [['sawyer',16],['vincent',30],['winnie',42]].forEach(function(d){drawDog(d[0],x-d[1],y+2+(Math.floor(t/120)%2),1,true,t);});});
+  [['sawyer',16],['vincent',30],['winnie',42],['leo',52]].forEach(function(d){drawDog(d[0],x-d[1],y+2+(Math.floor(t/120)%2),1,true,t);});});
 sur('aurora',16000,NIGHT,function(p,t){var a=(p<.15?p/.15:p>.85?(1-p)/.15:1)*.3;
   for(var x=0;x<W;x+=2){var y=12+Math.sin(x/60+t/900)*8+Math.sin(x/23+t/500)*3;ctx.globalAlpha=a;rect(ctx,x%8?'#3cc46f':'#8b5cf6',x,y,2,18);ctx.globalAlpha=a*.5;rect(ctx,'#3cc46f',x,y+18,2,10);}ctx.globalAlpha=1;});
 
@@ -1413,8 +1415,9 @@ function drawRoamers(nowT){
    Sawyer - big brown German shepherd / husky / golden mix: shepherd saddle, husky ears
      and curled tail, golden feathering
    Vincent - medium white labradoodle: curly white coat, floppy ears, pom tail
-   Winnie - small Australian doodle, brown (Jake, 2026-11-03): darker brown patches, white chest */
-var DOGS={sawyer:{w:14,h:9},vincent:{w:12,h:8},winnie:{w:9,h:6}};
+   Winnie - small Australian doodle, brown (Jake, 2026-11-03): darker brown patches, white chest
+   Leo - small white dog (Jake, 2026-11-03): fluffy white coat, curled-up tail, black button nose */
+var DOGS={sawyer:{w:14,h:9},vincent:{w:12,h:8},winnie:{w:9,h:6},leo:{w:8,h:6}};
 function drawDog(key,x,y,face,moving,nowT,lying){
   x=Math.round(x);y=Math.round(y);var flip=face<0,D=DOGS[key],ly=lying?2:0;
   function r(x0,y0,w,h,c){rect(ctx,c,flip?x+D.w-x0-w:x+x0,y+y0+ly,w,h);}
@@ -1435,6 +1438,11 @@ function drawDog(key,x,y,face,moving,nowT,lying){
     r(2,2,8,4,fur);r(3,2,1,1,curl);r(6,3,1,1,curl);r(8,2,1,1,curl);r(4,5,1,1,curl);r(7,5,1,1,curl);
     r(8,0,4,4,fur);r(11,2,2,2,fur);r(8,1,1,3,curl);r(9,1,1,1,curl);r(10,1,1,1,C.ink);r(12,2,1,1,C.ink);
     legs(6,[3,5,7,9],'#e6dfd0');}
+  else if(key==='leo'){var wh='#fbfaf6',fluff='#e2ddd1';
+    r(0,1-wag,2,2,wh);r(0,1-wag,1,1,fluff);
+    r(1,2,5,3,wh);r(1,4,5,1,fluff);r(2,2,1,1,fluff);r(4,3,1,1,fluff);
+    r(5,0,3,3,wh);r(5,0,1,2,fluff);r(6,1,1,1,C.ink);r(7,2,1,1,C.ink);r(6,3,1,1,'#f4a3a3');
+    legs(5,[2,3,4,5],fluff);}
   else{var brown='#8a5a3c',patch='#5a3a24',white='#f2f0e8',tan='#c8904f';
     r(0,2-wag,1,1,brown);
     r(1,2,6,3,brown);r(2,2,2,1,patch);r(5,3,1,1,patch);r(3,3,1,1,patch);r(2,4,4,1,white);
