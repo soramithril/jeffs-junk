@@ -919,7 +919,7 @@ function drawDumpBits(nowT){
    Jeff, Jake and Josh are out there playing (Jake, 2026-11-03) - Josh only while his
    pickup is in the yard. ---------- */
 var SKATERS=[{hair:'#3b2416',cap:'#1d1d1d'},{hair:'#d8b46a',cap:'#1d1d1d'},{hair:'#8a5a3c',cap:'#1d1d1d'},{hair:'#2b2b2b',cap:'#1d1d1d'}];
-function newHockey(){var offs=[[-9,-5],[9,4],[-7,6],[8,-6]],teams=['#d9412b','#2f74c8','#d9412b','#2f74c8'];
+function newHockey(){var offs=[[-18,-7],[16,5],[-8,8],[10,-9]],teams=['#d9412b','#2f74c8','#d9412b','#2f74c8'];
   return{puck:{x:POND_X,y:POND_Y,tx:POND_X,ty:POND_Y},pl:offs.map(function(o,i){return{x:POND_X+o[0]*2,y:POND_Y+o[1],ox:o[0],oy:o[1],team:teams[i],face:1,moving:false};})};}
 function updHockey(dt){
   var H=SC.hockey,p=H.puck,dx=p.tx-p.x,dy=p.ty-p.y,d=Math.sqrt(dx*dx+dy*dy),v=40*dt;
@@ -1243,7 +1243,7 @@ function drawJWG(nowT,t){
 /* ---------- the light through the day (Jake, 2026-11-03): golden hour 3-4 pm, sunset at
    4, dark by 5, every day of the year. Only outdoors - the office and the shop keep
    their lights on - and after dark the house windows, street lamps and headlights glow. */
-var INDOOR=[[DX-69,11,209,162],[DX+273,25,51,148]];
+var INDOOR=[[DX-69,11,209,162],[DX+273,25,51,148],[BOARD_X,4,W-4-BOARD_X,BOARD_H]];   /* office, shop, and the who's-out board stays readable */
 function minuteOf(t){var d=new Date(t);return d.getHours()*60+d.getMinutes();}
 function nightLevel(t){return clamp((minuteOf(t)-16*60-10)/50,0,1);}
 function outdoors(col,a){if(a<=0)return;
@@ -1256,7 +1256,7 @@ function drawTint(t){
   outdoors('#ffb347',m<15*60?0:m<16*60?(m-15*60)/60*.2:.2-(m-16*60)/30*.2);   /* golden hour, fading at sunset */
   if(m>=16*60&&m<16*60+40)outdoors('#ff5a5f',.12*Math.sin((m-16*60)/40*Math.PI));   /* the sunset itself */
   if(SE.spooky&&m>15*60)outdoors('#4b2a86',Math.min(.26,(m-15*60)/120*.26));
-  outdoors('#0b1a3a',nightLevel(t)*.55);
+  outdoors('#0b1a3a',nightLevel(t)*.45);   /* dark, but the bins and stops in town still read */
 }
 function drawLights(t,placed){
   var n=nightLevel(t);if(n<=0)return;
