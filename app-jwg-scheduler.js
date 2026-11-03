@@ -3717,6 +3717,8 @@ closeModal=function(){
   setTimeout(()=>{
     if(S.tab==="tasks")renderTasksBoard();
     else if(S.tab==="schedule")refreshGrid();
+    // render() would blank the Winter list to "Loading…" first, which drops you at the top.
+    else if(S.tab==="winter")reloadWinter();
     else render();
   },50);
 };
