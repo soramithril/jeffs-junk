@@ -3270,6 +3270,13 @@ const CLOTHING_SIZES=["XS","S","M","L","XL","2XL","3XL","One Size"];
 const CLOTHING_COMPANIES=["Jeffs Junk","Jeff White Group"];
 // How the logo is put on (Jake, 2026-11-03). Blank on designs made before this existed.
 const CLOTHING_LOGOS=["Embroidered","Screen printed"];
+// Colour choices: these three, plus any colour already saved on a design (Jake, 2026-11-03:
+// "make it so you can add colors"), so a colour added once is offered to everyone after.
+const CLOTHING_COLOURS=["Grey","Black","Green"];
+function clColourChoices(){const out=[...CLOTHING_COLOURS];CL.designs.forEach(d=>{if(d.colour&&!out.some(c=>c.toLowerCase()===d.colour.toLowerCase()))out.push(d.colour);});return out;}
+// Every Clothing pop-up gets a clear X in its top corner.
+const CL_X=`<button type="button" class="cl-x" onclick="JWG.closeModal()" aria-label="Close">✕</button>`;
+function clHead(title){return`<div class="cl-mhead"><div class="modal-title">${title}</div>${CL_X}</div>`;}
 const CL_BUCKET="clothing-designs",CL_PHOTO_PX=1000;
 // ho = the open hand-out, ed = the design being added or changed
 let CL={items:[],designs:[],urls:{},tab:"designs",former:false,search:"",ho:null,ed:null};
@@ -3362,9 +3369,9 @@ function clDesignsHtml(formerIds){
     return`<div class="cl-design">
       <button class="cl-design-photo" onclick="JWG.clOpenDesign('${d.id}')" title="Change this design">${clPhoto(d)}</button>
       <div class="cl-design-name">${clEsc(d.name)}</div>
-      <div class="cl-tags"><span class="cl-co ${d.company==="Jeff White Group"?"jwg":"jj"}">${clCoLabel(d.company)}</span>${d.logo?`<span class="cl-logo">${d.logo}</span>`:""}</div>
+      <div class="cl-tags"><span class="cl-co ${d.company==="Jeff White Group"?"jwg":"jj"}">${clCoLabel(d.company)}</span>${d.colour?`<span class="cl-logo">${clEsc(d.colour)}</span>`:""}${d.logo?`<span class="cl-logo">${d.logo}</span>`:""}</div>
       <div class="cl-design-who">${names||`<span class="cl-muted">Nobody yet</span>`}</div>
-      <button class="cl-btn primary" onclick="JWG.clOpenHandout('${d.id}')">Hand out</button>
+      <div class="cl-design-btns"><button class="cl-btn primary" onclick="JWG.clOpenHandout('${d.id}')">Hand out</button><button class="cl-btn" onclick="JWG.clOpenDesign('${d.id}')">Edit</button></div>
     </div>`;
   }).join("");
   return`<div class="cl-shelf">${cards}
@@ -3412,7 +3419,7 @@ function clHandoutHtml(){
     return`<div class="cl-ho-group"><span class="cl-group-lbl">${clEsc(g.name)}</span><button class="cl-link" onclick="JWG.clHoTickGroup(${gi})">${all?"Untick all":"Tick all "+g.emps.length}</button></div>`
       +g.emps.map(e=>clHoRow(e,d)).join("");
   }).join("");
-  return`<div class="cl-ho-head">${clPhoto(d,"sm")}<div><div class="modal-title" style="margin:0">${clEsc(d.name)}</div><div class="cl-muted">${clCoLabel(d.company)}${d.logo?" · "+d.logo:""}</div></div></div>
+  return`<div class="cl-ho-head">${clPhoto(d,"sm")}<div><div class="modal-title" style="margin:0">${clEsc(d.name)}</div><div class="cl-muted">${[clCoLabel(d.company),d.colour&&clEsc(d.colour),d.logo].filter(Boolean).join(" · ")}</div></div>${CL_X}</div>
     <div class="cl-ho-bar">
       <input id="cl-ho-q" class="cl-input" placeholder="Find a person…" value="${clEsc(h.q)}" oninput="JWG.clHoSearch(this.value)">
       <label class="cl-ho-date">Given <input type="date" class="cl-input" value="${h.date}" onchange="JWG.clHoDate(this.value)"></label>
@@ -3473,16 +3480,16 @@ async function clHoSave(){
 // ── Add or change a design ──
 function clOpenDesign(id){
   const d=id?clDesign(id):null;
-  CL.ed={id,blob:null,type:d?d.item_type:"",company:d?d.company:"",logo:d?d.logo||"":""};
+  CL.ed={id,blob:null,type:d?d.item_type:"",company:d?d.company:"",logo:d?d.logo||"":"",colour:d?d.colour||"":""};
   const used=d?CL.items.filter(i=>i.design_id===d.id).length:0;
   const photo=d&&d.photo_path?CL.urls[d.photo_path]:"";
-  openModal(`<div class="modal-title">${d?"Change design":"New design"}</div>
+  openModal(`${clHead(d?"Change design":"New design")}
     <div class="cl-de">
       <label class="cl-de-photo">
         <img id="cl-de-img" src="${photo}" alt="" ${photo?"":"hidden"}>
         <span id="cl-de-snap" ${photo?"hidden":""}>Snap or pick a photo</span>
         <span class="cl-de-retake">${photo?"Change photo":"Add photo"}</span>
-        <input type="file" accept="image/*" hidden onchange="JWG.clEdPhoto(this.files[0])">
+        <input type="file" accept="image/*" hidden onchange="JWG.clEdPhoto(this.files[0]);this.value=''">
       </label>
       <div class="cl-de-fields">
         <div class="cl-form-label">Name it</div>
@@ -3493,6 +3500,9 @@ function clOpenDesign(id){
         <div class="cl-chips">${CLOTHING_COMPANIES.map(c=>`<button type="button" class="${c===CL.ed.company?"on":""}" onclick="JWG.clEdPick(this,'company','${c}')">${clCoLabel(c)}</button>`).join("")}</div>
         <div class="cl-form-label">Logo</div>
         <div class="cl-chips">${CLOTHING_LOGOS.map(l=>`<button type="button" class="${l===CL.ed.logo?"on":""}" onclick="JWG.clEdPick(this,'logo','${l}')">${l}</button>`).join("")}</div>
+        <div class="cl-form-label">Colour</div>
+        <div class="cl-chips" id="cl-de-colours">${clColourChoices().map(clColourChip).join("")}<button type="button" class="cl-chip-add" onclick="JWG.clEdColourNew()">+ Add colour</button></div>
+        <div class="cl-de-newcol" id="cl-de-newcol" hidden><input id="cl-de-colour" class="cl-input" placeholder="e.g. Navy" onkeydown="if(event.key==='Enter')JWG.clEdAddColour()"><button type="button" class="cl-btn" onclick="JWG.clEdAddColour()">Add</button></div>
       </div>
     </div>
     ${used?`<div class="cl-muted" style="margin-top:12px">Given out ${used} time${used===1?"":"s"}. A change shows on all of them.</div>`:""}
@@ -3502,11 +3512,25 @@ function clOpenDesign(id){
     </div>`,"560px");
 }
 function clEdPick(btn,key,val){CL.ed[key]=val;btn.parentNode.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b===btn));}
+// Colours are typed by people, so they ride in data-colour rather than inside onclick.
+function clColourChip(c){return`<button type="button" class="${c===CL.ed.colour?"on":""}" data-colour="${clEsc(c)}" onclick="JWG.clEdColour(this)">${clEsc(c)}</button>`;}
+function clEdColour(btn){clEdPick(btn,"colour",btn.dataset.colour);}
+function clEdColourNew(){document.getElementById("cl-de-newcol").hidden=false;document.getElementById("cl-de-colour").focus();}
+function clEdAddColour(){
+  const inp=document.getElementById("cl-de-colour"),v=inp.value.trim().replace(/\s+/g," ");
+  if(!v){toast("Type the colour first","error");return;}
+  const name=v.charAt(0).toUpperCase()+v.slice(1),box=document.getElementById("cl-de-colours");
+  let btn=[...box.querySelectorAll("button[data-colour]")].find(b=>b.dataset.colour.toLowerCase()===name.toLowerCase());
+  if(!btn){box.querySelector(".cl-chip-add").insertAdjacentHTML("beforebegin",clColourChip(name));btn=[...box.querySelectorAll("button[data-colour]")].pop();}
+  clEdColour(btn);inp.value="";document.getElementById("cl-de-newcol").hidden=true;
+}
 // Shrink the photo on the device before upload, like the winter site plans do.
 async function clEdPhoto(file){
   if(!file)return;
   try{
-    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error("That file is not a picture the browser can read"));i.src=URL.createObjectURL(file);});
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error(/hei[cf]/i.test(file.type)||/\.hei[cf]$/i.test(file.name)
+      ?"This is an iPhone HEIC photo, which this browser can't open. Upload it from the iPhone instead, or use Safari on the Mac."
+      :"That file is not a picture the browser can read"));i.src=URL.createObjectURL(file);});
     const scale=Math.min(1,CL_PHOTO_PX/Math.max(img.naturalWidth,img.naturalHeight));
     const c=document.createElement("canvas");
     c.width=Math.round(img.naturalWidth*scale);c.height=Math.round(img.naturalHeight*scale);
@@ -3523,6 +3547,7 @@ async function clSaveDesign(){
   if(!ed.type){toast("Pick what kind of item it is","error");return;}
   if(!ed.company){toast("Pick the company","error");return;}
   if(!ed.logo){toast("Pick Embroidered or Screen printed","error");return;}
+  if(!ed.colour){toast("Pick a colour","error");return;}
   if(!ed.id&&!ed.blob){toast("Add a photo of the design","error");return;}
   const btn=document.getElementById("cl-de-save");btn.disabled=true;
   const old=ed.id?clDesign(ed.id):null,oldPath=old?old.photo_path:null;
@@ -3534,7 +3559,7 @@ async function clSaveDesign(){
       if(up.error)throw up.error;
       CL.urls[path]=URL.createObjectURL(ed.blob);
     }
-    const data={name,item_type:ed.type,company:ed.company,logo:ed.logo,photo_path:path};
+    const data={name,item_type:ed.type,company:ed.company,logo:ed.logo,colour:ed.colour,photo_path:path};
     if(old){
       await sbF("PATCH","jwg_clothing_designs?id=eq."+old.id,data);
       // Records carry the design's kind and company too, so sizes-per-kind stay right.
@@ -3572,7 +3597,7 @@ function clOpenPerson(eid){
       <button class="cl-btn del" onclick="JWG.clDelete('${i.id}')">Remove</button>
     </div>`;
   }).join("");
-  openModal(`<div class="modal-title">${clEsc(clEmpName(eid))}</div>
+  openModal(`${clHead(clEsc(clEmpName(eid)))}
     <div class="cl-recs">${rows||`<div class="cl-empty">Nothing given out yet. Hand something out from the Designs tab.</div>`}</div>
     <div class="cl-foot"><span></span><button class="modal-cancel" onclick="JWG.closeModal()">Close</button></div>`,"520px");
 }
@@ -3580,7 +3605,7 @@ function clOpenEdit(id){
   const i=CL.items.find(x=>x.id===id);
   if(!i)throw new Error("Unknown clothing record "+id);
   const sizes=CLOTHING_SIZES.includes(i.size)?CLOTHING_SIZES:[i.size,...CLOTHING_SIZES];
-  openModal(`<div class="modal-title">Change item</div>
+  openModal(`${clHead("Change item")}
     <div class="modal-sub">${clEsc(clEmpName(i.employee_id))}</div>
     <div class="cl-form-row"><div class="cl-form-label">Design</div>
       <select class="cl-select" id="cl_ed_design">${CL.designs.map(d=>`<option value="${d.id}"${d.id===i.design_id?" selected":""}>${clEsc(d.name)} (${clCoLabel(d.company)})</option>`).join("")}</select></div>
@@ -3850,5 +3875,5 @@ function renderJwgScheduler(){
 window.renderJwgScheduler=renderJwgScheduler;
 // The Team page (app-team.js) calls these when someone is removed there.
 window.JWGRoster={forwardSummary:rosterForwardSummary,clearForward:rosterClearForward};
-window.JWG={addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,clDelete:clDelete,clOpenEdit:clOpenEdit,clSaveEdit:clSaveEdit,clOpenPerson:clOpenPerson,clSetTab:clSetTab,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,clOpenHandout:clOpenHandout,clHoTick:clHoTick,clHoTickGroup:clHoTickGroup,clHoSize:clHoSize,clHoDate:clHoDate,clHoSearch:clHoSearch,clHoSave:clHoSave,clOpenDesign:clOpenDesign,clEdPick:clEdPick,clEdPhoto:clEdPhoto,clSaveDesign:clSaveDesign,clDeleteDesign:clDeleteDesign,closeModal:closeModal,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,prevW:prevW,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setWinterSalt:setWinterSalt,setWinterView:setWinterView,toggleWinterService:toggleWinterService,reloadWinter:reloadWinter,freshWinterSites:freshWinterSites,winterRouteSort:winterRouteSort,winterStopOptions:winterStopOptions,sbF:sbF,toast:toast,openModal:openModal,jwgConfirm:jwgConfirm,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render,closeEditor:closeEditor,edJob:edJob,edAway:edAway,edHrs:edHrs,edAllDay:edAllDay,edCustom:edCustom,edCustomSet:edCustomSet,edSel:edSel,edAdd:edAdd,edRemove:edRemove,edClear:edClear,edNote:edNote,edApply:edApply,mSetCrew:mSetCrew};
+window.JWG={addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,clDelete:clDelete,clOpenEdit:clOpenEdit,clSaveEdit:clSaveEdit,clOpenPerson:clOpenPerson,clSetTab:clSetTab,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,clOpenHandout:clOpenHandout,clHoTick:clHoTick,clHoTickGroup:clHoTickGroup,clHoSize:clHoSize,clHoDate:clHoDate,clHoSearch:clHoSearch,clHoSave:clHoSave,clOpenDesign:clOpenDesign,clEdPick:clEdPick,clEdColour:clEdColour,clEdColourNew:clEdColourNew,clEdAddColour:clEdAddColour,clEdPhoto:clEdPhoto,clSaveDesign:clSaveDesign,clDeleteDesign:clDeleteDesign,closeModal:closeModal,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,prevW:prevW,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setWinterSalt:setWinterSalt,setWinterView:setWinterView,toggleWinterService:toggleWinterService,reloadWinter:reloadWinter,freshWinterSites:freshWinterSites,winterRouteSort:winterRouteSort,winterStopOptions:winterStopOptions,sbF:sbF,toast:toast,openModal:openModal,jwgConfirm:jwgConfirm,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render,closeEditor:closeEditor,edJob:edJob,edAway:edAway,edHrs:edHrs,edAllDay:edAllDay,edCustom:edCustom,edCustomSet:edCustomSet,edSel:edSel,edAdd:edAdd,edRemove:edRemove,edClear:edClear,edNote:edNote,edApply:edApply,mSetCrew:mSetCrew};
 })();
