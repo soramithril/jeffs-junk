@@ -155,13 +155,17 @@ var OFFICE=[
    rooms off it, each with a door at its own height: Jeff's office (top), the break room
    (middle, door on the aisle) and the meeting room (bottom, door on the floor lane) */
 var HALLX=-8,RWALL=-15,JEFF_DOOR=26,OUTY=165,YARD_IN=122;
-var JEFF_SEAT=[-45,27],JEFF_VISIT=[-24,40],COFFEE=[-46,80],BREAK_SIT=[-58,100],MEET1=[-64,140],MEET2=[-28,144];
+var JEFF_SEAT=[-45,27],JEFF_VISIT=[-24,40],COFFEE=[-46,80],COFFEE2=[-36,84],BREAK_SIT=[-58,100],BREAK_SIT2=[-26,98],
+    MEET1=[-64,140],MEET2=[-28,144],MEET3=[-50,137];
 var BEDS=[[-68,32],[-68,50],[-29,54]];   /* the dogs' beds in Jeff's office */
 /* where a booking is pinned: in front of the ticket wall in the booking room */
 var BOOK_SPOT={p:[101,148]};
 var PLACES=[BOOK_SPOT,{p:[38,FLOOR]},{p:[46,FLOOR]},{p:[86,AISLE],not:'jake'},{p:[33,AISLE],not:'kelly'},
   {p:[75,AISLE],not:'rachel'},{p:[108,AISLE],not:'sam'},{p:[22,FLOOR],not:'barb'},
-  {p:COFFEE},{p:BREAK_SIT},{p:MEET1},{p:MEET2},
+  /* the break room and meeting room get a good share of the walks, and people linger
+     there (Jake, 2026-11-03: "make our people go into the meeting, break room etc") */
+  {p:COFFEE,stay:[10,25]},{p:COFFEE2,stay:[10,25]},{p:BREAK_SIT,stay:[15,35]},{p:BREAK_SIT2,stay:[15,35]},
+  {p:MEET1,stay:[20,45]},{p:MEET2,stay:[20,45]},{p:MEET3,stay:[20,45]},
   /* Jake also pops in on Jeff and heads out to the yard (Jake, 2026-11-03) */
   {p:JEFF_VISIT,only:'jake'},{p:[196,104],only:'jake',stay:[20,45]},{p:[214,92],only:'jake',stay:[20,45]}];
 
@@ -769,7 +773,7 @@ function newAmbient(){
   /* Jeff, Josh and the dogs roam (Jake, 2026-11-03): the yard, Jeff's office, the
      office floor, the break room. The dogs: Sawyer, Vincent and Winnie. */
   A.roam=[
-    roamer('jeff',P.jeff,[200,100],[{wander:'yard',dur:[30,70],w:3},{spot:JEFF_SEAT,seated:true,dur:[40,90],w:3},{spot:[33,AISLE],dur:[6,12],w:1},{spot:COFFEE,dur:[6,12],w:1}],6),
+    roamer('jeff',P.jeff,[200,100],[{wander:'yard',dur:[30,70],w:3},{spot:JEFF_SEAT,seated:true,dur:[40,90],w:3},{spot:[33,AISLE],dur:[6,12],w:1},{spot:COFFEE,dur:[6,12],w:1},{spot:MEET3,dur:[20,45],w:1}],6),
     roamer('josh',P.josh,[170,90],[{wander:'yard',dur:[30,70],w:4},{spot:JEFF_VISIT,dur:[8,16],w:1},{spot:COFFEE,dur:[6,12],w:1}],6),
     roamer('sawyer',null,[190,110],dogPlaces(0),14),
     roamer('vincent',null,[30,150],dogPlaces(1),12),
@@ -946,6 +950,83 @@ function drawPond(nowT){
     rect(ctx,'#7a5a3c',dx,dy,6,3);rect(ctx,d?'#7a5a3c':'#2f6a3a',f>0?dx+5:dx-2,dy-2,3,3);rect(ctx,'#e3b13a',f>0?dx+8:dx-3,dy-1,1,1);rect(ctx,'#5b9ac8',dx-1,dy+3,8,1);}
 }
 
+/* ---------- surprise visitors (Jake, 2026-11-03): once a day one of these turns up, at a
+   time picked from the date so every showing that day agrees (between 9 am and 4 pm),
+   and plays each time the screen comes up in the next 10 minutes so the office catches
+   it. Pure fun: nothing goes on the flip board and nothing is saved. Santa is December
+   only; the geese have flown south once there's snow. ---------- */
+var SUR_LEN={dino:16000,ufo:12000,moose:14000,balloon:30000,geese:10000,bin:14000,bigfoot:14000,santa:12000};
+var SUR=null;   // {kind,start}: the one playing on this showing
+function surpriseFor(dayStart){
+  /* the date, scrambled, seeds the pick - neighbouring dates would otherwise pick alike */
+  var d=new Date(dayStart),r=mulberry32(Math.imul(d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(),2654435761)^0x5bd1e995),dec=d.getMonth()===11;
+  var pool=Object.keys(SUR_LEN).filter(function(k){return k==='santa'?dec:k==='geese'?!SE.snow:true;});
+  r();r();r();
+  return{kind:pool[Math.floor(r()*pool.length)],at:dayStart+(9*60+Math.floor(r()*7*60))*MIN};
+}
+function surP(nowT){if(!SUR)return-1;var p=(nowT-SUR.start)/SUR_LEN[SUR.kind];if(p>1){SUR=null;return-1;}return p;}
+function surOn(kind,nowT){return surP(nowT)>=0&&SUR.kind===kind;}
+/* the dinosaur's footsteps shake the whole picture */
+function surShake(nowT){if(!surOn('dino',nowT))return 0;var t=nowT-SUR.start;return Math.floor(t/350)!==Math.floor((t-60)/350)?1:0;}
+function mirror(x,w,flip){return function(x0,y0,ww,h,c){rect(ctx,c,flip?x+w-x0-ww:x+x0,y0,ww,h);};}
+function drawTrex(x,y,step){var G='#5f9e3f',D='#3f7a2e',L='#a7c96a';
+  rect(ctx,G,x+12,y,10,6);rect(ctx,D,x+12,y,10,1);rect(ctx,G,x+14,y+6,8,2);for(var k=15;k<22;k+=2)rect(ctx,C.white,x+k,y+6,1,1);rect(ctx,C.ink,x+18,y+2,1,1);
+  rect(ctx,G,x+6,y+5,10,8);rect(ctx,L,x+9,y+9,6,4);rect(ctx,G,x,y+6,6,3);rect(ctx,G,x-4,y+8,4,2);rect(ctx,D,x+6,y+5,8,1);
+  rect(ctx,G,x+15,y+9,3,1);rect(ctx,G,x+17,y+10,1,1);
+  rect(ctx,D,x+7,y+13,3,step?6:5);rect(ctx,D,x+12,y+13,3,step?5:6);rect(ctx,D,x+7,y+(step?19:18),5,1);rect(ctx,D,x+12,y+(step?18:19),5,1);}
+function drawMoose(x,y,step,flip){var r=mirror(x,22,flip),B='#5a3a24',A='#d9c7a0';
+  r(0,y+3,16,7,B);r(2,y+2,10,2,'#4a2e1e');r(15,y+1,4,5,B);r(18,y+3,3,3,B);r(19,y+4,1,1,C.ink);r(16,y+6,2,3,B);
+  r(14,y-2,2,3,A);r(12,y-3,3,1,A);r(18,y-2,2,3,A);r(19,y-3,3,1,A);
+  [1,4,11,14].forEach(function(lx,i){r(lx,y+10,1,(i+step)%2?7:6,'#3a2416');});}
+function drawGoose(x,y,up){rect(ctx,'#8a8f98',x,y+2,6,3);rect(ctx,'#5b6270',x,y+2,6,1);rect(ctx,'#1d1d1d',x+5,y-1+up,1,3);rect(ctx,'#1d1d1d',x+5,y-2+up,3,2);
+  rect(ctx,C.white,x+6,y-1+up,1,1);rect(ctx,'#2b2f36',x+1,y+5,1,1);rect(ctx,'#2b2f36',x+4,y+5,1,1);}
+function drawBigfoot(x,y,step,look){var F='#4a3020',F2='#3a2416';
+  rect(ctx,F,x,y,7,5);rect(ctx,F,x-1,y+5,9,7);rect(ctx,F2,x-1,y+5,1,7);rect(ctx,'#8a6a50',x+(look?2:4),y+2,3,2);
+  rect(ctx,C.ink,x+(look?2:4),y+2,1,1);rect(ctx,C.ink,x+(look?4:6),y+2,1,1);
+  rect(ctx,F,x-2,y+6,1,5);rect(ctx,F,x+8,y+6,1,5);rect(ctx,F,x,y+12,3,step?3:4);rect(ctx,F,x+4,y+12,3,step?4:3);}
+function shout(s,x,y,nowT){if(Math.floor(nowT/250)%2)badge(ctx,s,x,y,C.sign);}
+/* Darrin is out chasing the runaway bin, so he's not at his bench */
+function darrinOut(nowT){return surOn('bin',nowT);}
+function drawSurprise(nowT){
+  var p=surP(nowT);if(p<0)return;
+  var t=nowT-SUR.start,k=SUR.kind,x,y;
+  if(k==='dino'){x=-30+p*(W+60);var step=Math.floor(t/350)%2;drawTrex(x,ROADY-14,step);
+    if(surShake(nowT))for(var d=0;d<3;d++)parts.push({x:x+6+d*4,y:ROADY+6,vx:(d-1)*6,vy:-4,life:.5,c:'#cfcabd'});}
+  else if(k==='ufo'){var px=DX+362,cy=26,cx;
+    if(p<.25)cx=-20+p/.25*(px+20);else if(p<.7)cx=px+Math.sin(t/300)*2;else{cx=px+(p-.7)/.3*300;cy=26-(p-.7)*80;}
+    var beam=p>.3&&p<.68,lift=beam?(p-.3)/.38:p>=.68?1:0;
+    if(beam){ctx.globalAlpha=.35;for(var b=0;b<44;b++)rect(ctx,C.light,cx+10-(6+b*.5)/2,cy+8+b,6+b*.5,1);ctx.globalAlpha=1;}
+    if(p<.68){var couchY=72-lift*(72-cy-6);rect(ctx,'#8c3f2e',px+3,couchY,14,4);rect(ctx,'#a8503c',px+4,couchY-2,12,2);rect(ctx,'#8c3f2e',px+3,couchY-3,2,3);rect(ctx,'#8c3f2e',px+15,couchY-3,2,3);}
+    rect(ctx,'#9aa3ad',cx,cy+4,20,3);rect(ctx,'#6b727e',cx+2,cy+7,16,1);rect(ctx,C.glass,cx+6,cy,8,4);rect(ctx,'#3cc46f',cx+9,cy+1,2,2);rect(ctx,C.ink,cx+9,cy+1,1,1);
+    for(var l=0;l<4;l++)rect(ctx,(Math.floor(t/200)+l)%2?C.gold:C.red,cx+2+l*5,cy+5,2,1);}
+  else if(k==='moose'){var mid=W/2-11,mv=true;
+    if(p<.35)x=W+10-p/.35*(W+10-mid);else if(p<.65){x=mid;mv=false;}else x=mid-(p-.65)/.35*(mid+40);
+    drawMoose(x,ROADY-8,mv?Math.floor(t/400)%2:0,true);if(!mv)shout('HONK',x+28,ROADY-16,nowT);}
+  else if(k==='balloon'){var bx=-20+p*(W+40),by=18+Math.sin(t/900)*2,cols=[C.red,C.gold,C.blue,C.gold,C.red];
+    ctx.globalAlpha=.2;rect(ctx,C.ink,bx+2,by+90,12,3);ctx.globalAlpha=1;
+    [[4,0,8],[2,1,12],[1,2,14],[0,3,16],[0,4,16],[0,5,16],[0,6,16],[0,7,16],[1,8,14],[1,9,14],[2,10,12],[3,11,10],[4,12,8],[5,13,6]].forEach(function(rw){
+      for(var q=0;q<rw[2];q++)rect(ctx,cols[Math.floor((rw[0]+q)/3.2)%5],bx+rw[0]+q,by+rw[1],1,1);});
+    rect(ctx,'#6b4a32',bx+5,by+14,1,4);rect(ctx,'#6b4a32',bx+10,by+14,1,4);rect(ctx,'#8b6b4a',bx+5,by+18,6,4);rect(ctx,'#6b4a32',bx+5,by+18,6,1);rect(ctx,C.skin,bx+7,by+16,2,2);}
+  else if(k==='geese'){x=-10+p*(W+60);
+    person(ctx,x+30,RT-13,{hair:'#d8b46a',shirt:'#5f7f9e'},{step:Math.floor(t/120)%2,wave:true,arm:Math.floor(t/120)%2});
+    for(var g=0;g<3;g++)drawGoose(x+12-g*9,RT-7+(g%2)*2,Math.floor(t/150+g)%2);shout('HONK',x+4,RT-22,nowT);}
+  else if(k==='bin'){var gate=DX+212,bxx=p<.6?gate+p/.6*(W+20-gate):W+40,dx=p<.6?bxx-26:(W+14)-(p-.6)/.4*(W+14-gate),roll=Math.floor(t/100)%2;
+    if(p<.6){y=ROADY+1;rect(ctx,'#1d2a22',bxx,y,16,8);rect(ctx,C.bin,bxx+1,y+1,14,6);rect(ctx,C.bin2,bxx+1,y+5,14,1);
+      rect(ctx,C.tire,bxx+2,y+8,3,2);rect(ctx,C.tire,bxx+11,y+8,3,2);rect(ctx,C.rim,bxx+(roll?3:4),y+8,1,1);rect(ctx,C.rim,bxx+(roll?12:13),y+8,1,1);}
+    person(ctx,dx,ROADY-4,P.shop,{face:p<.6?1:-1,step:Math.floor(t/110)%2});if(p<.6)shout('HEY',dx+2,ROADY-14,nowT);}
+  else if(k==='bigfoot'){var stop=236,look=false,mv2=true;
+    if(p<.4)x=-10+p/.4*(stop+10);else if(p<.62){x=stop;look=true;mv2=false;}else x=stop+(p-.62)/.38*(W-stop+20);
+    drawBigfoot(x,PARK_TOP-1,mv2&&Math.floor(t/260)%2,look);}
+  else if(k==='santa'){var sx=-60+p*(W+120),sy=26+Math.sin(t/500)*3;
+    for(var s=0;s<10;s++)if(Math.random()<.6)rect(ctx,s%2?C.gold:C.white,sx-2-s*3,sy+4+((s*5)%5),1,1);
+    rect(ctx,C.red,sx,sy+2,12,5);rect(ctx,'#a8321f',sx,sy+6,12,1);rect(ctx,C.gold,sx-1,sy+7,14,1);rect(ctx,'#8b6b4a',sx+3,sy,6,3);
+    rect(ctx,C.red,sx+8,sy-2,4,4);rect(ctx,C.white,sx+8,sy-2,4,1);rect(ctx,C.skin,sx+9,sy-1,2,2);rect(ctx,C.white,sx+9,sy+1,3,1);
+    for(var r=0;r<2;r++){var rx=sx+16+r*11,up=Math.floor(t/180+r)%2;
+      rect(ctx,'#8a5a3c',rx,sy+3-up,7,3);rect(ctx,'#8a5a3c',rx+6,sy+1-up,3,3);rect(ctx,'#6b4a32',rx+7,sy-1-up,1,2);rect(ctx,'#6b4a32',rx+1,sy+6-up,1,2);rect(ctx,'#6b4a32',rx+5,sy+6-up,1,2);
+      if(r===1)rect(ctx,Math.floor(t/300)%2?'#ff3b3b':'#a8321f',rx+9,sy+2-up,1,1);}
+    rect(ctx,'#d9c7a0',sx+12,sy+4,5,1);}
+}
+
 /* ---------- weather and particles ---------- */
 var wx=[],parts=[],conf=[],stamps=[],banner=null;
 function weatherNow(){return WX||SE.ambient||null;}
@@ -1084,8 +1165,7 @@ function drawYard(nowT,t){
   for(k=0;k<b.ready;k++)spr(ctx,BIN,binPal,153+(k%7)*13,19+Math.floor(k/7)*7,false);
   for(k=0;k<b.prep;k++){spr(ctx,BIN,binPal,250,19+k*7,false);rect(ctx,C.amber,258,20+k*7,2,2);}
   for(k=0;k<b.off;k++){var oy=19+(b.prep+k)*7;spr(ctx,BIN,offPal,250,oy,false);rect(ctx,C.red,258,oy+1,2,2);}
-  person(ctx,290,44,P.shop,{arm:Math.floor(nowT/300)%2});
-  badge(ctx,'DARRIN',292,33,C.sign);
+  if(!darrinOut(nowT)){person(ctx,290,44,P.shop,{arm:Math.floor(nowT/300)%2});badge(ctx,'DARRIN',292,33,C.sign);}
 }
 /* the wing, live: the dogs asleep on their beds, Jeff behind his desk, tomorrow's job
    count on the whiteboard (a real number), and a trophy for every team badge - gold
@@ -1290,6 +1370,7 @@ function draw(nowT){
   var joshTruck=M.trucks.filter(function(T){return T.driver==='Josh';})[0];
   M.joshOut=!!joshTruck&&truckAt(joshTruck,t).mode!=='yard';
   runBookings(nowT);
+  var shake=surShake(nowT);ctx.save();if(shake)ctx.translate(Math.random()<.5?-1:1,1);
   ctx.drawImage(bgc,0,0);
   ctx.save();ctx.translate(DX,0);
   drawOffice(nowT,t,vals,news);drawBooking(nowT,t);drawWing(nowT,t);drawYard(nowT,t);drawRoamers(nowT);drawDumpBits(nowT);
@@ -1298,7 +1379,9 @@ function draw(nowT){
   drawJWG(nowT,t);drawPond(nowT);drawTowns(nowT,t,tt.replaying);drawScenery(nowT);
   var placed=M.trucks.map(function(T,idx){return{T:T,pos:placeTruck(T,t,idx,nowT)};}).sort(function(a,b){return a.pos.y-b.pos.y;});
   placed.forEach(function(o){drawTruck(o.T,o.pos,t,nowT);});
+  drawSurprise(nowT);
   drawWeather(nowT);drawStamps(nowT);drawTint(t);drawLights(t,placed);drawBanner(nowT);
+  ctx.restore();
   return tt;
 }
 
@@ -1363,11 +1446,15 @@ window.JJHQ={
     bookNews=null;bellUntil=0;printUntil=0;queueBookings();
     cancelAnimationFrame(raf);
     showAt=lastFrame=performance.now();
+    /* today's surprise plays on this showing if it's due within the last 10 minutes, once the replay is done */
+    var sp=surpriseFor(snap.dayStart);SUR=snap.now>=sp.at&&snap.now<sp.at+10*MIN?{kind:sp.kind,start:showAt+REPLAY_MS+1500}:null;
     /* a hidden tab gets no animation frames - draw the end state once so the screen is never blank */
     if(document.hidden){showAt-=REPLAY_MS;draw(showAt+REPLAY_MS);return;}
     raf=requestAnimationFrame(frame);
   },
   hide:function(){cancelAnimationFrame(raf);raf=0;},
+  /* play one surprise now, whatever the time (for the preview page) */
+  surprise:function(kind){if(!SUR_LEN[kind])throw new Error('JJHQ.surprise: no surprise called '+kind);SUR={kind:kind,start:performance.now()};},
   badgeCount:function(){return M?badgeCount():0;}
 };
 })();
