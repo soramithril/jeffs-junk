@@ -1458,6 +1458,16 @@
 #view-jwgscheduler .cl-btn.primary:hover {background:var(--dark-b);}
 #view-jwgscheduler .cl-btn.del {color:#6b7280;}
 #view-jwgscheduler .cl-btn.del:hover {color:#dc2626;border-color:#dc2626;background:#fef2f2;}
+#view-jwgscheduler .cl-mhead {display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px;}
+#view-jwgscheduler .cl-mhead .modal-title {margin:0;}
+#view-jwgscheduler .cl-x {flex:0 0 auto;width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--bg-deep);color:var(--fg-muted);font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#view-jwgscheduler .cl-x:hover {color:var(--fg);border-color:var(--border-h);}
+#view-jwgscheduler .cl-ho-head .cl-x {margin-left:auto;align-self:flex-start;}
+#view-jwgscheduler .cl-design-btns {display:flex;gap:6px;}
+#view-jwgscheduler .cl-design-btns .primary {flex:1;}
+#view-jwgscheduler .cl-chips .cl-chip-add {border-style:dashed;color:var(--fg-muted);}
+#view-jwgscheduler .cl-de-newcol {display:flex;gap:6px;}
+#view-jwgscheduler .cl-de-newcol[hidden] {display:none;}
 #view-jwgscheduler .cl-tags {display:flex;flex-wrap:wrap;gap:5px;}
 #view-jwgscheduler .cl-logo {display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;background:#eef0f3;color:#374151;}
 #view-jwgscheduler .cl-co {align-self:flex-start;display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;}
