@@ -898,7 +898,7 @@ function runBookings(nowT){
   bookActive=q;
   var w=bookerWorker(q.e);
   if(w&&!inOffice(w,M.now))w=null;   /* booked before coming in: it comes out of the printer */
-  if(w&&onIce(w.key))w=null;          /* out on the pond: the printer again */
+  if(w&&(onIce(w.key)||inCast(w.key,nowT)))w=null;   /* out on the pond or in a surprise: the printer again */
   if(w){if(w.mode==='seat'){w.x=w.home[0];w.y=w.home[1];}
     w.ticket=q;w.target=BOOK_SPOT;w.pts=route2([w.x,w.y],BOOK_SPOT.p);w.mode='walk';}
   else{q.printAt=nowT;printUntil=nowT+1500;}
@@ -999,16 +999,21 @@ function drawPond(nowT){
    the Zamboni only on a frozen pond, the aurora only after dark. Each one is
    sur(name, how long it plays, when it can come, how to draw it at p = 0..1). ---------- */
 var SUR_DEFS={},SUR=null,lastSur=null;
-function sur(kind,len,when,draw){SUR_DEFS[kind]={len:len,when:when,draw:draw};}
+/* o: {cast: people/dogs who step out of their usual spot while it plays, w: how often (default 1)} */
+function sur(kind,len,when,draw,o){o=o||{};SUR_DEFS[kind]={len:len,when:when,draw:draw,cast:o.cast||[],w:o.w||1};}
 function pickSurprise(){var pool=Object.keys(SUR_DEFS).filter(function(k){return k!==lastSur&&SUR_DEFS[k].when();});
-  lastSur=pool[Math.floor(Math.random()*pool.length)];return lastSur;}
+  var tot=0;pool.forEach(function(k){tot+=SUR_DEFS[k].w;});var r=Math.random()*tot;
+  for(var i=0;i<pool.length-1;i++){r-=SUR_DEFS[pool[i]].w;if(r<=0)break;}
+  lastSur=pool[i];return lastSur;}
+/* each run of a surprise rolls its own dice (who joins in), kept in SUR.seed */
+function startSurprise(kind,at){SUR={kind:kind,start:at,seed:Math.random()};}
 function surP(nowT){if(!SUR)return-1;var p=(nowT-SUR.start)/SUR_DEFS[SUR.kind].len;if(p>1){SUR=null;return-1;}return p;}
 function surOn(kind,nowT){return surP(nowT)>=0&&SUR.kind===kind;}
 /* the dinosaur's and the robot's footsteps shake the whole picture */
 function surShake(nowT){if(!(surOn('dino',nowT)||surOn('robot',nowT)))return 0;var t=nowT-SUR.start;return Math.floor(t/350)!==Math.floor((t-60)/350)?1:0;}
 /* our own people and dogs taking part in a surprise aren't drawn in their usual spots */
-function darrinOut(nowT){return surOn('bin',nowT)||surOn('geese',nowT);}
-function busyInSurprise(o,nowT){return(o.dog&&surOn('squirrel',nowT))||(o.key==='jeff'&&surOn('tractor',nowT));}
+function inCast(key,nowT){return surP(nowT)>=0&&SUR_DEFS[SUR.kind].cast.indexOf(key)>=0;}
+var DOG_KEYS=['sawyer','vincent','winnie','leo'],OFFICE_KEYS=['kelly','rachel','sam','barb','jake'];
 function drawSurprise(nowT){var p=surP(nowT);if(p<0)return;SUR_DEFS[SUR.kind].draw(p,nowT-SUR.start,nowT);}
 function mirror(x,w,flip){return function(x0,y0,ww,h,c){rect(ctx,c,flip?x+w-x0-ww:x+x0,y0,ww,h);};}
 function shout(s,x,y,nowT){if(Math.floor(nowT/250)%2)badge(ctx,s,x,y,C.sign);}
@@ -1053,11 +1058,11 @@ function drawGoose(x,y,up){rect(ctx,'#8a8f98',x,y+2,6,3);rect(ctx,'#5b6270',x,y+
 /* the geese chase Darrin down the sidewalk (no strangers - Jake took those out) */
 sur('geese',10000,NO_SNOW,function(p,t,nowT){var x=across(p,30);
   person(ctx,x+30,RT-13,P.shop,{step:Math.floor(t/120)%2,wave:true,arm:Math.floor(t/120)%2});
-  for(var g=0;g<3;g++)drawGoose(x+12-g*9,RT-7+(g%2)*2,Math.floor(t/150+g)%2);shout('HONK',x+4,RT-22,nowT);});
+  for(var g=0;g<3;g++)drawGoose(x+12-g*9,RT-7+(g%2)*2,Math.floor(t/150+g)%2);shout('HONK',x+4,RT-22,nowT);},{cast:['darrin']});
 sur('bin',14000,ANY,function(p,t,nowT){var gate=DX+212,bxx=p<.6?gate+p/.6*(W+20-gate):W+40,dx=p<.6?bxx-26:(W+14)-(p-.6)/.4*(W+14-gate),roll=Math.floor(t/100)%2,y=ROADY+1;
   if(p<.6){rect(ctx,'#1d2a22',bxx,y,16,8);rect(ctx,C.bin,bxx+1,y+1,14,6);rect(ctx,C.bin2,bxx+1,y+5,14,1);
     rect(ctx,C.tire,bxx+2,y+8,3,2);rect(ctx,C.tire,bxx+11,y+8,3,2);rect(ctx,C.rim,bxx+(roll?3:4),y+8,1,1);rect(ctx,C.rim,bxx+(roll?12:13),y+8,1,1);}
-  person(ctx,dx,ROADY-4,P.shop,{face:p<.6?1:-1,step:Math.floor(t/110)%2});if(p<.6)shout('HEY',dx+2,ROADY-14,nowT);});
+  person(ctx,dx,ROADY-4,P.shop,{face:p<.6?1:-1,step:Math.floor(t/110)%2});if(p<.6)shout('HEY',dx+2,ROADY-14,nowT);},{cast:['darrin']});
 function drawBigfoot(x,y,step,look){var F='#4a3020',F2='#3a2416';
   rect(ctx,F,x,y,7,5);rect(ctx,F,x-1,y+5,9,7);rect(ctx,F2,x-1,y+5,1,7);rect(ctx,'#8a6a50',x+(look?2:4),y+2,3,2);
   rect(ctx,C.ink,x+(look?2:4),y+2,1,1);rect(ctx,C.ink,x+(look?4:6),y+2,1,1);
@@ -1134,7 +1139,7 @@ sur('monstertruck',9000,ANY,function(p,t,nowT){var x=across(p,40),b=Math.round(M
 /* Jeff takes the tractor out for a spin */
 sur('tractor',22000,ANY,function(p,t){var x=across(p,40),y=ROADY;
   person(ctx,x+5,y-10,P.jeff,{seated:true});rect(ctx,'#2f8f46',x+4,y,16,5);rect(ctx,'#1f6a33',x+14,y-3,6,3);rect(ctx,C.ink,x+18,y-7,1,4);
-  if(Math.floor(t/400)%2)rect(ctx,'#9aa0a6',x+17,y-10,3,2);oval(C.tire,x+4,y+6,5,5);oval(C.tire,x+19,y+8,3,3);rect(ctx,C.gold,x+4,y+6,1,1);});
+  if(Math.floor(t/400)%2)rect(ctx,'#9aa0a6',x+17,y-10,3,2);oval(C.tire,x+4,y+6,5,5);oval(C.tire,x+19,y+8,3,3);rect(ctx,C.gold,x+4,y+6,1,1);},{cast:['jeff']});
 sur('firetruck',9000,ANY,function(p,t,nowT){var x=across(p,40),y=ROADY,on=Math.floor(t/150)%2;
   rect(ctx,C.red,x,y,34,9);rect(ctx,C.white,x,y+5,34,1);rect(ctx,'#a8321f',x+26,y-3,8,3);rect(ctx,C.glass,x+28,y-2,4,2);
   rect(ctx,'#cfd3d8',x+2,y-2,22,1);for(var l=3;l<24;l+=3)rect(ctx,'#cfd3d8',x+l,y-3,1,2);rect(ctx,on?C.red:C.white,x+27,y-5,2,2);rect(ctx,on?C.white:C.blue,x+31,y-5,2,2);
@@ -1238,9 +1243,104 @@ sur('tubeman',14000,ANY,function(p,t){var x=BOARD_X-7,y=RT-31;   /* at the parki
 /* the dogs chase a squirrel across the yard */
 sur('squirrel',10000,ANY,function(p,t){var x=DX+150+p*100,y=112;
   rect(ctx,'#8a5a3c',x,y,4,3);rect(ctx,'#a8714d',x-3,y-3,3,4);
-  [['sawyer',16],['vincent',30],['winnie',42],['leo',52]].forEach(function(d){drawDog(d[0],x-d[1],y+2+(Math.floor(t/120)%2),1,true,t);});});
+  [['sawyer',16],['vincent',30],['winnie',42],['leo',52]].forEach(function(d){drawDog(d[0],x-d[1],y+2+(Math.floor(t/120)%2),1,true,t);});},{cast:DOG_KEYS});
 sur('aurora',16000,NIGHT,function(p,t){var a=(p<.15?p/.15:p>.85?(1-p)/.15:1)*.3;
   for(var x=0;x<W;x+=2){var y=12+Math.sin(x/60+t/900)*8+Math.sin(x/23+t/500)*3;ctx.globalAlpha=a;rect(ctx,x%8?'#3cc46f':'#8b5cf6',x,y,2,18);ctx.globalAlpha=a*.5;rect(ctx,'#3cc46f',x,y+18,2,10);}ctx.globalAlpha=1;});
+
+
+/* -- our own people and dogs having fun (Jake, 2026-11-03) -- */
+/* Clinton visits with his kids Keaton and Ellis, and walks Rachel in when she arrives */
+var CLINTON={hair:'#3b2416',shirt:'#3f8f8f',pants:'#2b2f36',beard:true},KEATON={hair:'#d8b46a',shirt:'#e8590c'},ELLIS={hair:'#8a5a3c',shirt:'#f2c14e'};
+function kid(x,y,k,step){x=Math.round(x);y=Math.round(y);var s=step?1:0;
+  rect(ctx,C.skin,x,y+1,4,3);rect(ctx,k.hair,x,y,4,2);rect(ctx,C.ink,x+1,y+2,1,1);rect(ctx,C.ink,x+3,y+2,1,1);
+  rect(ctx,k.shirt,x-1,y+4,6,3);rect(ctx,'#3a3f47',x,y+7,1,3-s);rect(ctx,'#3a3f47',x+3,y+7,1,2+s);}
+function joshFree(){return!M.joshOut;}
+function rachelIn(){return new Date(M.now).getHours()>=15;}
+/* who's in the office right now, for the office parties */
+function officeCrew(){return OFFICE_KEYS.filter(function(k){return k!=='rachel'||rachelIn();});}
+function dancer(x,y,look,t,i){var up=Math.floor(t/220+i)%2;person(ctx,x,y-up,look,{wave:true,arm:up,step:up,face:i%2?1:-1});}
+function partyHat(x,y,c){rect(ctx,c,x+1,y-3,3,1);rect(ctx,c,x+2,y-5,1,2);rect(ctx,C.white,x+2,y-6,1,1);}
+function confetti(x0,x1,y0,y1){if(Math.random()<.5)parts.push({x:x0+Math.random()*(x1-x0),y:y0,vx:(Math.random()-.5)*6,vy:Math.random()*4,life:1.4,c:[C.red,C.gold,C.blue,'#3cc46f','#d6336c'][Math.random()*5|0]});}
+sur('danceparty',16000,ANY,function(p,t,nowT){var crew=officeCrew();
+  rect(ctx,C.ink,DX+70,57,1,6);oval('#cfd3d8',DX+70,66,4,4);for(var g=0;g<6;g++)if(Math.floor(t/150+g)%3===0)rect(ctx,C.white,DX+68+(g%3)*2,63+Math.floor(g/3)*3,1,1);
+  ctx.globalAlpha=.22;for(var l=0;l<6;l++){var a=t/700+l;oval([C.red,C.gold,C.blue,'#3cc46f','#d6336c','#8b5cf6'][l],DX+70+Math.cos(a)*45,112+Math.sin(a*1.3)*28,7,4);}ctx.globalAlpha=1;
+  crew.forEach(function(k,i){dancer(DX+30+i*24,100+(i%2)*26,P[k],t,i);});
+  for(var n=0;n<3;n++)note(DX+40+n*36,64-Math.round(((t/30)+n*20)%22));},{cast:OFFICE_KEYS});
+sur('meetingparty',16000,ANY,function(p,t){var who=['kelly','sam','barb','jeff'];
+  rect(ctx,C.red,12,123,40,5);text(ctx,'PARTY!',19,123,C.white);
+  [[10,132,C.red],[54,130,C.blue],[8,150,C.gold],[56,152,'#3cc46f']].forEach(function(b){rect(ctx,C.ink,b[0],b[1]+4,1,6);oval(b[2],b[0],b[1]+Math.round(Math.sin(t/400+b[0])),2,3);});
+  rect(ctx,C.white,26,148,10,4);rect(ctx,'#d6336c',26,148,10,1);for(var c=0;c<3;c++){rect(ctx,C.light,28+c*3,145,1,3);if(Math.floor(t/120+c)%2)rect(ctx,C.gold,28+c*3,144,1,1);}
+  who.forEach(function(k,i){var x=14+i*12,y=134-(Math.floor(t/260+i)%2);person(ctx,x,y,P[k],{wave:i%2===0,arm:Math.floor(t/260+i)%2});partyHat(x,y,[C.red,C.blue,C.gold,'#3cc46f'][i]);});
+  confetti(10,58,122,130);},{cast:['kelly','sam','barb','jeff']});
+sur('conga',14000,ANY,function(p,t){var crew=officeCrew(),loop=[[DX+20,98],[DX+120,98],[DX+120,134],[DX+20,134]];
+  crew.forEach(function(k,i){var q=along(loop.concat([loop[0]]),((t/9000)-i*.05+1)%1);person(ctx,q.x,q.y,P[k],{face:q.face,step:Math.floor(t/160+i)%2,wave:true,arm:Math.floor(t/160)%2});});
+  for(var n=0;n<2;n++)note(DX+60+n*30,80-Math.round(((t/30)+n*20)%18));},{cast:OFFICE_KEYS});
+/* the dogs march in a line down the sidewalk, Sawyer out front with the flag */
+sur('dogmarch',14000,ANY,function(p,t,nowT){var x=across(p,60),st=Math.floor(t/300)%2;
+  DOG_KEYS.forEach(function(k,i){var dx=x-i*18;drawDog(k,dx,RT-9+(st?1:0),1,true,t+i*150);
+    if(i===0){rect(ctx,C.wood,dx+10,RT-20,1,11);rect(ctx,C.red,dx+11,RT-20,5,3);}});
+  shout('HUP HUP',x-20,RT-30,nowT);},{cast:DOG_KEYS});
+/* Jeff plays fetch with the dogs in the yard */
+sur('dogball',14000,ANY,function(p,t){var jx=DX+236,jy=96,k=Math.floor(t/3500),f=(t%3500)/3500,
+    tx=DX+165+((k*53)%70),ty=60+((k*37)%60),bx,by;
+  if(f<.35){var q=f/.35;bx=jx+(tx-jx)*q;by=jy+(ty-jy)*q-Math.sin(q*Math.PI)*18;}else if(f<.55){bx=tx;by=ty;}else{var q2=(f-.55)/.45;bx=tx+(jx-6-tx)*q2;by=ty+(jy+8-ty)*q2;}
+  person(ctx,jx,jy,P.jeff,{face:-1,wave:f<.2,arm:1});
+  DOG_KEYS.forEach(function(d,i){var lag=Math.min(1,f*(1.6-i*.2)),dx=f<.55?jx-10+(tx-jx+10)*lag:bx-3-i*7,dy=f<.55?jy+6+(ty-jy-6)*lag+i*3:by+i*3;
+    drawDog(d,dx,dy,f<.55?(tx<jx?-1:1):1,true,t+i*90);});
+  oval(C.gold,bx,by,1,1);},{cast:DOG_KEYS.concat(['jeff'])});
+sur('dogchase',12000,ANY,function(p,t){var x=across(p,70),y=PARK_TOP+16;
+  var hop=Math.abs(Math.sin(t/120))*3;rect(ctx,'#a89a8a',x,y-hop,5,3);rect(ctx,'#a89a8a',x+4,y-2-hop,3,3);rect(ctx,C.white,x-1,y-hop,1,1);
+  DOG_KEYS.forEach(function(k,i){drawDog(k,x-18-i*15,y-2+(i%2)*4,1,true,t+i*100);});},{cast:DOG_KEYS});
+sur('clinton',18000,ANY,function(p,t,nowT){var gate=DX+200,x=p<.35?-20+p/.35*(gate+20):p<.7?gate:gate-(p-.7)/.3*(gate+40),mv=p<.35||p>=.7,y=RT-13,st=Math.floor(t/200)%2;
+  person(ctx,x,y,CLINTON,{face:p>=.7?-1:1,step:mv&&st,wave:!mv,arm:st});badge(ctx,'CLINTON',x+2,y-9,C.sign);
+  var k1=x-10+Math.sin(t/300)*(mv?2:8),k2=x+10+Math.cos(t/260)*(mv?2:8),hop1=mv?0:Math.abs(Math.sin(t/180))*3,hop2=mv?0:Math.abs(Math.cos(t/200))*3;
+  kid(k1,y+3-hop1,KEATON,st);kid(k2,y+3-hop2,ELLIS,1-st);
+  if(!mv){badge(ctx,'KEATON',k1+2,y-7,C.sign);badge(ctx,'ELLIS',k2+2,y-15,C.sign);shout('HI JEFF!',gate+4,y-24,nowT);}});
+/* when Rachel comes in, Clinton walks her to the door - most showings in her first hour */
+sur('rachelride',14000,function(){return new Date(M.now).getHours()===15;},function(p,t,nowT){var door=DX+72,y=RT-13,st=Math.floor(t/200)%2;
+  var cx=p<.45?-20+p/.45*(door-8+20):p<.6?door-8:door-8-(p-.6)/.4*(door+30);
+  if(p<.5)person(ctx,cx+9,y,P.rachel,{step:p<.45&&st});
+  person(ctx,cx,y,CLINTON,{face:p>=.6?-1:1,step:(p<.45||p>=.6)&&st,wave:p>=.45&&p<.6,arm:st});badge(ctx,'CLINTON',cx+2,y-9,C.sign);
+  if(p>=.45&&p<.6)shout('BYE!',cx+4,y-22,nowT);},{cast:['rachel'],w:8});
+/* football and soccer in the park - Clinton joins in about 4 times in 10 */
+function sportsTeam(extra){var t=[['JAKE',P.jake],['JEFF',P.jeff]];if(joshFree())t.push(['JOSH',P.josh]);if(extra)t=t.concat(extra);if(SUR.seed<.4)t.push(['CLINTON',CLINTON]);return t;}
+sur('football',18000,ANY,function(p,t,nowT){var team=sportsTeam(),spots=[[160,328],[214,318],[250,336],[196,346],[230,350]].slice(0,team.length);
+  team.forEach(function(m,i){var s=spots[i],x=s[0]+Math.sin(t/700+i)*6,y=s[1]+Math.cos(t/900+i)*3;person(ctx,x,y-12,m[1],{face:x<205?1:-1,step:Math.floor(t/250+i)%2});badge(ctx,m[0],x+2,y-21,C.sign);});
+  var k=Math.floor(t/2000),f=(t%2000)/2000,a=spots[k%spots.length],b=spots[(k*2+1)%spots.length];if(a===b)b=spots[(k+1)%spots.length];
+  var bx=a[0]+(b[0]-a[0])*f+2,by=a[1]-8+(b[1]-a[1])*f-Math.sin(f*Math.PI)*14;oval('#8a4a2a',bx,by,2,1);rect(ctx,C.white,bx,by,1,1);
+  if(f>.9&&k%3===2)shout('TOUCHDOWN!',205,312,nowT);},{cast:['jake','jeff','josh']});
+sur('soccer',18000,ANY,function(p,t,nowT){var team=sportsTeam([['SAM',P.sam]]),bx=462+Math.sin(t/900)*50,by=334+Math.sin(t/650)*14;
+  [[404,1],[516,-1]].forEach(function(g){rect(ctx,C.white,g[0],322,1,22);rect(ctx,C.white,g[0],322,4*g[1]||4,1);rect(ctx,C.white,g[1]>0?g[0]:g[0]-3,343,4,1);});
+  team.forEach(function(m,i){var ang=i*1.3+t/1500,x=bx+Math.cos(ang)*(10+i*3),y=by+Math.sin(ang)*6;person(ctx,x,y-12,m[1],{face:x<bx?1:-1,step:Math.floor(t/180+i)%2});badge(ctx,m[0],x+2,y-21,C.sign);});
+  oval(C.white,bx,by,1,1);rect(ctx,C.ink,bx,by,1,1);if(Math.abs(bx-462)>46)shout('GOAL!',462,308,nowT);},{cast:['jake','jeff','josh','sam']});
+/* the energy drink truck drops off cans for Jake and Josh */
+sur('redbull',16000,ANY,function(p,t,nowT){var stop=DX+64,x=p<.3?-40+p/.3*(stop+40):p<.7?stop:stop+(p-.7)/.3*(W-stop+40),y=ROADY;
+  rect(ctx,'#c9ced4',x,y,30,10);rect(ctx,'#2b3a8a',x,y+6,30,2);oval(C.red,x+12,y+3,3,2);oval(C.gold,x+12,y+3,1,1);rect(ctx,'#2b3a8a',x+30,y+2,6,8);rect(ctx,C.glass,x+32,y+3,3,3);
+  text(ctx,'RED BULL',x+1,y+1,'#2b3a8a');wheel(x+6,y+11,2);wheel(x+30,y+11,2);
+  if(p>=.3&&p<.75){var cans=p>.4;[['JAKE',P.jake,stop+2],['JOSH',P.josh,stop+14]].forEach(function(m,i){if(m[0]==='JOSH'&&!joshFree())return;
+      person(ctx,m[2],RT-13,m[1],{wave:cans,arm:Math.floor(t/250+i)%2});if(cans){rect(ctx,'#2b3a8a',m[2]+6,RT-14,2,3);rect(ctx,'#c9ced4',m[2]+6,RT-14,2,1);}badge(ctx,m[0],m[2]+2,RT-22,C.sign);});
+    shout('FREE CANS!',stop+12,RT-32,nowT);}},{cast:['jake','josh']});
+/* Jake and Josh walk down to Bucky's for snacks */
+sur('buckys',18000,ANY,function(p,t,nowT){var sx=566,sy=304,door=592;
+  rect(ctx,'#6b4a32',sx,sy,70,6);rect(ctx,'#e6c39a',sx+2,sy+6,66,20);rect(ctx,C.glass,sx+6,sy+10,14,8);rect(ctx,C.glass,sx+46,sy+10,14,8);rect(ctx,'#7a4a2a',door,sy+14,8,12);
+  rect(ctx,C.gold,sx+12,sy-9,46,9);rect(ctx,C.ink,sx+12,sy-9,46,1);text(ctx,"BUCKY'S",sx+21,sy-7,C.ink);
+  for(var u=0;u<2;u++){rect(ctx,C.red,sx+10+u*40,sy+30,5,8);rect(ctx,C.white,sx+11+u*40,sy+31,3,2);}
+  var y=PARK_TOP+38,x,show=true,bags=p>.55;
+  if(p<.4)x=150+p/.4*(door-150);else if(p<.55){show=false;x=door;}else x=door-(p-.55)/.45*(door-150);
+  if(show)[['JAKE',P.jake,0],['JOSH',P.josh,10]].forEach(function(m){if(m[0]==='JOSH'&&!joshFree())return;
+    person(ctx,x+m[2],y,m[1],{face:p<.4?1:-1,step:Math.floor(t/200)%2});if(bags)rect(ctx,C.gold,x+m[2]+(p<.4?7:-3),y+7,3,4);badge(ctx,m[0],x+m[2]+2,y-9,C.sign);});
+  if(p>=.4&&p<.55)shout('SNACKS!',door+4,sy-18,nowT);},{cast:['jake','josh']});
+sur('bbq',16000,NO_SNOW,function(p,t,nowT){var gx=DX+196,gy=112;
+  oval('#1d1d1d',gx,gy,5,3);rect(ctx,'#3a3f47',gx-6,gy-1,12,1);rect(ctx,'#1d1d1d',gx-4,gy+3,1,6);rect(ctx,'#1d1d1d',gx+3,gy+3,1,6);
+  for(var b=0;b<3;b++)rect(ctx,'#7a3f2a',gx-4+b*3,gy-2,2,1);if(Math.random()<.3)parts.push({x:gx+(Math.random()-.5)*6,y:gy-3,vx:(Math.random()-.5)*3,vy:-6,life:1.4,c:'#9aa0a6'});
+  person(ctx,gx-12,gy-8,P.jeff,{face:1,wave:true,arm:Math.floor(t/300)%2});
+  [['JAKE',P.jake,gx+8],['JOSH',P.josh,gx+18]].forEach(function(m,i){if(m[0]==='JOSH'&&!joshFree())return;person(ctx,m[2],gy-8,m[1],{face:-1});rect(ctx,C.white,m[2]-3,gy-1,3,1);badge(ctx,m[0],m[2]+2,gy-17,C.sign);});
+  badge(ctx,'JEFF',gx-10,gy-17,C.sign);if(p>.3&&p<.6)shout('BURGERS!',gx,gy-28,nowT);},{cast:['jeff','jake','josh']});
+sur('snowballfight',14000,SNOW,function(p,t){var a=[176,330],b=[252,330],k=Math.floor(t/900),f=(t%900)/900,from=k%2?b:a,to=k%2?a:b;
+  person(ctx,a[0],a[1]-12,P.jake,{face:1,wave:k%2===0&&f<.3,arm:1});badge(ctx,'JAKE',a[0]+2,a[1]-21,C.sign);
+  if(joshFree()){person(ctx,b[0],b[1]-12,P.josh,{face:-1,wave:k%2===1&&f<.3,arm:1});badge(ctx,'JOSH',b[0]+2,b[1]-25,C.sign);}
+  var sx=from[0]+(to[0]-from[0])*f,sy=from[1]-8-Math.sin(f*Math.PI)*12;oval(C.white,sx,sy,1,1);
+  if(f>.92)for(var s=0;s<4;s++)parts.push({x:to[0]+2,y:to[1]-8,vx:(Math.random()-.5)*14,vy:-(4+Math.random()*6),life:.4,c:C.white});},{cast:['jake','josh']});
 
 /* ---------- weather and particles ---------- */
 var wx=[],parts=[],conf=[],stamps=[],banner=null;
@@ -1340,11 +1440,11 @@ function pile(x,base,n,col){
 }
 function phone(x,y){rect(ctx,C.dark,x+1,y+1,5,3);rect(ctx,C.dark,x,y,7,1);}
 function drawSeat(w,t){
-  if(w.mode==='seat'&&inOffice(w,t)&&!onIce(w.key)){person(ctx,w.seat[0],w.seat[1],P[w.key],{seated:true});return true;}
+  if(w.mode==='seat'&&inOffice(w,t)&&!onIce(w.key)&&!inCast(w.key,performance.now())){person(ctx,w.seat[0],w.seat[1],P[w.key],{seated:true});return true;}
   rect(ctx,'#3a3f47',w.seat[0]-1,w.seat[1]+4,7,7);return false;
 }
 function drawWalkers(nowT,t,lower){
-  A.office.filter(function(w){return w.mode!=='seat'&&inOffice(w,t)&&!onIce(w.key)&&(w.y>=110)===lower;}).sort(function(a,b){return a.y-b.y;}).forEach(function(w){
+  A.office.filter(function(w){return w.mode!=='seat'&&inOffice(w,t)&&!onIce(w.key)&&!inCast(w.key,nowT)&&(w.y>=110)===lower;}).sort(function(a,b){return a.y-b.y;}).forEach(function(w){
     person(ctx,w.x,w.y,P[w.key],{face:w.face,step:w.mode!=='visit'&&Math.floor(nowT/180)%2});
     if(w.ticket){var tx=w.face>0?w.x+6:w.x-3;rect(ctx,C.white,tx,w.y+4,3,4);rect(ctx,TICKET_COL[w.ticket.e.service]||'#9aa0a6',tx,w.y+5,3,1);}
     badge(ctx,w.key.toUpperCase(),w.x+2,w.y-9,C.sign);});   /* away from the desk nameplate, they carry their name */
@@ -1382,7 +1482,7 @@ function drawYard(nowT,t){
   for(k=0;k<b.off;k++){var oy=19+(b.prep+k)*7;spr(ctx,BIN,offPal,250,oy,false);rect(ctx,C.red,258,oy+1,2,2);}
   /* the sign: bins in the yard out of every bin we have (Jake, 2026-11-03) */
   sign(ctx,'YARD '+(b.ready+b.prep+b.off)+'/'+b.total,207,9);
-  if(!darrinOut(nowT)){person(ctx,290,44,P.shop,{arm:Math.floor(nowT/300)%2});badge(ctx,'DARRIN',292,33,C.sign);}
+  if(!inCast('darrin',nowT)){person(ctx,290,44,P.shop,{arm:Math.floor(nowT/300)%2});badge(ctx,'DARRIN',292,33,C.sign);}
 }
 /* the wing, live: the dogs asleep on their beds, Jeff behind his desk, tomorrow's job
    count on the whiteboard (a real number), and a trophy for every team badge - gold
@@ -1403,7 +1503,7 @@ function drawWing(nowT,t){
 /* Jeff, Josh and the dogs, wherever they are, in front-to-back order. Josh is only
    about while his pickup is in the yard (it is on the GPS feed); out on the road he is
    in its cab. Seated and lying ones in the wing are drawn by drawWing, behind the desk. */
-function roamerShown(o){return!(o.key==='josh'&&M.joshOut)&&!onIce(o.key)&&!busyInSurprise(o,performance.now());}
+function roamerShown(o){return!(o.key==='josh'&&M.joshOut)&&!onIce(o.key)&&!inCast(o.key,performance.now());}
 function drawRoamers(nowT){
   A.roam.filter(function(o){return roamerShown(o)&&!(o.mode==='stay'&&o.place&&(o.place.seated||o.place.lie));})
     .sort(function(a,c){return a.y-c.y;}).forEach(function(o){
@@ -1670,14 +1770,14 @@ window.JJHQ={
     cancelAnimationFrame(raf);
     showAt=lastFrame=performance.now();
     /* today's surprise plays on this showing if it's due within the last 10 minutes, once the replay is done */
-    SUR={kind:pickSurprise(),start:showAt+REPLAY_MS+1500};   /* a surprise every time the screen comes round */
+    startSurprise(pickSurprise(),showAt+REPLAY_MS+1500);   /* a surprise every time the screen comes round */
     /* a hidden tab gets no animation frames - draw the end state once so the screen is never blank */
     if(document.hidden){showAt-=REPLAY_MS;draw(showAt+REPLAY_MS);return;}
     raf=requestAnimationFrame(frame);
   },
   hide:function(){cancelAnimationFrame(raf);raf=0;},
   /* play one surprise now, whatever the time (for the preview page) */
-  surprise:function(kind){if(!SUR_DEFS[kind])throw new Error('JJHQ.surprise: no surprise called '+kind);SUR={kind:kind,start:performance.now()};},
+  surprise:function(kind){if(!SUR_DEFS[kind])throw new Error('JJHQ.surprise: no surprise called '+kind);startSurprise(kind,performance.now());},
   surpriseKinds:function(){return Object.keys(SUR_DEFS);},
   badgeCount:function(){return M?badgeCount():0;}
 };
