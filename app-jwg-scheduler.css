@@ -1458,6 +1458,8 @@
 #view-jwgscheduler .cl-btn.primary:hover {background:var(--dark-b);}
 #view-jwgscheduler .cl-btn.del {color:#6b7280;}
 #view-jwgscheduler .cl-btn.del:hover {color:#dc2626;border-color:#dc2626;background:#fef2f2;}
+#view-jwgscheduler .cl-tags {display:flex;flex-wrap:wrap;gap:5px;}
+#view-jwgscheduler .cl-logo {display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;background:#eef0f3;color:#374151;}
 #view-jwgscheduler .cl-co {align-self:flex-start;display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;}
 #view-jwgscheduler .cl-co.jj {background:#fef3c7;color:#92400e;}
 #view-jwgscheduler .cl-co.jwg {background:#e3f1d3;color:#3f6212;}

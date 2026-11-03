@@ -3268,6 +3268,8 @@ const CLOTHING_TYPES=["T-Shirt","Long Sleeve","Crewneck Sweater","Hoodie","Coat"
 const CLOTHING_SHORT={"T-Shirt":"tee","Long Sleeve":"long sleeve","Crewneck Sweater":"crewneck","Hoodie":"hoodie","Coat":"coat","Toque":"toque","Cap":"cap","Windbreaker":"windbreaker"};
 const CLOTHING_SIZES=["XS","S","M","L","XL","2XL","3XL","One Size"];
 const CLOTHING_COMPANIES=["Jeffs Junk","Jeff White Group"];
+// How the logo is put on (Jake, 2026-11-03). Blank on designs made before this existed.
+const CLOTHING_LOGOS=["Embroidered","Screen printed"];
 const CL_BUCKET="clothing-designs",CL_PHOTO_PX=1000;
 // ho = the open hand-out, ed = the design being added or changed
 let CL={items:[],designs:[],urls:{},tab:"designs",former:false,search:"",ho:null,ed:null};
@@ -3360,7 +3362,7 @@ function clDesignsHtml(formerIds){
     return`<div class="cl-design">
       <button class="cl-design-photo" onclick="JWG.clOpenDesign('${d.id}')" title="Change this design">${clPhoto(d)}</button>
       <div class="cl-design-name">${clEsc(d.name)}</div>
-      <span class="cl-co ${d.company==="Jeff White Group"?"jwg":"jj"}">${clCoLabel(d.company)}</span>
+      <div class="cl-tags"><span class="cl-co ${d.company==="Jeff White Group"?"jwg":"jj"}">${clCoLabel(d.company)}</span>${d.logo?`<span class="cl-logo">${d.logo}</span>`:""}</div>
       <div class="cl-design-who">${names||`<span class="cl-muted">Nobody yet</span>`}</div>
       <button class="cl-btn primary" onclick="JWG.clOpenHandout('${d.id}')">Hand out</button>
     </div>`;
@@ -3410,7 +3412,7 @@ function clHandoutHtml(){
     return`<div class="cl-ho-group"><span class="cl-group-lbl">${clEsc(g.name)}</span><button class="cl-link" onclick="JWG.clHoTickGroup(${gi})">${all?"Untick all":"Tick all "+g.emps.length}</button></div>`
       +g.emps.map(e=>clHoRow(e,d)).join("");
   }).join("");
-  return`<div class="cl-ho-head">${clPhoto(d,"sm")}<div><div class="modal-title" style="margin:0">${clEsc(d.name)}</div><div class="cl-muted">${clCoLabel(d.company)}</div></div></div>
+  return`<div class="cl-ho-head">${clPhoto(d,"sm")}<div><div class="modal-title" style="margin:0">${clEsc(d.name)}</div><div class="cl-muted">${clCoLabel(d.company)}${d.logo?" · "+d.logo:""}</div></div></div>
     <div class="cl-ho-bar">
       <input id="cl-ho-q" class="cl-input" placeholder="Find a person…" value="${clEsc(h.q)}" oninput="JWG.clHoSearch(this.value)">
       <label class="cl-ho-date">Given <input type="date" class="cl-input" value="${h.date}" onchange="JWG.clHoDate(this.value)"></label>
@@ -3471,7 +3473,7 @@ async function clHoSave(){
 // ── Add or change a design ──
 function clOpenDesign(id){
   const d=id?clDesign(id):null;
-  CL.ed={id,blob:null,type:d?d.item_type:"",company:d?d.company:""};
+  CL.ed={id,blob:null,type:d?d.item_type:"",company:d?d.company:"",logo:d?d.logo||"":""};
   const used=d?CL.items.filter(i=>i.design_id===d.id).length:0;
   const photo=d&&d.photo_path?CL.urls[d.photo_path]:"";
   openModal(`<div class="modal-title">${d?"Change design":"New design"}</div>
@@ -3489,6 +3491,8 @@ function clOpenDesign(id){
         <div class="cl-chips">${CLOTHING_TYPES.map(t=>`<button type="button" class="${t===CL.ed.type?"on":""}" onclick="JWG.clEdPick(this,'type','${t}')">${t}</button>`).join("")}</div>
         <div class="cl-form-label">Company</div>
         <div class="cl-chips">${CLOTHING_COMPANIES.map(c=>`<button type="button" class="${c===CL.ed.company?"on":""}" onclick="JWG.clEdPick(this,'company','${c}')">${clCoLabel(c)}</button>`).join("")}</div>
+        <div class="cl-form-label">Logo</div>
+        <div class="cl-chips">${CLOTHING_LOGOS.map(l=>`<button type="button" class="${l===CL.ed.logo?"on":""}" onclick="JWG.clEdPick(this,'logo','${l}')">${l}</button>`).join("")}</div>
       </div>
     </div>
     ${used?`<div class="cl-muted" style="margin-top:12px">Given out ${used} time${used===1?"":"s"}. A change shows on all of them.</div>`:""}
@@ -3518,6 +3522,7 @@ async function clSaveDesign(){
   if(!name){toast("Give the design a name","error");return;}
   if(!ed.type){toast("Pick what kind of item it is","error");return;}
   if(!ed.company){toast("Pick the company","error");return;}
+  if(!ed.logo){toast("Pick Embroidered or Screen printed","error");return;}
   if(!ed.id&&!ed.blob){toast("Add a photo of the design","error");return;}
   const btn=document.getElementById("cl-de-save");btn.disabled=true;
   const old=ed.id?clDesign(ed.id):null,oldPath=old?old.photo_path:null;
@@ -3529,7 +3534,7 @@ async function clSaveDesign(){
       if(up.error)throw up.error;
       CL.urls[path]=URL.createObjectURL(ed.blob);
     }
-    const data={name,item_type:ed.type,company:ed.company,photo_path:path};
+    const data={name,item_type:ed.type,company:ed.company,logo:ed.logo,photo_path:path};
     if(old){
       await sbF("PATCH","jwg_clothing_designs?id=eq."+old.id,data);
       // Records carry the design's kind and company too, so sizes-per-kind stay right.
