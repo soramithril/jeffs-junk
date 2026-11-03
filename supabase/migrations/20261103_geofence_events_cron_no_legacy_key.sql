@@ -13,3 +13,23 @@ select cron.alter_job(jobid, command := regexp_replace(command,
   $re$,\s*''Authorization'',\s*''Bearer [A-Za-z0-9_.\-]+''$re$, '', 'g'))
 from cron.job
 where jobname in ('geofence-events-poll', 'geofence-events-sat');
+
+-- Same day, same cause: the morning bins push, the new-junk-quote push and the
+-- Sunday cut-times sync also sent the retired key. send-push (v7, now reads with
+-- SB_SECRET_KEY; 'notify' stays locked by push_config.trigger_secret) and
+-- cut-times-sync (v11, same code) were redeployed with verify_jwt = false, and
+-- their callers stop sending the key.
+
+select cron.alter_job(jobid, command := regexp_replace(command,
+  $re$,\s*''Authorization'',\s*''Bearer [A-Za-z0-9_.\-]+''$re$, '', 'g'))
+from cron.job where jobname = 'daily-bins-push';
+
+select cron.alter_job(jobid, command := regexp_replace(command,
+  $re$,\s*'Authorization',\s*'Bearer [A-Za-z0-9_.\-]+'$re$, '', 'g'))
+from cron.job where jobname = 'cut-times-weekly';
+
+do $do$ declare d text; begin
+  d := pg_get_functiondef('public.notify_new_junk_quote'::regproc);
+  d := regexp_replace(d, $re$,\s*'Authorization',\s*'Bearer [A-Za-z0-9_.\-]+'$re$, '', 'g');
+  execute d;
+end $do$;
