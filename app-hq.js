@@ -1095,7 +1095,8 @@ function startSurprise(kind,at){SUR={kind:kind,start:at,seed:Math.random()};}
 function surP(nowT){if(!SUR)return-1;var p=(nowT-SUR.start)/SUR_DEFS[SUR.kind].len;if(p>1){SUR=null;return-1;}return p;}
 function surOn(kind,nowT){return surP(nowT)>=0&&SUR.kind===kind;}
 /* the dinosaur's and the robot's footsteps shake the whole picture */
-function surShake(nowT){if(!(surOn('dino',nowT)||surOn('robot',nowT)))return 0;var t=nowT-SUR.start;return Math.floor(t/350)!==Math.floor((t-60)/350)?1:0;}
+function surShake(nowT){if(surOn('lightsaber',nowT)){var lp=surP(nowT);return lp>.7&&lp<.88&&Math.random()<.3?1:0;}
+  if(!(surOn('dino',nowT)||surOn('robot',nowT)))return 0;var t=nowT-SUR.start;return Math.floor(t/350)!==Math.floor((t-60)/350)?1:0;}
 /* our own people and dogs taking part in a surprise aren't drawn in their usual spots */
 function inCast(key,nowT){return surP(nowT)>=0&&SUR_DEFS[SUR.kind].cast.indexOf(key)>=0;}
 var DOG_KEYS=['sawyer','vincent','winnie','leo'],OFFICE_KEYS=['kelly','rachel','sam','barb','jake'];
@@ -1397,6 +1398,85 @@ sur('football',18000,ANY,function(p,t,nowT){var team=sportsTeam(),spots=[[150,34
 sur('soccer',18000,ANY,function(p,t,nowT){var team=sportsTeam([['SAM',P.sam]]),mx=SOC.x+(SOC.w>>1),bx=mx+Math.sin(t/900)*66,by=SOC.y+(SOC.h>>1)+Math.sin(t/650)*5;
   team.forEach(function(m,i){var ang=i*1.3+t/1500,x=bx+Math.cos(ang)*(10+i*3),y=by+Math.sin(ang)*6;person(ctx,x,y-12,m[1],{face:x<bx?1:-1,step:Math.floor(t/180+i)%2});badge(ctx,m[0],x+2,y-21,C.sign);});
   oval(C.white,bx,by,1,1);rect(ctx,C.ink,bx,by,1,1);if(Math.abs(bx-mx)>62)shout('GOAL!',mx,SOC.y-10,nowT);},{cast:['jake','jeff','josh','sam']});
+/* Jake and Josh's lightsaber duel (Jake, 2026-11-03): the longest surprise - 50 seconds,
+   played at double size with the park dimmed so the blades glow. Josh drops in from the sky,
+   the blades light, they fight up and down the football field, Force-leap the pond, Josh
+   Force-throws a bin that Jake cuts in half, a shaking blade lock on the soccer pitch, then
+   one of them knocks the other's saber flying - a coin toss who wins, every time. */
+var SABER_J='#4cc9ff',SABER_K='#ff3b3b';
+function seg(p,a,b){return clamp((p-a)/(b-a),0,1);}
+function handOf(x,feet,face){x=Math.round(x);var y=Math.round(feet)-26;return face>0?[x+13,y+14]:[x-3,y+14];}
+function duelist(look,x,feet,face,f){ctx.save();ctx.translate(Math.round(x),Math.round(feet)-26);ctx.scale(2,2);
+  person(ctx,0,0,look,Object.assign({face:face},f||{}));ctx.restore();}
+function saber(h,a,L,col){var c=Math.cos(a),s=Math.sin(a),i,hx=h[0],hy=h[1];
+  for(i=-4;i<0;i++)rect(ctx,i===-1?C.ink:'#b8bec6',hx+c*i,hy+s*i,2,2);
+  if(L<=0)return;
+  ctx.globalAlpha=.16;oval(col,Math.round(hx+c*L/2),Math.round(hy+s*L/2),Math.round(Math.abs(c)*L/2)+5,Math.round(Math.abs(s)*L/2)+5);
+  ctx.globalAlpha=.6;for(i=1;i<=L;i++)rect(ctx,col,hx+c*i-1,hy+s*i-1,3,3);
+  ctx.globalAlpha=1;for(i=1;i<=L;i++)rect(ctx,C.white,hx+c*i,hy+s*i,1,1);}
+function sparks(x,y,n,col){for(var i=0;i<n;i++)parts.push({x:x,y:y,vx:(Math.random()-.5)*60,vy:-Math.random()*40,life:.4+Math.random()*.4,c:Math.random()<.5?'#fff3a0':col});}
+function aimAt(h,x,y){return Math.atan2(y-h[1],x-h[0]);}
+function mixA(a,b,f){return a+(b-a)*f;}
+sur('lightsaber',50000,function(){return!M.joshOut;},function(p,t,nowT){
+  var G=346,dim=Math.min(seg(p,0,.04),1-seg(p,.96,1)),L=Math.round(24*seg(p,.08,.12))-(Math.random()<.15?1:0),
+      st=Math.floor(t/180)%2,jakeWins=SUR.seed<.5,JAKE=P.jake,JOSH=Object.assign({},P.josh,{cane:false}),
+      jx,kx,jy=G,ky=G,ja=-1.1,ka=-2.05,jstep=0,kstep=0,kwave=false,jL=L,kL=L,q,jh,kh,flash=0,kneel=null;
+  ctx.globalAlpha=.5*dim;rect(ctx,'#070a18',0,0,W,H);ctx.globalAlpha=1;
+  if(p<.13){                                   /* the entrance */
+    jx=-20+seg(p,0,.06)*150;kx=220;ky=G-Math.round(Math.pow(1-seg(p,.05,.08),2)*360);jstep=p<.06?st:0;
+    if(p>=.08&&p<.088&&Math.random()<.6)sparks(kx+9,G,3,'#cfcabd');
+    if(p<.1){var T1='JAKE VS JOSH',T2='THE DUEL OF THE YARD';ctx.save();ctx.translate(Math.round(W/2-tw(T1)),284);ctx.scale(2,2);text(ctx,T1,0,0,'#ffe81f');ctx.restore();
+      text(ctx,T2,W/2-tw(T2)/2,298,'#ffe81f');}
+    if(p>=.08)shout('VMMMMM',W/2-60,300,nowT);}
+  else if(p<.42){                              /* up and down the football field */
+    q=seg(p,.13,.42);var cx=172+Math.sin(q*Math.PI*3)*42,sep=24+Math.round(Math.abs(Math.sin(t/700))*14),hit=Math.sin(((t%900)/900)*Math.PI);
+    jx=cx-sep/2-10;kx=cx+sep/2;jstep=kstep=st;jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
+    var mx=(jh[0]+kh[0])/2,my=G-22-Math.round(Math.sin(t/1300)*6);
+    ja=mixA(-1.1,aimAt(jh,mx,my),hit);ka=mixA(-2.05,aimAt(kh,mx,my),hit);
+    if(hit>.93){if(Math.random()<.6)sparks(mx,my,3,Math.random()<.5?SABER_J:SABER_K);flash=.12;if(Math.floor(t/900)%4===1)shout('CLANG!',mx,my-24,nowT);}}
+  else if(p<.55){                              /* Force leap over the pond */
+    q=seg(p,.42,.55);var hop=Math.sin(q*Math.PI);jx=145+q*335;kx=185+q*395;jy=G-hop*72;ky=G-hop*84;
+    ja=-1.1+q*Math.PI*4;ka=-2.05-q*Math.PI*4;
+    if(q>.15&&q<.85)shout('FORCE JUMP!',POND_X,POND_Y-POND_RY-12,nowT);
+    if(q>.97&&Math.random()<.6){sparks(jx+9,G,2,'#cfcabd');sparks(kx+9,G,2,'#cfcabd');}}
+  else if(p<.70){                              /* the Force throw: Josh flings a bin, Jake cuts it in two */
+    q=seg(p,.55,.70);jx=480;kx=580;kwave=q<.6;jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
+    ka=-2.05;ja=q<.55?-1.1:mixA(-1.7,.4,seg(q,.55,.65));
+    var bx,by,BG='#2f9e44',BD='#1f6f30';
+    if(q<.55){bx=q<.25?556:556-(seg(q,.25,.55))*58;by=q<.25?G-8-seg(q,0,.25)*26:G-34+seg(q,.25,.55)*10;
+      if(q<.25)by+=Math.round(Math.sin(t/60));
+      rect(ctx,BD,bx,by,18,10);rect(ctx,BG,bx,by+2,18,8);rect(ctx,BD,bx+2,by+4,14,1);
+      ctx.globalAlpha=.25;oval('#9ad8ff',bx+9,by+5,12,8);ctx.globalAlpha=1;
+      shout('THE FORCE!',kx+5,G-56,nowT);}
+    else{var f2=seg(q,.55,1),y2=G-24+f2*f2*22;
+      if(f2<.08&&Math.random()<.8)sparks(498,G-24,3,SABER_J);
+      rect(ctx,BD,498-f2*24,y2,9,10);rect(ctx,BG,498-f2*24,y2+2,9,8);rect(ctx,BD,507+f2*20,y2+f2*3,9,10);rect(ctx,BG,507+f2*20,y2+2+f2*3,9,8);
+      rect(ctx,'#ff9a3c',506-f2*24,y2+1,1,9);rect(ctx,'#ff9a3c',507+f2*20,y2+1+f2*3,1,9);
+      shout('SLICE!',jx+5,G-56,nowT);}}
+  else if(p<.88){                              /* the blade lock */
+    q=seg(p,.70,.88);var sh=Math.random()<.5?-1:1,push=Math.sin(q*Math.PI*5)*6;
+    jx=500+push+(Math.random()<.4?sh:0);kx=544+push+(Math.random()<.4?-sh:0);jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
+    var lx=(jh[0]+kh[0])/2,ly=G-30;ja=aimAt(jh,lx+6,ly);ka=aimAt(kh,lx-6,ly);
+    if(Math.random()<.8)sparks(lx,ly+2,2,Math.random()<.5?SABER_J:SABER_K);
+    if(t%600<90)flash=.25;
+    shout(Math.floor(t/1500)%2?'AAARGH!':'NOOOO!',lx,G-62,nowT);}
+  else{                                        /* the win */
+    q=seg(p,.88,1);jx=500;kx=548;var loserJake=!jakeWins,dir=loserJake?-1:1;
+    jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
+    if(q<.6){kneel=loserJake?'jake':'josh';}
+    var win=jakeWins?'JAKE':'JOSH';
+    if(jakeWins){ja=-Math.PI/2;kL=0;}else{ka=-Math.PI/2;jL=0;}
+    var lh=loserJake?jh:kh,fx=lh[0]+dir*q*160,fy=lh[1]-Math.sin(Math.min(q*1.4,1)*Math.PI)*90+q*20;
+    if(q<.7)saber([fx,fy],q*22,22,loserJake?SABER_J:SABER_K);
+    shout(q<.75?win+' WINS!':'GG!',(jx+kx)/2+5,G-62,nowT);}
+  if(jh===undefined){jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);}
+  var jdy=kneel==='jake'?5:0,kdy=kneel==='josh'?5:0;
+  ctx.globalAlpha=.12*dim;oval(SABER_J,Math.round(jx+9),G+1,16,4);oval(SABER_K,Math.round(kx+9),G+1,16,4);ctx.globalAlpha=1;
+  duelist(JAKE,jx,jy+jdy,1,{step:jstep});duelist(JOSH,kx,ky+kdy,-1,{step:kstep,wave:kwave,arm:st});
+  saber([jh[0],jh[1]+jdy],ja,jL,SABER_J);saber([kh[0],kh[1]+kdy],ka,kL,SABER_K);
+  badge(ctx,'JAKE',jx+5,jy+jdy-36,C.sign);badge(ctx,'JOSH',kx+5,ky+kdy-42,C.sign);
+  if(flash){ctx.globalAlpha=flash;rect(ctx,C.white,0,0,W,H);ctx.globalAlpha=1;}
+},{cast:['jake','josh'],w:2});
 /* the energy drink truck drops off cans for Jake and Josh */
 sur('redbull',16000,ANY,function(p,t,nowT){var stop=DX+64,x=p<.3?-40+p/.3*(stop+40):p<.7?stop:stop+(p-.7)/.3*(W-stop+40),y=ROADY;
   rect(ctx,'#c9ced4',x,y,30,10);rect(ctx,'#2b3a8a',x,y+6,30,2);oval(C.red,x+12,y+3,3,2);oval(C.gold,x+12,y+3,1,1);rect(ctx,'#2b3a8a',x+30,y+2,6,8);rect(ctx,C.glass,x+32,y+3,3,3);
