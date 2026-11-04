@@ -1344,7 +1344,7 @@ sur('aurora',16000,NIGHT,function(p,t){var a=(p<.15?p/.15:p>.85?(1-p)/.15:1)*.3;
 
 
 /* -- our own people and dogs having fun (Jake, 2026-11-03) -- */
-/* Clinton visits with his kids Keaton and Ellis, and walks Rachel in when she arrives */
+/* Clinton visits with his kids Keaton and Ellis. He and Rachel never arrive together (Jake, 2026-11-03). */
 var CLINTON={hair:'#3b2416',shirt:'#3f8f8f',pants:'#2b2f36',beard:true},KEATON={hair:'#d8b46a',shirt:'#e8590c'},ELLIS={hair:'#8a5a3c',shirt:'#f2c14e'};
 function kid(x,y,k,step){x=Math.round(x);y=Math.round(y);var s=step?1:0;
   rect(ctx,C.skin,x,y+1,4,3);rect(ctx,k.hair,x,y,4,2);rect(ctx,C.ink,x+1,y+2,1,1);rect(ctx,C.ink,x+3,y+2,1,1);
@@ -1391,12 +1391,6 @@ sur('clinton',18000,ANY,function(p,t,nowT){var gate=DX+200,x=p<.35?-20+p/.35*(ga
   var k1=x-10+Math.sin(t/300)*(mv?2:8),k2=x+10+Math.cos(t/260)*(mv?2:8),hop1=mv?0:Math.abs(Math.sin(t/180))*3,hop2=mv?0:Math.abs(Math.cos(t/200))*3;
   kid(k1,y+3-hop1,KEATON,st);kid(k2,y+3-hop2,ELLIS,1-st);
   if(!mv){badge(ctx,'KEATON',k1+2,y-7,C.sign);badge(ctx,'ELLIS',k2+2,y-15,C.sign);shout('HI JEFF!',gate+4,y-24,nowT);}});
-/* when Rachel comes in, Clinton walks her to the door - most showings in her first hour */
-sur('rachelride',14000,function(){return new Date(M.now).getHours()===15;},function(p,t,nowT){var door=DX+72,y=RT-13,st=Math.floor(t/200)%2;
-  var cx=p<.45?-20+p/.45*(door-8+20):p<.6?door-8:door-8-(p-.6)/.4*(door+30);
-  if(p<.5)person(ctx,cx+9,y,P.rachel,{step:p<.45&&st});
-  person(ctx,cx,y,CLINTON,{face:p>=.6?-1:1,step:(p<.45||p>=.6)&&st,wave:p>=.45&&p<.6,arm:st});badge(ctx,'CLINTON',cx+2,y-9,C.sign);
-  if(p>=.45&&p<.6)shout('BYE!',cx+4,y-22,nowT);},{cast:['rachel'],w:8});
 /* a game needs a field (Jake, 2026-11-03): the field spots are forest until a game starts.
    Then the players sweep across with chainsaws and the trees come down (TIMBER!), the grass
    gets mowed, the lines painted and the posts go up - all in the first fifth - then they
