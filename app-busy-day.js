@@ -26,6 +26,7 @@ async function busyDayCheck(){
   var svc = document.getElementById('f-svc').value;
   var day = document.getElementById('f-junk-date').value;
   document.getElementById('est-dur-req').style.display = svc === 'Junk Removal' ? '' : 'none';
+  if(document.getElementById('f-est-duration').value) clearErr('f-est-duration');   // filled in: the "missing" note goes at once
   var seq = ++_busySeq;
   if(svc !== 'Junk Removal' || !day){ box.hidden = true; return; }
   var r = await db.from('jobs').select('job_id,est_duration_min').eq('service', 'Junk Removal').neq('status', 'Cancelled')
