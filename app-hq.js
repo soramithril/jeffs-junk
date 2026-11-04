@@ -236,6 +236,7 @@ function person(g,x,y,p,f){f=f||{};x=Math.round(x);y=Math.round(y);var face=f.fa
   else if(p.sunhat){rect(g,'#d8c27a',x-2,y,9,1);rect(g,'#d8c27a',x,y-2,5,2);rect(g,'#a8632a',x,y-1,5,1);}
   else if(cap){rect(g,cap,x,y-1,5,2);rect(g,cap,face>0?x+4:x-2,y,3,1);}
   rect(g,p.shirt,x-1,y+5,7,f.seated?6:4);
+  if(p.stripe)rect(g,p.stripe,x-1,y+7,7,1);
   /* long hair falls over the shoulders, so it shows when seated too - big long hair, thick and lower */
   if(p.long){var lw=p.big?2:1,lh=p.big?5:4;rect(g,p.hair,x-lw,y+5,lw,lh);rect(g,p.hair,x+5,y+5,lw,lh);}
   if(p.tie)rect(g,C.red,x+2,y+5,1,f.seated?5:4);
@@ -245,8 +246,9 @@ function person(g,x,y,p,f){f=f||{};x=Math.round(x);y=Math.round(y);var face=f.fa
   if(p.vest){rect(g,'#e6e4dc',x-1,y+7,7,1);rect(g,'#e6e4dc',x+1,y+5,1,2);rect(g,'#e6e4dc',x+3,y+5,1,2);}
   if(f.seated)return;
   if(p.belt){rect(g,'#6b4a32',x-1,y+8,7,1);rect(g,'#9aa0a6',x+4,y+8,1,2);}
-  rect(g,C.skin,x-2,y+6,1,2);
-  if(f.wave)rect(g,C.skin,x+6,y+(f.arm?1:2),1,4);else rect(g,C.skin,x+6,y+6-(f.arm?2:0),1,2);
+  var arm=p.sleeve||C.skin;
+  rect(g,arm,x-2,y+6,1,2);
+  if(f.wave)rect(g,arm,x+6,y+(f.arm?1:2),1,4);else rect(g,arm,x+6,y+6-(f.arm?2:0),1,2);
   var s=f.step?1:0,pants=p.pants||'#3a3f47';
   rect(g,pants,x,y+9,2,3-s);rect(g,pants,x+3,y+9,2,2+s);
   rect(g,C.ink,x,y+12-s,2,1);rect(g,C.ink,x+3,y+11+s,2,1);
@@ -277,6 +279,36 @@ function tree(g,cx,cy,r2){
 }
 /* the park's trees leave room for the pond in the middle (POND_*) and the JWG lawn at 400..480 */
 var TREES=[76,104,132,160,188,216,236,262,380,500,530,570,610];
+/* below the tree line, forest (Jake, 2026-11-03): thick stands of leafy trees and pines in
+   the park's open ground - left of the football field, by the bench, between the pond and
+   the soccer pitch, and the right edge - leaving the fields, the pond and the flower bed clear.
+   Each stand is [x, y, w, h]; trees are planted back to front so the near ones overlap. */
+var FOREST=[[2,338,90,22],[246,349,24,11],[370,330,112,30],[631,328,9,32]];
+function pine(g,cx,cy){rect(g,C.trunk,cx-1,cy+4,2,4);
+  for(var i=0;i<8;i++){var w=2+i,x0=cx-Math.floor(w/2);rect(g,i%3===0?'#2f6a3a':'#3a7a45',x0,cy-4+i,w,1);if(SE.snow&&i%3===0)rect(g,C.snow,x0,cy-4+i,Math.max(1,w-2),1);}}
+/* the forest floor between the trunks: leaf piles and scattered leaves in fall, ferns and
+   mushrooms when it's green, rocks and fallen logs all year, snow drifts in winter. They're
+   planted in among the trees by depth, so the ones in front of a trunk show. */
+function floorBit(g,x,y,k){
+  if(SE.snow){rect(g,C.snow,x,y,7,2);rect(g,C.white,x+1,y-1,4,1);return;}
+  var lv=SE.leaves;
+  if(k===0&&SE.leafPiles){rect(g,lv[0],x,y,8,2);rect(g,lv[1],x+1,y-1,6,1);rect(g,lv[2],x+2,y-2,4,1);rect(g,lv[3],x+6,y,1,1);rect(g,lv[2],x+1,y+1,1,1);}
+  else if(k===0){rect(g,'#3f7a2e',x,y-2,1,4);rect(g,'#3f7a2e',x+2,y-3,1,5);rect(g,'#4f8f3a',x+4,y-2,1,4);rect(g,'#4f8f3a',x+1,y-1,3,1);}
+  else if(k===1){rect(g,'#7a8088',x,y,5,2);rect(g,'#aab0b8',x+1,y-1,3,1);}
+  else if(k===2&&SE.leafPiles){rect(g,lv[1],x,y,6,2);rect(g,lv[0],x+1,y-1,4,1);rect(g,lv[3],x+3,y-2,1,1);}
+  else if(k===2){rect(g,'#e6e4dc',x+1,y,1,2);rect(g,C.red,x,y-1,3,1);rect(g,C.white,x+1,y-1,1,1);rect(g,'#e6e4dc',x+5,y+1,1,1);rect(g,C.red,x+4,y,3,1);}
+  else{rect(g,'#6b4a32',x,y,10,2);rect(g,'#8a6440',x,y,10,1);rect(g,'#c9a77a',x+9,y,1,2);if(SE.leafPiles)rect(g,lv[0],x+3,y-1,3,1);}}
+function drawForest(g,r2){
+  var pts=[];
+  FOREST.forEach(function(F){var i,n=Math.max(2,Math.round(F[2]*F[3]/90));
+    for(i=0;i<n*4;i++)rect(g,SE.snow?C.white:SE.leafPiles?SE.leaves[i%4]:'#5f8a3e',F[0]+r2()*F[2]|0,F[1]+r2()*F[3]|0,1,1);
+    for(var row=0,y=F[1]+4;y<H+2;y+=8,row++)for(var x=F[0]+3+(row%2)*6;x<=F[0]+F[2]-3;x+=12)
+      pts.push({k:y+8,x:x+Math.round(r2()*4-2),y:y+Math.round(r2()*2-1),pine:r2()<.5});
+    for(i=0;i<n;i++)pts.push({k:0,x:F[0]+1+(r2()*(F[2]-9)|0),y:F[1]+2+(r2()*(F[3]-3)|0),bit:i%4});});
+  pts.forEach(function(o){if(o.bit!=null)o.k=o.y+2;});
+  pts.sort(function(a,b){return a.k-b.k;}).forEach(function(o){
+    if(o.bit!=null)floorBit(g,o.x,o.y,o.bit);else if(o.pine||SE.snow)pine(g,o.x,o.y);else tree(g,o.x,o.y,r2);});
+}
 var POND_X=320,POND_Y=PARK_TOP+27,POND_RX=44,POND_RY=19;
 /* houses that fit the town (Jake, 2026-11-03): townhouses in the cities, cottages by
    the lake, a farmhouse and barn out in the country, and a mix everywhere else. Each
@@ -527,7 +559,9 @@ function drawBG(){
   if(!M.towns.length)sign(g,'NO BINS OUT AND NO STOPS TODAY',W/2,ROWA+4);
   /* the park: trees, a flower bed and a lawn the JWG crew look after */
   rect(g,SE.snow?C.snow2:SE.grass2,0,PARK_TOP-2,W,1);
+  drawFields(g);
   TREES.forEach(function(tx){tree(g,tx,PARK_TOP+8,r2);});
+  drawForest(g,r2);
   if(!SE.snow){rect(g,'#7a5a3c',8,PARK_TOP,52,30);for(i=0;i<60;i++)rect(g,'#6a4c32',8+r2()*52|0,PARK_TOP+r2()*30|0,1,1);}
   if(SE.park==='snowman'){var sy=PARK_TOP-1,s0=402-286;
     rect(g,C.white,s0+286,sy+14,9,8);rect(g,C.white,s0+287,sy+7,7,7);rect(g,C.white,s0+288,sy+2,5,5);
@@ -535,6 +569,32 @@ function drawBG(){
     rect(g,C.wood,s0+284,sy+10,3,1);rect(g,C.wood,s0+294,sy+10,3,1);rect(g,C.ink,s0+290,sy+9,1,1);rect(g,C.ink,s0+290,sy+11,1,1);
     rect(g,C.ink,s0+288,sy,5,2);rect(g,C.ink,s0+287,sy+2,7,1);}
   drawPondBG(g);
+}
+/* the sports fields in the park (Jake, 2026-11-03): a football field on the left - end zones
+   in our two team colours, a line every ten yards, hash marks, yellow goalposts - and a
+   soccer pitch on the right with its boxes and netted goals. Painted on the lawn below the
+   trees, clear of the JWG mowing strip (400..480); under snow the lines show faintly. */
+var FB={x:96,y:323,w:148,h:34},SOC={x:488,y:323,w:140,h:34};
+function outline(g,c,x,y,w,h){rect(g,c,x,y,w,1);rect(g,c,x,y+h-1,w,1);rect(g,c,x,y,1,h);rect(g,c,x+w-1,y,1,h);}
+function drawFields(g){
+  var ln=SE.snow?'#c3ccd1':'#f4f4ee',i,a;
+  [FB,SOC].forEach(function(F){
+    if(!SE.snow)for(i=0;i<F.w;i+=12)rect(g,(i/12)%2?SE.grass:SE.grass3,F.x+i,F.y,Math.min(12,F.w-i),F.h);
+    outline(g,ln,F.x,F.y,F.w,F.h);});
+  var ez=12,my=FB.y+(FB.h>>1),pl=FB.w-2*ez;
+  g.globalAlpha=SE.snow?.15:.35;rect(g,'#2f74c8',FB.x+1,FB.y+1,ez-1,FB.h-2);rect(g,'#d9412b',FB.x+FB.w-ez,FB.y+1,ez-1,FB.h-2);g.globalAlpha=1;
+  for(i=0;i<=10;i++)rect(g,ln,Math.round(FB.x+ez+i*pl/10),FB.y,1,FB.h);
+  for(i=1;i<50;i++)if(i%5){var hx=Math.round(FB.x+ez+i*pl/50);rect(g,ln,hx,my-6,1,1);rect(g,ln,hx,my+5,1,1);}
+  [FB.x,FB.x+FB.w-1].forEach(function(px){rect(g,'#c99a1e',px,my-4,1,5);rect(g,'#f2c14e',px-4,my-5,9,1);rect(g,'#f2c14e',px-4,my-14,1,9);rect(g,'#f2c14e',px+4,my-14,1,9);});
+  var cx=SOC.x+(SOC.w>>1),cy=SOC.y+(SOC.h>>1);
+  rect(g,ln,cx,SOC.y,1,SOC.h);
+  for(a=-5;a<=5;a++){var cw=Math.round(7*Math.sqrt(1-a*a/25));rect(g,ln,cx-cw,cy+a,1,1);rect(g,ln,cx+cw,cy+a,1,1);}
+  rect(g,ln,cx-3,cy-5,7,1);rect(g,ln,cx-3,cy+5,7,1);
+  [[SOC.x,1],[SOC.x+SOC.w-1,-1]].forEach(function(e){var x=e[0],d=e[1],gx=d>0?x-4:x+1,xx,yy;
+    outline(g,ln,d>0?x:x-17,cy-10,18,21);outline(g,ln,d>0?x:x-5,cy-5,6,11);rect(g,ln,x+d*12,cy,1,1);
+    for(yy=cy-5;yy<=cy+5;yy++)for(xx=0;xx<4;xx++)if((xx+yy)%2===0)rect(g,'#d8d8d0',gx+xx,yy,1,1);
+    rect(g,C.white,gx,cy-6,4,1);rect(g,C.white,gx,cy+6,4,1);rect(g,C.white,d>0?gx:gx+3,cy-6,1,13);
+    rect(g,C.white,x,cy-8,1,3);rect(g,C.white,x,cy+6,1,3);});
 }
 /* the pond in the middle of the park (Jake, 2026-11-03): a grassy bank, water - or ice
    from Dec 1 to the end of February, when it's hockey season - a dock, cattails and a
@@ -546,10 +606,17 @@ function drawPondBG(g){
   for(y=-POND_RY;y<=POND_RY;y++){var hw=Math.round(POND_RX*Math.sqrt(1-(y*y)/(POND_RY*POND_RY)));
     rect(g,ice?'#b9d4e3':SE.snow?'#c9d6cf':'#6b8f4e',POND_X-hw-2,POND_Y+y,hw*2+4,1);rect(g,ice?'#cfe6f2':'#3f7fb0',POND_X-hw,POND_Y+y,hw*2,1);}
   if(ice){for(var k=0;k<16;k++)rect(g,C.white,POND_X-36+((k*37)%72),POND_Y-12+((k*13)%26),4,1);
-    /* the nets */
-    [[POND_X-38,1],[POND_X+35,-1]].forEach(function(n){rect(g,C.red,n[0],POND_Y-4,3,1);rect(g,C.red,n[0],POND_Y+4,3,1);rect(g,C.red,n[1]>0?n[0]:n[0]+2,POND_Y-4,1,9);
-      for(var q=-3;q<4;q+=2)rect(g,'#e6e4dc',n[1]>0?n[0]+1:n[0]+1,POND_Y+q,1,1);});
-    rect(g,C.red,POND_X,POND_Y-POND_RY+3,1,POND_RY*2-6);}
+    /* the rink (Jake, 2026-11-03): red centre line, blue lines, a centre circle, goal
+       lines, blue creases and netted goals at both ends */
+    var bl='#4a7fd0',a;
+    rect(g,C.red,POND_X,POND_Y-POND_RY+3,1,POND_RY*2-6);
+    rect(g,bl,POND_X-14,POND_Y-POND_RY+2,1,POND_RY*2-4);rect(g,bl,POND_X+14,POND_Y-POND_RY+2,1,POND_RY*2-4);
+    for(a=0;a<24;a++)rect(g,bl,POND_X+Math.round(Math.cos(a/24*Math.PI*2)*6),POND_Y+Math.round(Math.sin(a/24*Math.PI*2)*4),1,1);
+    [-1,1].forEach(function(s){var gl=POND_X+s*35,dy,xx,bx=s<0?gl-4:gl+1;
+      rect(g,C.red,gl,POND_Y-10,1,21);
+      for(dy=-4;dy<=4;dy++){var cw=Math.round(4*Math.sqrt(1-dy*dy/16));rect(g,'#9cc0ea',s<0?gl+1:gl-cw,POND_Y+dy,cw,1);}
+      for(dy=-3;dy<=3;dy++)for(xx=1;xx<3;xx++)if((xx+dy+8)%2)rect(g,'#f4f4ee',bx+xx,POND_Y+dy,1,1);
+      rect(g,C.red,bx,POND_Y-4,4,1);rect(g,C.red,bx,POND_Y+4,4,1);rect(g,C.red,s<0?bx:bx+3,POND_Y-4,1,9);});}
   /* dock on the right, cattails on the left, a bench on the bank */
   rect(g,'#8b6b4a',POND_X+28,POND_Y-12,18,4);for(var p=0;p<4;p++)rect(g,'#6b4f36',POND_X+28+p*5,POND_Y-12,1,4);
   if(!SE.snow)[[-44,-3],[-41,3],[-38,-8],[-44,7]].forEach(function(c){rect(g,'#4f7a3a',POND_X+c[0],POND_Y+c[1],1,7);rect(g,'#6b4a32',POND_X+c[0],POND_Y+c[1]-1,1,3);});
@@ -966,24 +1033,46 @@ function drawDumpBits(nowT){
    pickup is in the yard. ---------- */
 var SKATERS=[{hair:'#3b2416',cap:'#1d1d1d'},{hair:'#d8b46a',cap:'#1d1d1d'},{hair:'#8a5a3c',cap:'#1d1d1d'},{hair:'#2b2b2b',cap:'#1d1d1d'}];
 function newHockey(){var offs=[[-18,-7],[16,5],[-8,8],[10,-9]],teams=['#d9412b','#2f74c8','#d9412b','#2f74c8'];
-  return{puck:{x:POND_X,y:POND_Y,tx:POND_X,ty:POND_Y},pl:offs.map(function(o,i){return{x:POND_X+o[0]*2,y:POND_Y+o[1],ox:o[0],oy:o[1],team:teams[i],face:1,moving:false};})};}
+  return{puck:{x:POND_X,y:POND_Y,tx:POND_X,ty:POND_Y,shot:0},hold:0,cheer:0,
+    pl:offs.map(function(o,i){return{x:POND_X+o[0]*2,y:POND_Y+o[1],ox:o[0],oy:o[1],team:teams[i],face:1,moving:false};}),
+    gl:[{y:POND_Y,team:'#d9412b',face:1},{y:POND_Y,team:'#2f74c8',face:-1}]};}
+/* the puck wanders the ice; now and then someone shoots (twice as fast) - about a third go
+   in, the rest the goalie stops and it rebounds. A goal sits in the net, then a faceoff. */
 function updHockey(dt){
-  var H=SC.hockey,p=H.puck,dx=p.tx-p.x,dy=p.ty-p.y,d=Math.sqrt(dx*dx+dy*dy),v=40*dt;
-  if(d<=v){p.x=p.tx;p.y=p.ty;do{p.tx=POND_X+(Math.random()*2-1)*(POND_RX-8);p.ty=POND_Y+(Math.random()*2-1)*(POND_RY-5);}while(!inPond(p.tx,p.ty,6));}
+  var H=SC.hockey,p=H.puck,dx=p.tx-p.x,dy=p.ty-p.y,d=Math.sqrt(dx*dx+dy*dy),v=(p.shot?80:40)*dt;
+  H.cheer=Math.max(0,H.cheer-dt);
+  if(H.hold>0){H.hold-=dt;if(H.hold<=0){p.x=p.tx=POND_X;p.y=p.ty=POND_Y;}}
+  else if(d<=v){p.x=p.tx;p.y=p.ty;
+    if(p.shot&&Math.random()<.35){p.x=p.tx=POND_X+p.shot*37;H.hold=H.cheer=1.6;p.shot=0;}
+    else if(!p.shot&&Math.random()<.3){p.shot=Math.random()<.5?-1:1;p.tx=POND_X+p.shot*35;p.ty=POND_Y+Math.random()*6-3;}
+    else{p.shot=0;do{p.tx=POND_X+(Math.random()*2-1)*(POND_RX-8);p.ty=POND_Y+(Math.random()*2-1)*(POND_RY-5);}while(!inPond(p.tx,p.ty,6));}}
   else{p.x+=dx/d*v;p.y+=dy/d*v;}
+  H.gl.forEach(function(gk){var e=clamp(p.y,POND_Y-3,POND_Y+3)-gk.y,s=14*dt;gk.y+=Math.abs(e)<=s?e:(e>0?s:-s);});
   H.pl.forEach(function(q){var ex=p.x+q.ox-q.x,ey=p.y+q.oy-q.y,e=Math.sqrt(ex*ex+ey*ey),s=22*dt;
     if(e>s){q.x+=ex/e*s;q.y+=ey/e*s;q.moving=true;}else q.moving=false;if(Math.abs(ex)>.5)q.face=ex>0?1:-1;});
 }
+/* hockey sweaters (Jake, 2026-11-03): team colour with a white band, sleeves to match, black pants */
+function jersey(team){return{shirt:team,sleeve:team,stripe:C.white,pants:'#1d1d1d'};}
+/* a goalie in the crease: mask with a cage, big white pads, glove, blocker and a wide stick */
+function goalie(x,fy,team,face){x=Math.round(x);var y=Math.round(fy)-12,w='#f2f0ea';
+  person(ctx,x,y,Object.assign({hair:'#2b2b2b'},jersey(team)),{face:face});
+  rect(ctx,w,x,y,5,5);rect(ctx,C.ink,x+1,y+2,1,1);rect(ctx,C.ink,x+3,y+2,1,1);rect(ctx,'#9aa0a6',x,y+4,5,1);rect(ctx,'#9aa0a6',x+2,y+3,1,2);
+  rect(ctx,w,x-1,y+9,3,4);rect(ctx,w,x+3,y+9,3,4);rect(ctx,team,x-1,y+10,3,1);rect(ctx,team,x+3,y+10,3,1);
+  rect(ctx,'#6b4a32',face>0?x+6:x-3,y+5,3,3);rect(ctx,w,face>0?x-3:x+6,y+6,2,3);
+  rect(ctx,'#6b4a32',face>0?x+6:x-2,y+8,1,4);rect(ctx,'#6b4a32',face>0?x+5:x-4,y+12,3,1);}
 function onIce(key){return!!(M&&M.hockeyCrew)&&(key==='jeff'||key==='jake'||(key==='josh'&&!M.joshOut));}
 function drawPond(nowT){
   var k;
   if(M.frozen){var H=SC.hockey,crew=M.hockeyCrew?[['JEFF',P.jeff],['JAKE',P.jake],M.joshOut?null:['JOSH',P.josh]]:[];
-    H.pl.slice().sort(function(a,b){return a.y-b.y;}).forEach(function(q){var i=H.pl.indexOf(q),c=crew[i],
-        look=c?c[1]:Object.assign({shirt:q.team},SKATERS[i]),x=q.x-2,y=q.y-12;
+    var all=H.pl.map(function(q,i){return{y:q.y,draw:function(){var c=crew[i],
+        look=Object.assign({},c?c[1]:SKATERS[i],jersey(q.team)),x=q.x-2,y=q.y-12;
       person(ctx,x,y,look,{face:q.face,step:q.moving&&Math.floor(nowT/240+i)%2});
       rect(ctx,'#6b4a32',q.face>0?q.x+4:q.x-5,q.y-3,1,3);rect(ctx,C.ink,q.face>0?q.x+4:q.x-6,q.y,2,1);
-      if(c)badge(ctx,c[0],q.x,y-(c[0]==='JOSH'?14:9),q.team);});
+      if(c)badge(ctx,c[0],q.x,y-(c[0]==='JOSH'?14:9),q.team);}};});
+    H.gl.forEach(function(gk,i){all.push({y:gk.y,draw:function(){goalie(i?POND_X+30:POND_X-34,gk.y,gk.team,gk.face);}});});
+    all.sort(function(a,b){return a.y-b.y;}).forEach(function(o){o.draw();});
     rect(ctx,C.ink,H.puck.x,H.puck.y,2,1);
+    if(H.cheer>0)shout('GOAL!',POND_X,POND_Y-POND_RY-9,nowT);
     return;}
   for(k=0;k<14;k++){var sx=POND_X+Math.cos(k*1.7)*POND_RX*.7,sy=POND_Y+Math.sin(k*2.3)*POND_RY*.6;if(Math.sin(k*2.4+nowT/1600)>.5)rect(ctx,'#5b9ac8',sx,sy,3,1);}
   if(SE.flowers)for(k=0;k<8;k++){var lx=POND_X+Math.cos(k*.9+2)*POND_RX*.75,ly=POND_Y+Math.sin(k*1.9)*POND_RY*.55;rect(ctx,'#4f8f3a',lx,ly,3,2);if(k%3===0)rect(ctx,'#f4b6c8',lx+1,ly,1,1);}
@@ -1010,7 +1099,8 @@ function startSurprise(kind,at){SUR={kind:kind,start:at,seed:Math.random()};}
 function surP(nowT){if(!SUR)return-1;var p=(nowT-SUR.start)/SUR_DEFS[SUR.kind].len;if(p>1){SUR=null;return-1;}return p;}
 function surOn(kind,nowT){return surP(nowT)>=0&&SUR.kind===kind;}
 /* the dinosaur's and the robot's footsteps shake the whole picture */
-function surShake(nowT){if(!(surOn('dino',nowT)||surOn('robot',nowT)))return 0;var t=nowT-SUR.start;return Math.floor(t/350)!==Math.floor((t-60)/350)?1:0;}
+function surShake(nowT){if(surOn('lightsaber',nowT)){var lp=surP(nowT);return lp>.7&&lp<.88&&Math.random()<.3?1:0;}
+  if(!(surOn('dino',nowT)||surOn('robot',nowT)))return 0;var t=nowT-SUR.start;return Math.floor(t/350)!==Math.floor((t-60)/350)?1:0;}
 /* our own people and dogs taking part in a surprise aren't drawn in their usual spots */
 function inCast(key,nowT){return surP(nowT)>=0&&SUR_DEFS[SUR.kind].cast.indexOf(key)>=0;}
 var DOG_KEYS=['sawyer','vincent','winnie','leo'],OFFICE_KEYS=['kelly','rachel','sam','barb','jake'];
@@ -1304,15 +1394,93 @@ sur('rachelride',14000,function(){return new Date(M.now).getHours()===15;},funct
   if(p>=.45&&p<.6)shout('BYE!',cx+4,y-22,nowT);},{cast:['rachel'],w:8});
 /* football and soccer in the park - Clinton joins in about 4 times in 10 */
 function sportsTeam(extra){var t=[['JAKE',P.jake],['JEFF',P.jeff]];if(joshFree())t.push(['JOSH',P.josh]);if(extra)t=t.concat(extra);if(SUR.seed<.4)t.push(['CLINTON',CLINTON]);return t;}
-sur('football',18000,ANY,function(p,t,nowT){var team=sportsTeam(),spots=[[160,328],[214,318],[250,336],[196,346],[230,350]].slice(0,team.length);
-  team.forEach(function(m,i){var s=spots[i],x=s[0]+Math.sin(t/700+i)*6,y=s[1]+Math.cos(t/900+i)*3;person(ctx,x,y-12,m[1],{face:x<205?1:-1,step:Math.floor(t/250+i)%2});badge(ctx,m[0],x+2,y-21,C.sign);});
+sur('football',18000,ANY,function(p,t,nowT){var team=sportsTeam(),spots=[[150,342],[234,340],[184,332],[200,352],[124,334]].slice(0,team.length);
+  team.forEach(function(m,i){var s=spots[i],x=s[0]+Math.sin(t/700+i)*(i===1?2:6),y=s[1]+Math.cos(t/900+i)*3;person(ctx,x,y-12,m[1],{face:x<190?1:-1,step:Math.floor(t/250+i)%2});badge(ctx,m[0],x+2,y-21,C.sign);});
   var k=Math.floor(t/2000),f=(t%2000)/2000,a=spots[k%spots.length],b=spots[(k*2+1)%spots.length];if(a===b)b=spots[(k+1)%spots.length];
   var bx=a[0]+(b[0]-a[0])*f+2,by=a[1]-8+(b[1]-a[1])*f-Math.sin(f*Math.PI)*14;oval('#8a4a2a',bx,by,2,1);rect(ctx,C.white,bx,by,1,1);
-  if(f>.9&&k%3===2)shout('TOUCHDOWN!',205,312,nowT);},{cast:['jake','jeff','josh']});
-sur('soccer',18000,ANY,function(p,t,nowT){var team=sportsTeam([['SAM',P.sam]]),bx=462+Math.sin(t/900)*50,by=334+Math.sin(t/650)*14;
-  [[404,1],[516,-1]].forEach(function(g){rect(ctx,C.white,g[0],322,1,22);rect(ctx,C.white,g[0],322,4*g[1]||4,1);rect(ctx,C.white,g[1]>0?g[0]:g[0]-3,343,4,1);});
+  if(f>.85&&b===spots[1])shout('TOUCHDOWN!',FB.x+FB.w-20,FB.y-10,nowT);},{cast:['jake','jeff','josh']});
+sur('soccer',18000,ANY,function(p,t,nowT){var team=sportsTeam([['SAM',P.sam]]),mx=SOC.x+(SOC.w>>1),bx=mx+Math.sin(t/900)*66,by=SOC.y+(SOC.h>>1)+Math.sin(t/650)*5;
   team.forEach(function(m,i){var ang=i*1.3+t/1500,x=bx+Math.cos(ang)*(10+i*3),y=by+Math.sin(ang)*6;person(ctx,x,y-12,m[1],{face:x<bx?1:-1,step:Math.floor(t/180+i)%2});badge(ctx,m[0],x+2,y-21,C.sign);});
-  oval(C.white,bx,by,1,1);rect(ctx,C.ink,bx,by,1,1);if(Math.abs(bx-462)>46)shout('GOAL!',462,308,nowT);},{cast:['jake','jeff','josh','sam']});
+  oval(C.white,bx,by,1,1);rect(ctx,C.ink,bx,by,1,1);if(Math.abs(bx-mx)>62)shout('GOAL!',mx,SOC.y-10,nowT);},{cast:['jake','jeff','josh','sam']});
+/* Jake and Josh's lightsaber duel (Jake, 2026-11-03): the longest surprise - 50 seconds,
+   played at double size with the park dimmed so the blades glow. Josh drops in from the sky,
+   the blades light, they fight up and down the football field, Force-leap the pond, Josh
+   Force-throws a bin that Jake cuts in half, a shaking blade lock on the soccer pitch, then
+   one of them knocks the other's saber flying - a coin toss who wins, every time. */
+var SABER_J='#4cc9ff',SABER_K='#ff3b3b';
+function seg(p,a,b){return clamp((p-a)/(b-a),0,1);}
+function handOf(x,feet,face){x=Math.round(x);var y=Math.round(feet)-26;return face>0?[x+13,y+14]:[x-3,y+14];}
+function duelist(look,x,feet,face,f){ctx.save();ctx.translate(Math.round(x),Math.round(feet)-26);ctx.scale(2,2);
+  person(ctx,0,0,look,Object.assign({face:face},f||{}));ctx.restore();}
+function saber(h,a,L,col){var c=Math.cos(a),s=Math.sin(a),i,hx=h[0],hy=h[1];
+  for(i=-4;i<0;i++)rect(ctx,i===-1?C.ink:'#b8bec6',hx+c*i,hy+s*i,2,2);
+  if(L<=0)return;
+  ctx.globalAlpha=.16;oval(col,Math.round(hx+c*L/2),Math.round(hy+s*L/2),Math.round(Math.abs(c)*L/2)+5,Math.round(Math.abs(s)*L/2)+5);
+  ctx.globalAlpha=.6;for(i=1;i<=L;i++)rect(ctx,col,hx+c*i-1,hy+s*i-1,3,3);
+  ctx.globalAlpha=1;for(i=1;i<=L;i++)rect(ctx,C.white,hx+c*i,hy+s*i,1,1);}
+function sparks(x,y,n,col){for(var i=0;i<n;i++)parts.push({x:x,y:y,vx:(Math.random()-.5)*60,vy:-Math.random()*40,life:.4+Math.random()*.4,c:Math.random()<.5?'#fff3a0':col});}
+function aimAt(h,x,y){return Math.atan2(y-h[1],x-h[0]);}
+function mixA(a,b,f){return a+(b-a)*f;}
+sur('lightsaber',50000,function(){return!M.joshOut;},function(p,t,nowT){
+  var G=346,dim=Math.min(seg(p,0,.04),1-seg(p,.96,1)),L=Math.round(24*seg(p,.08,.12))-(Math.random()<.15?1:0),
+      st=Math.floor(t/180)%2,jakeWins=SUR.seed<.5,JAKE=P.jake,JOSH=Object.assign({},P.josh,{cane:false}),
+      jx,kx,jy=G,ky=G,ja=-1.1,ka=-2.05,jstep=0,kstep=0,kwave=false,jL=L,kL=L,q,jh,kh,flash=0,kneel=null;
+  ctx.globalAlpha=.5*dim;rect(ctx,'#070a18',0,0,W,H);ctx.globalAlpha=1;
+  if(p<.13){                                   /* the entrance */
+    jx=-20+seg(p,0,.06)*150;kx=220;ky=G-Math.round(Math.pow(1-seg(p,.05,.08),2)*360);jstep=p<.06?st:0;
+    if(p>=.08&&p<.088&&Math.random()<.6)sparks(kx+9,G,3,'#cfcabd');
+    if(p<.1){var T1='JAKE VS JOSH',T2='THE DUEL OF THE YARD';ctx.save();ctx.translate(Math.round(W/2-tw(T1)),284);ctx.scale(2,2);text(ctx,T1,0,0,'#ffe81f');ctx.restore();
+      text(ctx,T2,W/2-tw(T2)/2,298,'#ffe81f');}
+    if(p>=.08)shout('VMMMMM',W/2-60,300,nowT);}
+  else if(p<.42){                              /* up and down the football field */
+    q=seg(p,.13,.42);var cx=172+Math.sin(q*Math.PI*3)*42,sep=24+Math.round(Math.abs(Math.sin(t/700))*14),hit=Math.sin(((t%900)/900)*Math.PI);
+    jx=cx-sep/2-10;kx=cx+sep/2;jstep=kstep=st;jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
+    var mx=(jh[0]+kh[0])/2,my=G-22-Math.round(Math.sin(t/1300)*6);
+    ja=mixA(-1.1,aimAt(jh,mx,my),hit);ka=mixA(-2.05,aimAt(kh,mx,my),hit);
+    if(hit>.93){if(Math.random()<.6)sparks(mx,my,3,Math.random()<.5?SABER_J:SABER_K);flash=.12;if(Math.floor(t/900)%4===1)shout('CLANG!',mx,my-24,nowT);}}
+  else if(p<.55){                              /* Force leap over the pond */
+    q=seg(p,.42,.55);var hop=Math.sin(q*Math.PI);jx=145+q*335;kx=185+q*395;jy=G-hop*72;ky=G-hop*84;
+    ja=-1.1+q*Math.PI*4;ka=-2.05-q*Math.PI*4;
+    if(q>.15&&q<.85)shout('FORCE JUMP!',POND_X,POND_Y-POND_RY-12,nowT);
+    if(q>.97&&Math.random()<.6){sparks(jx+9,G,2,'#cfcabd');sparks(kx+9,G,2,'#cfcabd');}}
+  else if(p<.70){                              /* the Force throw: Josh flings a bin, Jake cuts it in two */
+    q=seg(p,.55,.70);jx=480;kx=580;kwave=q<.6;jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
+    ka=-2.05;ja=q<.55?-1.1:mixA(-1.7,.4,seg(q,.55,.65));
+    var bx,by,BG='#2f9e44',BD='#1f6f30';
+    if(q<.55){bx=q<.25?556:556-(seg(q,.25,.55))*58;by=q<.25?G-8-seg(q,0,.25)*26:G-34+seg(q,.25,.55)*10;
+      if(q<.25)by+=Math.round(Math.sin(t/60));
+      rect(ctx,BD,bx,by,18,10);rect(ctx,BG,bx,by+2,18,8);rect(ctx,BD,bx+2,by+4,14,1);
+      ctx.globalAlpha=.25;oval('#9ad8ff',bx+9,by+5,12,8);ctx.globalAlpha=1;
+      shout('THE FORCE!',kx+5,G-56,nowT);}
+    else{var f2=seg(q,.55,1),y2=G-24+f2*f2*22;
+      if(f2<.08&&Math.random()<.8)sparks(498,G-24,3,SABER_J);
+      rect(ctx,BD,498-f2*24,y2,9,10);rect(ctx,BG,498-f2*24,y2+2,9,8);rect(ctx,BD,507+f2*20,y2+f2*3,9,10);rect(ctx,BG,507+f2*20,y2+2+f2*3,9,8);
+      rect(ctx,'#ff9a3c',506-f2*24,y2+1,1,9);rect(ctx,'#ff9a3c',507+f2*20,y2+1+f2*3,1,9);
+      shout('SLICE!',jx+5,G-56,nowT);}}
+  else if(p<.88){                              /* the blade lock */
+    q=seg(p,.70,.88);var sh=Math.random()<.5?-1:1,push=Math.sin(q*Math.PI*5)*6;
+    jx=500+push+(Math.random()<.4?sh:0);kx=544+push+(Math.random()<.4?-sh:0);jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
+    var lx=(jh[0]+kh[0])/2,ly=G-30;ja=aimAt(jh,lx+6,ly);ka=aimAt(kh,lx-6,ly);
+    if(Math.random()<.8)sparks(lx,ly+2,2,Math.random()<.5?SABER_J:SABER_K);
+    if(t%600<90)flash=.25;
+    shout(Math.floor(t/1500)%2?'AAARGH!':'NOOOO!',lx,G-62,nowT);}
+  else{                                        /* the win */
+    q=seg(p,.88,1);jx=500;kx=548;var loserJake=!jakeWins,dir=loserJake?-1:1;
+    jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
+    if(q<.6){kneel=loserJake?'jake':'josh';}
+    var win=jakeWins?'JAKE':'JOSH';
+    if(jakeWins){ja=-Math.PI/2;kL=0;}else{ka=-Math.PI/2;jL=0;}
+    var lh=loserJake?jh:kh,fx=lh[0]+dir*q*160,fy=lh[1]-Math.sin(Math.min(q*1.4,1)*Math.PI)*90+q*20;
+    if(q<.7)saber([fx,fy],q*22,22,loserJake?SABER_J:SABER_K);
+    shout(q<.75?win+' WINS!':'GG!',(jx+kx)/2+5,G-62,nowT);}
+  if(jh===undefined){jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);}
+  var jdy=kneel==='jake'?5:0,kdy=kneel==='josh'?5:0;
+  ctx.globalAlpha=.12*dim;oval(SABER_J,Math.round(jx+9),G+1,16,4);oval(SABER_K,Math.round(kx+9),G+1,16,4);ctx.globalAlpha=1;
+  duelist(JAKE,jx,jy+jdy,1,{step:jstep});duelist(JOSH,kx,ky+kdy,-1,{step:kstep,wave:kwave,arm:st});
+  saber([jh[0],jh[1]+jdy],ja,jL,SABER_J);saber([kh[0],kh[1]+kdy],ka,kL,SABER_K);
+  badge(ctx,'JAKE',jx+5,jy+jdy-36,C.sign);badge(ctx,'JOSH',kx+5,ky+kdy-42,C.sign);
+  if(flash){ctx.globalAlpha=flash;rect(ctx,C.white,0,0,W,H);ctx.globalAlpha=1;}
+},{cast:['jake','josh'],w:2});
 /* the energy drink truck drops off cans for Jake and Josh */
 sur('redbull',16000,ANY,function(p,t,nowT){var stop=DX+64,x=p<.3?-40+p/.3*(stop+40):p<.7?stop:stop+(p-.7)/.3*(W-stop+40),y=ROADY;
   rect(ctx,'#c9ced4',x,y,30,10);rect(ctx,'#2b3a8a',x,y+6,30,2);oval(C.red,x+12,y+3,3,2);oval(C.gold,x+12,y+3,1,1);rect(ctx,'#2b3a8a',x+30,y+2,6,8);rect(ctx,C.glass,x+32,y+3,3,3);
