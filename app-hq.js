@@ -286,25 +286,28 @@ var TREES=[76,104,132,160,188,216,236,262,380,500,530,570,610];
 var FOREST=[[2,338,90,22],[246,349,24,11],[370,330,112,30],[631,328,9,32]];
 function pine(g,cx,cy){rect(g,C.trunk,cx-1,cy+4,2,4);
   for(var i=0;i<8;i++){var w=2+i,x0=cx-Math.floor(w/2);rect(g,i%3===0?'#2f6a3a':'#3a7a45',x0,cy-4+i,w,1);if(SE.snow&&i%3===0)rect(g,C.snow,x0,cy-4+i,Math.max(1,w-2),1);}}
-/* the forest floor under the stands: leaf piles and scattered leaves in fall, ferns and
-   mushrooms when it's green, rocks and a fallen log all year, snow drifts in winter */
-function forestFloor(g,F,r2){var i,x,y,n=Math.max(2,Math.round(F[2]*F[3]/120));
-  for(i=0;i<n*3;i++){x=F[0]+r2()*F[2]|0;y=F[1]+r2()*F[3]|0;
-    rect(g,SE.snow?C.white:SE.leafPiles?SE.leaves[i%SE.leaves.length]:'#5f8a3e',x,y,1,1);}
-  for(i=0;i<n;i++){x=F[0]+2+r2()*(F[2]-8)|0;y=F[1]+3+r2()*(F[3]-4)|0;var k=i%4;
-    if(SE.snow){rect(g,C.snow,x,y,7,2);rect(g,C.white,x+1,y-1,4,1);continue;}
-    if(k===0&&SE.leafPiles){rect(g,SE.leaves[0],x,y,7,2);rect(g,SE.leaves[1],x+1,y-1,5,1);rect(g,SE.leaves[2%SE.leaves.length],x+2,y-2,3,1);rect(g,SE.leaves[3%SE.leaves.length],x+5,y,1,1);}
-    else if(k===0){rect(g,'#3f7a2e',x,y,1,3);rect(g,'#3f7a2e',x+2,y-1,1,4);rect(g,'#4f8f3a',x+4,y,1,3);rect(g,'#4f8f3a',x+1,y,3,1);}
-    else if(k===1){rect(g,'#8a8f98',x,y,4,2);rect(g,'#aab0b8',x+1,y-1,2,1);}
-    else if(k===2&&!SE.leafPiles){rect(g,'#e6e4dc',x,y+1,1,2);rect(g,C.red,x-1,y,3,1);rect(g,C.white,x,y,1,1);}
-    else if(k===2){rect(g,SE.leaves[1],x,y,6,2);rect(g,SE.leaves[0],x+1,y-1,3,1);}
-    else{rect(g,'#6b4a32',x,y,9,2);rect(g,'#8a6440',x,y,9,1);rect(g,'#c9a77a',x+8,y,1,2);}}}
+/* the forest floor between the trunks: leaf piles and scattered leaves in fall, ferns and
+   mushrooms when it's green, rocks and fallen logs all year, snow drifts in winter. They're
+   planted in among the trees by depth, so the ones in front of a trunk show. */
+function floorBit(g,x,y,k){
+  if(SE.snow){rect(g,C.snow,x,y,7,2);rect(g,C.white,x+1,y-1,4,1);return;}
+  var lv=SE.leaves;
+  if(k===0&&SE.leafPiles){rect(g,lv[0],x,y,8,2);rect(g,lv[1],x+1,y-1,6,1);rect(g,lv[2],x+2,y-2,4,1);rect(g,lv[3],x+6,y,1,1);rect(g,lv[2],x+1,y+1,1,1);}
+  else if(k===0){rect(g,'#3f7a2e',x,y-2,1,4);rect(g,'#3f7a2e',x+2,y-3,1,5);rect(g,'#4f8f3a',x+4,y-2,1,4);rect(g,'#4f8f3a',x+1,y-1,3,1);}
+  else if(k===1){rect(g,'#7a8088',x,y,5,2);rect(g,'#aab0b8',x+1,y-1,3,1);}
+  else if(k===2&&SE.leafPiles){rect(g,lv[1],x,y,6,2);rect(g,lv[0],x+1,y-1,4,1);rect(g,lv[3],x+3,y-2,1,1);}
+  else if(k===2){rect(g,'#e6e4dc',x+1,y,1,2);rect(g,C.red,x,y-1,3,1);rect(g,C.white,x+1,y-1,1,1);rect(g,'#e6e4dc',x+5,y+1,1,1);rect(g,C.red,x+4,y,3,1);}
+  else{rect(g,'#6b4a32',x,y,10,2);rect(g,'#8a6440',x,y,10,1);rect(g,'#c9a77a',x+9,y,1,2);if(SE.leafPiles)rect(g,lv[0],x+3,y-1,3,1);}}
 function drawForest(g,r2){
   var pts=[];
-  FOREST.forEach(function(F){forestFloor(g,F,r2);});
-  FOREST.forEach(function(F){for(var row=0,y=F[1]+4;y<H+2;y+=7,row++)for(var x=F[0]+3+(row%2)*5;x<=F[0]+F[2]-3;x+=10)
-    pts.push([x+Math.round(r2()*4-2),y+Math.round(r2()*2-1),r2()<.5]);});
-  pts.sort(function(a,b){return a[1]-b[1];}).forEach(function(t){if(t[2]||SE.snow)pine(g,t[0],t[1]);else tree(g,t[0],t[1],r2);});
+  FOREST.forEach(function(F){var i,n=Math.max(2,Math.round(F[2]*F[3]/90));
+    for(i=0;i<n*4;i++)rect(g,SE.snow?C.white:SE.leafPiles?SE.leaves[i%4]:'#5f8a3e',F[0]+r2()*F[2]|0,F[1]+r2()*F[3]|0,1,1);
+    for(var row=0,y=F[1]+4;y<H+2;y+=8,row++)for(var x=F[0]+3+(row%2)*6;x<=F[0]+F[2]-3;x+=12)
+      pts.push({k:y+8,x:x+Math.round(r2()*4-2),y:y+Math.round(r2()*2-1),pine:r2()<.5});
+    for(i=0;i<n;i++)pts.push({k:0,x:F[0]+1+(r2()*(F[2]-9)|0),y:F[1]+2+(r2()*(F[3]-3)|0),bit:i%4});});
+  pts.forEach(function(o){if(o.bit!=null)o.k=o.y+2;});
+  pts.sort(function(a,b){return a.k-b.k;}).forEach(function(o){
+    if(o.bit!=null)floorBit(g,o.x,o.y,o.bit);else if(o.pine||SE.snow)pine(g,o.x,o.y);else tree(g,o.x,o.y,r2);});
 }
 var POND_X=320,POND_Y=PARK_TOP+27,POND_RX=44,POND_RY=19;
 /* houses that fit the town (Jake, 2026-11-03): townhouses in the cities, cottages by
@@ -585,7 +588,8 @@ function drawFields(g){
   [FB.x,FB.x+FB.w-1].forEach(function(px){rect(g,'#c99a1e',px,my-4,1,5);rect(g,'#f2c14e',px-4,my-5,9,1);rect(g,'#f2c14e',px-4,my-14,1,9);rect(g,'#f2c14e',px+4,my-14,1,9);});
   var cx=SOC.x+(SOC.w>>1),cy=SOC.y+(SOC.h>>1);
   rect(g,ln,cx,SOC.y,1,SOC.h);
-  for(a=0;a<28;a++)rect(g,ln,cx+Math.round(Math.cos(a/28*Math.PI*2)*7),cy+Math.round(Math.sin(a/28*Math.PI*2)*5),1,1);
+  for(a=-5;a<=5;a++){var cw=Math.round(7*Math.sqrt(1-a*a/25));rect(g,ln,cx-cw,cy+a,1,1);rect(g,ln,cx+cw,cy+a,1,1);}
+  rect(g,ln,cx-3,cy-5,7,1);rect(g,ln,cx-3,cy+5,7,1);
   [[SOC.x,1],[SOC.x+SOC.w-1,-1]].forEach(function(e){var x=e[0],d=e[1],gx=d>0?x-4:x+1,xx,yy;
     outline(g,ln,d>0?x:x-17,cy-10,18,21);outline(g,ln,d>0?x:x-5,cy-5,6,11);rect(g,ln,x+d*12,cy,1,1);
     for(yy=cy-5;yy<=cy+5;yy++)for(xx=0;xx<4;xx++)if((xx+yy)%2===0)rect(g,'#d8d8d0',gx+xx,yy,1,1);
