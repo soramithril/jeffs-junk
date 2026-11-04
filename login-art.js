@@ -4,8 +4,9 @@
    The sign-in posters, run by the calendar (Jake, 2026-10-14):
    - A seasonal sheet shows only in its own dates (THE CALENDAR below). While a
      season is on, 9 times in 10 it is one of that season's sheets and 1 in 10
-     a year-round one. Halloween is the exception: all Halloween, no year-round
-     sheets at all (Jake, 2026-10-27).
+     a year-round one. Halloween, Christmas and the Thanksgiving football days
+     are the exceptions: their own sheets only, no year-round ones at all (Jake,
+     2026-10-27 for Halloween, 2026-11-04 for the winter stretch).
    - Out of season it is the year-round sheets: the movie posters and the
      lakeside all year, the anime one and Lanterns & Leaves spring to fall.
    - Never the same sheet twice in a row when there is a choice.
@@ -46,6 +47,10 @@
     var first = new Date(y, 9, 1);
     return 1 + ((8 - first.getDay()) % 7) + 7;
   }
+  function usThanksgiving(y) {   // American Thanksgiving: fourth Thursday of November
+    var first = new Date(y, 10, 1);
+    return 1 + ((11 - first.getDay()) % 7) + 21;
+  }
   function seasonsOn(date) {
     var y = date.getFullYear(), t = md(date.getMonth() + 1, date.getDate());
     var day = new Date(y, date.getMonth(), date.getDate());
@@ -53,8 +58,12 @@
     var easterFrom = new Date(y, easter.getMonth(), easter.getDate() - 13);
     var easterTo = new Date(y, easter.getMonth(), easter.getDate() + 1);   // Easter Monday
     var thanks = md(10, thanksgivingMonday(y));
-    if (t >= 1115 && t <= 1225) return ['christmas'];
-    if (t >= 1226 || t <= 110) return ['newyears'];
+    // Winter and Christmas from November 1 to Boxing Day, except the football picture on
+    // American Thanksgiving and the 3 days before it (Jake, 2026-11-04).
+    var usThanks = usThanksgiving(y);
+    if (date.getMonth() === 10 && date.getDate() >= usThanks - 3 && date.getDate() <= usThanks) return ['football'];
+    if (t >= 1101 && t <= 1226) return ['christmas'];
+    if (t >= 1227 || t <= 110) return ['newyears'];
     if (t >= 201 && t <= 214) return ['valentines'];
     if (t >= 310 && t <= 317) return ['stpatricks'];
     if (day >= easterFrom && day <= easterTo) return ['easter'];
@@ -191,7 +200,8 @@
       ]
     },
     {
-      key: 'winter', season: 'winter', layout: 'console br', font: 'serif', phoneX: '25%', theme: ['night'],
+      // Shown in both winter stretches: Nov 1 to Boxing Day with the Christmas sheets, and Jan 11 to February.
+      key: 'winter', season: ['winter', 'christmas'], layout: 'console br', font: 'serif', phoneX: '25%', theme: ['night'],
       title: 'Snow day', intro: 'Roads are cleared. Let’s go.', button: 'LOG IN',
       effects: [
         { fx: 'shimmer', box: [700, 0, 1500, 190], weight: 'aurora', tint: '150,255,200', strength: .55 },
@@ -383,6 +393,65 @@
         { fx: 'glints', box: [1180, 200, IW, 620], pick: 'warm', count: 22, size: 2.4, colour: '255,220,150' },
         SNOW
       ]
+    },
+    // Jake's Grinch set (2026-11-04). The fake 765-459-9979 the AI painted on the first
+    // three bins is repainted to the real number. The Grinch stands bottom-left on each and
+    // the truck fills the middle, so the card sits top-right over the lit-up houses.
+    {
+      key: 'grinch-santa', season: 'christmas', layout: 'console tr', font: 'serif', phoneX: '24%', theme: ['holly'],
+      title: 'Bah, humbug', intro: 'Fine. The bins still need dropping off.', button: 'LOG IN',
+      effects: [
+        { fx: 'glints', box: [780, 0, IW, 340], pick: 'warm', count: 40, size: 2.4, colour: '255,220,150' },
+        { fx: 'glow', at: [1563, 75], r: 30, colour: '255,230,140', period: 5 },
+        { fx: 'glow', at: [80, 268], r: 30, colour: '255,220,150', period: 6 },
+        { fx: 'glow', at: [842, 592], r: 14, colour: '255,245,220', period: 4 },
+        SNOW
+      ]
+    },
+    {
+      key: 'grinch-toy-car', season: 'christmas', layout: 'console tr', font: 'serif', phoneX: '24%', theme: ['holly'],
+      title: 'Wrong size', intro: 'Better book a bigger bin.', button: 'LOG IN',
+      effects: [
+        { fx: 'glints', box: [0, 0, IW, 330], pick: 'warm', count: 44, size: 2.4, colour: '255,220,150' },
+        { fx: 'glow', at: [1528, 145], r: 28, colour: '255,230,140', period: 5 },
+        { fx: 'glow', at: [838, 604], r: 12, colour: '255,245,220', period: 4 },
+        SNOW
+      ]
+    },
+    {
+      key: 'grinch-toy-car-2', season: 'christmas', layout: 'console tr', font: 'serif', phoneX: '28%', theme: ['holly'],
+      title: 'Too small', intro: 'Every holiday mess needs a real bin.', button: 'LOG IN',
+      effects: [
+        { fx: 'glints', box: [0, 0, IW, 380], pick: 'warm', count: 44, size: 2.4, colour: '255,220,150' },
+        { fx: 'glow', at: [1478, 108], r: 28, colour: '255,230,140', period: 5 },
+        { fx: 'glow', at: [818, 642], r: 12, colour: '255,245,220', period: 4 },
+        SNOW
+      ]
+    },
+    {
+      // The Grinch drives down the middle under the moon: the snowy street bottom-right is clear.
+      key: 'grinch-pickup', season: 'christmas', layout: 'console br', font: 'serif', phoneX: '38%', theme: ['night'],
+      title: 'Making a list', intro: 'And hauling it twice.', button: 'LOG IN',
+      effects: [
+        { fx: 'glow', at: [1410, 80], r: 52, colour: '230,240,255', period: 7 },
+        { fx: 'glow', at: [383, 665], r: 16, colour: '255,240,180', period: 3 },
+        { fx: 'glow', at: [556, 665], r: 16, colour: '255,240,180', period: 3 },
+        { fx: 'glow', at: [1007, 383], r: 14, colour: '255,210,130', flicker: true },
+        { fx: 'glow', at: [1462, 383], r: 14, colour: '255,210,130', flicker: true },
+        { fx: 'glints', box: [640, 260, IW, 620], pick: 'warm', count: 40, size: 2.4, colour: '255,220,150' },
+        Object.assign({}, SNOW, { count: 150, size: 2.4 })
+      ]
+    },
+    {
+      // American Thanksgiving and the 3 days before it (THE CALENDAR). The card covers the
+      // Cowboys banner top-right; the players, the truck and the title stay clear.
+      key: 'football', season: 'football', layout: 'console tr', font: 'caps', phoneX: '50%', theme: ['dusk'],
+      title: 'Thanksgiving kickoff', intro: 'Turkey, football and a full bin.', button: 'KICK OFF',
+      effects: [
+        { fx: 'glints', box: [0, 0, IW, 260], pick: 'bright', count: 50, size: 2.2, colour: '255,245,220' },
+        { fx: 'glow', at: [1200, 70], r: 60, colour: '255,190,110', period: 7 },
+        { fx: 'fall', kind: 'leaf', count: 30, box: [0, -120, IW, 700], travel: [300, 480], period: 15, size: 6.5, colours: AUTUMN }
+      ]
     }
   ];
 
@@ -392,13 +461,15 @@
   // reload the dot makes.
   var ASKED = 'jjLoginArtAsked';
   function byKey(key) { return SHEETS.filter(function (s) { return s.key === key; })[0]; }
-  // base is the year-round sheets that may be mixed in. Empty during Halloween, so the
-  // dots and the pick both offer Halloween (and, early October, Thanksgiving) only.
+  // base is the year-round sheets that may be mixed in. Empty during Halloween, Christmas
+  // and the football days, so the dots and the pick offer that season's sheets only.
+  // A sheet's season may be one key or a list of them (winter shows in two stretches).
+  var OWN_ONLY = ['halloween', 'christmas', 'football'];
   function pools(date) {
     var seasons = seasonsOn(date), sf = springToFall(date);
     return {
-      inSeason: SHEETS.filter(function (s) { return seasons.indexOf(s.season) >= 0; }),
-      base: seasons.indexOf('halloween') >= 0 ? []
+      inSeason: SHEETS.filter(function (s) { return [].concat(s.season).some(function (k) { return seasons.indexOf(k) >= 0; }); }),
+      base: seasons.some(function (k) { return OWN_ONLY.indexOf(k) >= 0; }) ? []
         : SHEETS.filter(function (s) { return s.season === 'always' || (s.season === 'springfall' && sf); })
     };
   }
