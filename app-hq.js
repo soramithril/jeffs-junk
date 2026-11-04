@@ -298,16 +298,18 @@ function floorBit(g,x,y,k){
   else if(k===2&&SE.leafPiles){rect(g,lv[1],x,y,6,2);rect(g,lv[0],x+1,y-1,4,1);rect(g,lv[3],x+3,y-2,1,1);}
   else if(k===2){rect(g,'#e6e4dc',x+1,y,1,2);rect(g,C.red,x,y-1,3,1);rect(g,C.white,x+1,y-1,1,1);rect(g,'#e6e4dc',x+5,y+1,1,1);rect(g,C.red,x+4,y,3,1);}
   else{rect(g,'#6b4a32',x,y,10,2);rect(g,'#8a6440',x,y,10,1);rect(g,'#c9a77a',x+9,y,1,2);if(SE.leafPiles)rect(g,lv[0],x+3,y-1,3,1);}}
+var FIELD_TREES=[];   /* the trees standing on the field spots, for the games to cut down */
+function standTree(g,o){if(o.pine||SE.snow)pine(g,o.x,o.y);else tree(g,o.x,o.y,mulberry32(o.seed));}
 function drawForest(g,r2){
-  var pts=[];
-  FOREST.forEach(function(F){var i,n=Math.max(2,Math.round(F[2]*F[3]/90));
-    for(i=0;i<n*4;i++)rect(g,SE.snow?C.white:SE.leafPiles?SE.leaves[i%4]:'#5f8a3e',F[0]+r2()*F[2]|0,F[1]+r2()*F[3]|0,1,1);
-    for(var row=0,y=F[1]+4;y<H+2;y+=8,row++)for(var x=F[0]+3+(row%2)*6;x<=F[0]+F[2]-3;x+=12)
-      pts.push({k:y+8,x:x+Math.round(r2()*4-2),y:y+Math.round(r2()*2-1),pine:r2()<.5});
-    for(i=0;i<n;i++)pts.push({k:0,x:F[0]+1+(r2()*(F[2]-9)|0),y:F[1]+2+(r2()*(F[3]-3)|0),bit:i%4});});
-  pts.forEach(function(o){if(o.bit!=null)o.k=o.y+2;});
-  pts.sort(function(a,b){return a.k-b.k;}).forEach(function(o){
-    if(o.bit!=null)floorBit(g,o.x,o.y,o.bit);else if(o.pine||SE.snow)pine(g,o.x,o.y);else tree(g,o.x,o.y,r2);});
+  var pts=[];FIELD_TREES=[];
+  function stand(x0,y0,w,h,F){var i,n=Math.max(2,Math.round(w*h/90)),ins=F?4:0;
+    for(i=0;i<n*4;i++)rect(g,SE.snow?C.white:SE.leafPiles?SE.leaves[i%4]:'#5f8a3e',x0+r2()*w|0,y0+r2()*h|0,1,1);
+    for(var row=0,y=y0+4+ins;F?y<=y0+h-9:y<H+2;y+=8,row++)for(var x=x0+3+ins+(row%2)*6;x<=x0+w-3-ins;x+=12){
+      var o={k:y+8,x:x+Math.round(r2()*2-1)*(F?1:2),y:y+Math.round(r2()*2-1),pine:r2()<.5,seed:r2()*1e9|0};pts.push(o);if(F){o.F=F;FIELD_TREES.push(o);}}
+    for(i=0;i<n;i++){var by=y0+2+(r2()*(h-3)|0);pts.push({k:by+2,x:x0+1+(r2()*(w-9)|0),y:by,bit:i%4});}}
+  FOREST.forEach(function(F){stand(F[0],F[1],F[2],F[3],null);});
+  [FB,SOC].forEach(function(F){stand(F.x,F.y,F.w,F.h,F);});
+  pts.sort(function(a,b){return a.k-b.k;}).forEach(function(o){if(o.bit!=null)floorBit(g,o.x,o.y,o.bit);else standTree(g,o);});
 }
 var POND_X=320,POND_Y=PARK_TOP+27,POND_RX=44,POND_RY=19;
 /* houses that fit the town (Jake, 2026-11-03): townhouses in the cities, cottages by
@@ -559,7 +561,6 @@ function drawBG(){
   if(!M.towns.length)sign(g,'NO BINS OUT AND NO STOPS TODAY',W/2,ROWA+4);
   /* the park: trees, a flower bed and a lawn the JWG crew look after */
   rect(g,SE.snow?C.snow2:SE.grass2,0,PARK_TOP-2,W,1);
-  drawFields(g);
   TREES.forEach(function(tx){tree(g,tx,PARK_TOP+8,r2);});
   drawForest(g,r2);
   if(!SE.snow){rect(g,'#7a5a3c',8,PARK_TOP,52,30);for(i=0;i<60;i++)rect(g,'#6a4c32',8+r2()*52|0,PARK_TOP+r2()*30|0,1,1);}
@@ -570,32 +571,35 @@ function drawBG(){
     rect(g,C.ink,s0+288,sy,5,2);rect(g,C.ink,s0+287,sy+2,7,1);}
   drawPondBG(g);
 }
-/* the sports fields in the park (Jake, 2026-11-03): a football field on the left - end zones
-   in our two team colours, a line every ten yards, hash marks, yellow goalposts - and a
-   soccer pitch on the right with its boxes and netted goals. Painted on the lawn below the
-   trees, clear of the JWG mowing strip (400..480); under snow the lines show faintly. */
+/* the sports fields (Jake, 2026-11-03): a football field on the left - end zones in our two
+   team colours, a line every ten yards, hash marks, yellow goalposts - and a soccer pitch on
+   the right with its boxes and netted goals. They only exist during a game: the rest of the
+   time both spots are forest (see fieldGame). */
 var FB={x:96,y:323,w:148,h:34},SOC={x:488,y:323,w:140,h:34};
 function outline(g,c,x,y,w,h){rect(g,c,x,y,w,1);rect(g,c,x,y+h-1,w,1);rect(g,c,x,y,1,h);rect(g,c,x+w-1,y,1,h);}
-function drawFields(g){
-  var ln=SE.snow?'#c3ccd1':'#f4f4ee',i,a;
-  [FB,SOC].forEach(function(F){
-    if(!SE.snow)for(i=0;i<F.w;i+=12)rect(g,(i/12)%2?SE.grass:SE.grass3,F.x+i,F.y,Math.min(12,F.w-i),F.h);
-    outline(g,ln,F.x,F.y,F.w,F.h);});
-  var ez=12,my=FB.y+(FB.h>>1),pl=FB.w-2*ez;
-  g.globalAlpha=SE.snow?.15:.35;rect(g,'#2f74c8',FB.x+1,FB.y+1,ez-1,FB.h-2);rect(g,'#d9412b',FB.x+FB.w-ez,FB.y+1,ez-1,FB.h-2);g.globalAlpha=1;
-  for(i=0;i<=10;i++)rect(g,ln,Math.round(FB.x+ez+i*pl/10),FB.y,1,FB.h);
-  for(i=1;i<50;i++)if(i%5){var hx=Math.round(FB.x+ez+i*pl/50);rect(g,ln,hx,my-6,1,1);rect(g,ln,hx,my+5,1,1);}
-  [FB.x,FB.x+FB.w-1].forEach(function(px){rect(g,'#c99a1e',px,my-4,1,5);rect(g,'#f2c14e',px-4,my-5,9,1);rect(g,'#f2c14e',px-4,my-14,1,9);rect(g,'#f2c14e',px+4,my-14,1,9);});
-  var cx=SOC.x+(SOC.w>>1),cy=SOC.y+(SOC.h>>1);
-  rect(g,ln,cx,SOC.y,1,SOC.h);
-  for(a=-5;a<=5;a++){var cw=Math.round(7*Math.sqrt(1-a*a/25));rect(g,ln,cx-cw,cy+a,1,1);rect(g,ln,cx+cw,cy+a,1,1);}
-  rect(g,ln,cx-3,cy-5,7,1);rect(g,ln,cx-3,cy+5,7,1);
+function fieldGround(g,F,mowed){var i;rect(g,SE.snow?C.snow:SE.grass,F.x,F.y,F.w,F.h);
+  if(SE.snow||!mowed)return;g.globalAlpha=mowed;for(i=0;i<F.w;i+=24)rect(g,SE.grass3,F.x+i+12,F.y,Math.min(12,F.w-i-12),F.h);g.globalAlpha=1;}
+function fieldLines(g,F,a){var ln=SE.snow?'#c3ccd1':'#f4f4ee',i;g.globalAlpha=a;
+  outline(g,ln,F.x,F.y,F.w,F.h);
+  if(F===FB){var ez=12,my=FB.y+(FB.h>>1),pl=FB.w-2*ez;
+    g.globalAlpha=a*(SE.snow?.15:.35);rect(g,'#2f74c8',FB.x+1,FB.y+1,ez-1,FB.h-2);rect(g,'#d9412b',FB.x+FB.w-ez,FB.y+1,ez-1,FB.h-2);g.globalAlpha=a;
+    for(i=0;i<=10;i++)rect(g,ln,Math.round(FB.x+ez+i*pl/10),FB.y,1,FB.h);
+    for(i=1;i<50;i++)if(i%5){var hx=Math.round(FB.x+ez+i*pl/50);rect(g,ln,hx,my-6,1,1);rect(g,ln,hx,my+5,1,1);}}
+  else{var cx=SOC.x+(SOC.w>>1),cy=SOC.y+(SOC.h>>1);
+    rect(g,ln,cx,SOC.y,1,SOC.h);
+    for(i=-5;i<=5;i++){var cw=Math.round(7*Math.sqrt(1-i*i/25));rect(g,ln,cx-cw,cy+i,1,1);rect(g,ln,cx+cw,cy+i,1,1);}
+    rect(g,ln,cx-3,cy-5,7,1);rect(g,ln,cx-3,cy+5,7,1);
+    [[SOC.x,1],[SOC.x+SOC.w-1,-1]].forEach(function(e){var x=e[0],d=e[1];
+      outline(g,ln,d>0?x:x-17,cy-10,18,21);outline(g,ln,d>0?x:x-5,cy-5,6,11);rect(g,ln,x+d*12,cy,1,1);});}
+  g.globalAlpha=1;}
+function fieldGoals(g,F){
+  if(F===FB){var my=FB.y+(FB.h>>1);
+    [FB.x,FB.x+FB.w-1].forEach(function(px){rect(g,'#c99a1e',px,my-4,1,5);rect(g,'#f2c14e',px-4,my-5,9,1);rect(g,'#f2c14e',px-4,my-14,1,9);rect(g,'#f2c14e',px+4,my-14,1,9);});return;}
+  var cy=SOC.y+(SOC.h>>1);
   [[SOC.x,1],[SOC.x+SOC.w-1,-1]].forEach(function(e){var x=e[0],d=e[1],gx=d>0?x-4:x+1,xx,yy;
-    outline(g,ln,d>0?x:x-17,cy-10,18,21);outline(g,ln,d>0?x:x-5,cy-5,6,11);rect(g,ln,x+d*12,cy,1,1);
     for(yy=cy-5;yy<=cy+5;yy++)for(xx=0;xx<4;xx++)if((xx+yy)%2===0)rect(g,'#d8d8d0',gx+xx,yy,1,1);
     rect(g,C.white,gx,cy-6,4,1);rect(g,C.white,gx,cy+6,4,1);rect(g,C.white,d>0?gx:gx+3,cy-6,1,13);
-    rect(g,C.white,x,cy-8,1,3);rect(g,C.white,x,cy+6,1,3);});
-}
+    rect(g,C.white,x,cy-8,1,3);rect(g,C.white,x,cy+6,1,3);});}
 /* the pond in the middle of the park (Jake, 2026-11-03): a grassy bank, water - or ice
    from Dec 1 to the end of February, when it's hockey season - a dock, cattails and a
    bench. drawPond adds what moves. */
@@ -1099,7 +1103,8 @@ function startSurprise(kind,at){SUR={kind:kind,start:at,seed:Math.random()};}
 function surP(nowT){if(!SUR)return-1;var p=(nowT-SUR.start)/SUR_DEFS[SUR.kind].len;if(p>1){SUR=null;return-1;}return p;}
 function surOn(kind,nowT){return surP(nowT)>=0&&SUR.kind===kind;}
 /* the dinosaur's and the robot's footsteps shake the whole picture */
-function surShake(nowT){if(surOn('lightsaber',nowT)){var lp=surP(nowT);return lp>.7&&lp<.88&&Math.random()<.3?1:0;}
+function surShake(nowT){if(surOn('kaiju',nowT)||surOn('monsterbrawl',nowT)){var ks=nowT-SUR.start;return Math.floor(ks/600)!==Math.floor((ks-70)/600)?1:0;}
+  if(surOn('lightsaber',nowT)){var lp=surP(nowT);return lp>.7&&lp<.88&&Math.random()<.3?1:0;}
   if(!(surOn('dino',nowT)||surOn('robot',nowT)))return 0;var t=nowT-SUR.start;return Math.floor(t/350)!==Math.floor((t-60)/350)?1:0;}
 /* our own people and dogs taking part in a surprise aren't drawn in their usual spots */
 function inCast(key,nowT){return surP(nowT)>=0&&SUR_DEFS[SUR.kind].cast.indexOf(key)>=0;}
@@ -1339,7 +1344,7 @@ sur('aurora',16000,NIGHT,function(p,t){var a=(p<.15?p/.15:p>.85?(1-p)/.15:1)*.3;
 
 
 /* -- our own people and dogs having fun (Jake, 2026-11-03) -- */
-/* Clinton visits with his kids Keaton and Ellis, and walks Rachel in when she arrives */
+/* Clinton visits with his kids Keaton and Ellis. He and Rachel never arrive together (Jake, 2026-11-03). */
 var CLINTON={hair:'#3b2416',shirt:'#3f8f8f',pants:'#2b2f36',beard:true},KEATON={hair:'#d8b46a',shirt:'#e8590c'},ELLIS={hair:'#8a5a3c',shirt:'#f2c14e'};
 function kid(x,y,k,step){x=Math.round(x);y=Math.round(y);var s=step?1:0;
   rect(ctx,C.skin,x,y+1,4,3);rect(ctx,k.hair,x,y,4,2);rect(ctx,C.ink,x+1,y+2,1,1);rect(ctx,C.ink,x+3,y+2,1,1);
@@ -1386,32 +1391,66 @@ sur('clinton',18000,ANY,function(p,t,nowT){var gate=DX+200,x=p<.35?-20+p/.35*(ga
   var k1=x-10+Math.sin(t/300)*(mv?2:8),k2=x+10+Math.cos(t/260)*(mv?2:8),hop1=mv?0:Math.abs(Math.sin(t/180))*3,hop2=mv?0:Math.abs(Math.cos(t/200))*3;
   kid(k1,y+3-hop1,KEATON,st);kid(k2,y+3-hop2,ELLIS,1-st);
   if(!mv){badge(ctx,'KEATON',k1+2,y-7,C.sign);badge(ctx,'ELLIS',k2+2,y-15,C.sign);shout('HI JEFF!',gate+4,y-24,nowT);}});
-/* when Rachel comes in, Clinton walks her to the door - most showings in her first hour */
-sur('rachelride',14000,function(){return new Date(M.now).getHours()===15;},function(p,t,nowT){var door=DX+72,y=RT-13,st=Math.floor(t/200)%2;
-  var cx=p<.45?-20+p/.45*(door-8+20):p<.6?door-8:door-8-(p-.6)/.4*(door+30);
-  if(p<.5)person(ctx,cx+9,y,P.rachel,{step:p<.45&&st});
-  person(ctx,cx,y,CLINTON,{face:p>=.6?-1:1,step:(p<.45||p>=.6)&&st,wave:p>=.45&&p<.6,arm:st});badge(ctx,'CLINTON',cx+2,y-9,C.sign);
-  if(p>=.45&&p<.6)shout('BYE!',cx+4,y-22,nowT);},{cast:['rachel'],w:8});
+/* a game needs a field (Jake, 2026-11-03): the field spots are forest until a game starts.
+   Then the players sweep across with chainsaws and the trees come down (TIMBER!), the grass
+   gets mowed, the lines painted and the posts go up - all in the first fifth - then they
+   play, and after the final whistle saplings sprout and the forest grows back. */
+var BUILD=.2,REGROW=.88;
+function fieldGame(F,p,t,nowT,team,play){
+  var list=FIELD_TREES.filter(function(o){return o.F===F;}),b,r;
+  if(p<BUILD){b=p/BUILD;var sweep=F.x-6+Math.min(b/.7,1)*(F.w+12);
+    fieldGround(ctx,F,seg(b,.7,.85));
+    list.slice().sort(function(a,c){return a.y-c.y;}).forEach(function(o){var f=(b-(o.x-F.x)/F.w*.7)/.1;
+      if(f<0)standTree(ctx,o);
+      else if(f<1){ctx.save();ctx.translate(o.x,o.y+8);ctx.rotate(f*f*Math.PI/2*(o.seed%2?1:-1));ctx.translate(-o.x,-(o.y+8));standTree(ctx,o);ctx.restore();
+        if(f>.8&&Math.random()<.25)sparks(o.x,o.y+6,2,'#c9a77a');}
+      else if(b<.75){rect(ctx,'#6b4a32',o.x-1,o.y+6,3,2);rect(ctx,'#c9a77a',o.x-1,o.y+6,3,1);}});
+    fieldLines(ctx,F,seg(b,.8,1));if(b>.95)fieldGoals(ctx,F);
+    team.forEach(function(m,i){var x=Math.min(sweep,F.x+F.w-8)-3+(i%2)*6,y=F.y+12+i*(F.h-12)/Math.max(1,team.length-1),saw=b<.72;
+      person(ctx,x,y-12,m[1],{face:1,step:Math.floor(t/150+i)%2});
+      if(saw){rect(ctx,'#e8590c',x+6,y-6,3,3);rect(ctx,'#9aa0a6',x+9,y-5,4,1);if(Math.random()<.3)sparks(x+12,y-5,1,'#c9a77a');}
+      else rect(ctx,C.white,x+6,y-6,2,4);
+      badge(ctx,m[0],x+2,y-21,C.sign);});
+    shout(b<.72?'TIMBER!':'GAME ON!',F.x+(F.w>>1),F.y-12,nowT);
+    return;}
+  if(p<REGROW){fieldGround(ctx,F,1);fieldLines(ctx,F,1);fieldGoals(ctx,F);play(t-BUILD*SUR_DEFS[SUR.kind].len);return;}
+  r=seg(p,REGROW,1);fieldGround(ctx,F,1-seg(r,0,.3));fieldLines(ctx,F,1-seg(r,0,.25));
+  list.slice().sort(function(a,c){return a.y-c.y;}).forEach(function(o,i){var gr=r*1.5-((i*7)%11)/11*.5;if(gr<=.15)return;
+    if(gr<.45){rect(ctx,'#3f7a2e',o.x,o.y+5,1,3);rect(ctx,'#5fa043',o.x-1,o.y+5,1,1);rect(ctx,'#5fa043',o.x+1,o.y+4,1,1);}
+    else if(gr<.75){rect(ctx,C.trunk,o.x,o.y+4,1,4);rect(ctx,o.pine||SE.snow?'#3a7a45':(SE.leaves?SE.leaves[0]:'#3a7a45'),o.x-2,o.y,5,4);}
+    else standTree(ctx,o);});
+  team.forEach(function(m,i){var x=F.x+F.w+4+i*9,y=F.y+F.h-2;person(ctx,x,y-12,m[1],{wave:true,arm:Math.floor(t/250+i)%2});});
+  shout('GG!',F.x+(F.w>>1),F.y-12,nowT);}
 /* football and soccer in the park - Clinton joins in about 4 times in 10 */
 function sportsTeam(extra){var t=[['JAKE',P.jake],['JEFF',P.jeff]];if(joshFree())t.push(['JOSH',P.josh]);if(extra)t=t.concat(extra);if(SUR.seed<.4)t.push(['CLINTON',CLINTON]);return t;}
-sur('football',18000,ANY,function(p,t,nowT){var team=sportsTeam(),spots=[[150,342],[234,340],[184,332],[200,352],[124,334]].slice(0,team.length);
-  team.forEach(function(m,i){var s=spots[i],x=s[0]+Math.sin(t/700+i)*(i===1?2:6),y=s[1]+Math.cos(t/900+i)*3;person(ctx,x,y-12,m[1],{face:x<190?1:-1,step:Math.floor(t/250+i)%2});badge(ctx,m[0],x+2,y-21,C.sign);});
-  var k=Math.floor(t/2000),f=(t%2000)/2000,a=spots[k%spots.length],b=spots[(k*2+1)%spots.length];if(a===b)b=spots[(k+1)%spots.length];
-  var bx=a[0]+(b[0]-a[0])*f+2,by=a[1]-8+(b[1]-a[1])*f-Math.sin(f*Math.PI)*14;oval('#8a4a2a',bx,by,2,1);rect(ctx,C.white,bx,by,1,1);
-  if(f>.85&&b===spots[1])shout('TOUCHDOWN!',FB.x+FB.w-20,FB.y-10,nowT);},{cast:['jake','jeff','josh']});
-sur('soccer',18000,ANY,function(p,t,nowT){var team=sportsTeam([['SAM',P.sam]]),mx=SOC.x+(SOC.w>>1),bx=mx+Math.sin(t/900)*66,by=SOC.y+(SOC.h>>1)+Math.sin(t/650)*5;
-  team.forEach(function(m,i){var ang=i*1.3+t/1500,x=bx+Math.cos(ang)*(10+i*3),y=by+Math.sin(ang)*6;person(ctx,x,y-12,m[1],{face:x<bx?1:-1,step:Math.floor(t/180+i)%2});badge(ctx,m[0],x+2,y-21,C.sign);});
-  oval(C.white,bx,by,1,1);rect(ctx,C.ink,bx,by,1,1);if(Math.abs(bx-mx)>62)shout('GOAL!',mx,SOC.y-10,nowT);},{cast:['jake','jeff','josh','sam']});
-/* Jake and Josh's lightsaber duel (Jake, 2026-11-03): the longest surprise - 50 seconds,
-   played at double size with the park dimmed so the blades glow. Josh drops in from the sky,
-   the blades light, they fight up and down the football field, Force-leap the pond, Josh
-   Force-throws a bin that Jake cuts in half, a shaking blade lock on the soccer pitch, then
-   one of them knocks the other's saber flying - a coin toss who wins, every time. */
+sur('football',30000,ANY,function(p,t0,nowT){var team=sportsTeam();
+  fieldGame(FB,p,t0,nowT,team,function(t){var spots=[[150,342],[234,340],[184,332],[200,352],[124,334]].slice(0,team.length);
+    team.forEach(function(m,i){var s=spots[i],x=s[0]+Math.sin(t/700+i)*(i===1?2:6),y=s[1]+Math.cos(t/900+i)*3;person(ctx,x,y-12,m[1],{face:x<190?1:-1,step:Math.floor(t/250+i)%2});badge(ctx,m[0],x+2,y-21,C.sign);});
+    var k=Math.floor(t/2000),f=(t%2000)/2000,a=spots[k%spots.length],b=spots[(k*2+1)%spots.length];if(a===b)b=spots[(k+1)%spots.length];
+    var bx=a[0]+(b[0]-a[0])*f+2,by=a[1]-8+(b[1]-a[1])*f-Math.sin(f*Math.PI)*14;oval('#8a4a2a',bx,by,2,1);rect(ctx,C.white,bx,by,1,1);
+    if(f>.85&&b===spots[1])shout('TOUCHDOWN!',FB.x+FB.w-20,FB.y-10,nowT);});},{cast:['jake','jeff','josh']});
+sur('soccer',30000,ANY,function(p,t0,nowT){var team=sportsTeam([['SAM',P.sam]]);
+  fieldGame(SOC,p,t0,nowT,team,function(t){var mx=SOC.x+(SOC.w>>1),bx=mx+Math.sin(t/900)*66,by=SOC.y+(SOC.h>>1)+Math.sin(t/650)*5;
+    team.forEach(function(m,i){var ang=i*1.3+t/1500,x=bx+Math.cos(ang)*(10+i*3),y=by+Math.sin(ang)*6;person(ctx,x,y-12,m[1],{face:x<bx?1:-1,step:Math.floor(t/180+i)%2});badge(ctx,m[0],x+2,y-21,C.sign);});
+    oval(C.white,bx,by,1,1);rect(ctx,C.ink,bx,by,1,1);if(Math.abs(bx-mx)>62)shout('GOAL!',mx,SOC.y-10,nowT);});},{cast:['jake','jeff','josh','sam']});
+/* Jake and Josh's lightsaber duel (Jake, 2026-11-03) - a full minute, the longest surprise,
+   at double size with the park dimmed so the blades glow. Jake in light robes and a brown
+   cloak with a blue blade, Josh in a black hooded robe with a red one. Josh drops in with
+   flips, they light up and fight with backflips and front flips, Josh throws his saber like a
+   boomerang, Jake Force-pushes him across the park, both Force-leap the pond with double
+   flips, Josh throws lightning that Jake catches on his blade, Josh Force-throws a bin that
+   Jake cuts in two, a spinning-saber flurry, a shaking blade lock, then one knocks the other's
+   saber flying and does a victory backflip - a coin toss who wins, every time. */
 var SABER_J='#4cc9ff',SABER_K='#ff3b3b';
+var ROBE_J={cloak:'#5a3a22',skirt:'#c9a77a'},ROBE_K={cloak:'#141414',skirt:'#1d1d1d',hood:true};
 function seg(p,a,b){return clamp((p-a)/(b-a),0,1);}
 function handOf(x,feet,face){x=Math.round(x);var y=Math.round(feet)-26;return face>0?[x+13,y+14]:[x-3,y+14];}
-function duelist(look,x,feet,face,f){ctx.save();ctx.translate(Math.round(x),Math.round(feet)-26);ctx.scale(2,2);
-  person(ctx,0,0,look,Object.assign({face:face},f||{}));ctx.restore();}
+function duelist(look,x,feet,face,f,robe){ctx.save();ctx.translate(Math.round(x),Math.round(feet)-26);ctx.scale(2,2);
+  if(robe)rect(ctx,robe.cloak,-2,5,9,8);
+  person(ctx,0,0,look,Object.assign({face:face},f||{}));
+  if(robe){rect(ctx,robe.skirt,-1,9,7,2);rect(ctx,'#3a2618',-1,8,7,1);
+    if(robe.hood){rect(ctx,robe.cloak,-1,-1,7,2);rect(ctx,robe.cloak,-1,0,1,6);rect(ctx,robe.cloak,5,0,1,6);}}
+  ctx.restore();}
 function saber(h,a,L,col){var c=Math.cos(a),s=Math.sin(a),i,hx=h[0],hy=h[1];
   for(i=-4;i<0;i++)rect(ctx,i===-1?C.ink:'#b8bec6',hx+c*i,hy+s*i,2,2);
   if(L<=0)return;
@@ -1421,66 +1460,216 @@ function saber(h,a,L,col){var c=Math.cos(a),s=Math.sin(a),i,hx=h[0],hy=h[1];
 function sparks(x,y,n,col){for(var i=0;i<n;i++)parts.push({x:x,y:y,vx:(Math.random()-.5)*60,vy:-Math.random()*40,life:.4+Math.random()*.4,c:Math.random()<.5?'#fff3a0':col});}
 function aimAt(h,x,y){return Math.atan2(y-h[1],x-h[0]);}
 function mixA(a,b,f){return a+(b-a)*f;}
-sur('lightsaber',50000,function(){return!M.joshOut;},function(p,t,nowT){
-  var G=346,dim=Math.min(seg(p,0,.04),1-seg(p,.96,1)),L=Math.round(24*seg(p,.08,.12))-(Math.random()<.15?1:0),
-      st=Math.floor(t/180)%2,jakeWins=SUR.seed<.5,JAKE=P.jake,JOSH=Object.assign({},P.josh,{cane:false}),
-      jx,kx,jy=G,ky=G,ja=-1.1,ka=-2.05,jstep=0,kstep=0,kwave=false,jL=L,kL=L,q,jh,kh,flash=0,kneel=null;
+/* one fighter and their saber; rot is a flip in turns, spun about the middle of the body */
+function fighter(o){var cx=o.x+9,cy=o.feet-13,h;ctx.save();
+  if(o.rot){ctx.translate(cx,cy);ctx.rotate(o.rot*Math.PI*2*o.face);ctx.translate(-cx,-cy);}
+  duelist(o.look,o.x,o.feet,o.face,{step:o.step,wave:o.wave,arm:o.arm},o.robe);
+  h=handOf(o.x,o.feet,o.face);if(o.L>0||o.L===0)saber(h,o.a,o.L,o.col);
+  ctx.restore();
+  if(!o.rot)badge(ctx,o.name,o.x+5,o.feet-(o.robe.hood?40:37),C.sign);
+  return h;}
+function ripple(x,y,dir,t){for(var k=0;k<3;k++){var rr=(t*.06+k*12)%36;ctx.globalAlpha=Math.max(0,1-rr/36);
+  for(var a=-.9;a<=.9;a+=.08)rect(ctx,'#cfe6ff',x+dir*Math.cos(a)*rr,y+Math.sin(a)*rr*1.3,1,1);}ctx.globalAlpha=1;}
+function lightning(x1,y1,x2,y2,col){var n=7,px=x1,py=y1;
+  for(var i=1;i<=n;i++){var nx=x1+(x2-x1)*i/n+(i<n?Math.random()*10-5:0),ny=y1+(y2-y1)*i/n+(i<n?Math.random()*10-5:0);zap(px,py,nx,ny,col);px=nx;py=ny;}}
+sur('lightsaber',60000,function(){return!M.joshOut;},function(p,t,nowT){
+  var G=346,dim=Math.min(seg(p,0,.03),1-seg(p,.97,1)),L=Math.round(24*seg(p,.07,.1))-(Math.random()<.15?1:0),
+      st=Math.floor(t/180)%2,jakeWins=SUR.seed<.5,
+      JAKE=Object.assign({},P.jake,{shirt:'#d8c49a',pants:'#6b4a32',hood:false,phones:false,logo:false}),
+      JOSH=Object.assign({},P.josh,{pimp:false,chain:false,cane:false}),
+      jx=130,kx=200,jy=G,ky=G,ja=-1.1,ka=-2.05,jrot=0,krot=0,jstep=0,kstep=0,jwave=false,kwave=false,jL=L,kL=L,kHand=true,
+      q,f,jh,kh,flash=0,kneel=null,after=[];
   ctx.globalAlpha=.5*dim;rect(ctx,'#070a18',0,0,W,H);ctx.globalAlpha=1;
-  if(p<.13){                                   /* the entrance */
-    jx=-20+seg(p,0,.06)*150;kx=220;ky=G-Math.round(Math.pow(1-seg(p,.05,.08),2)*360);jstep=p<.06?st:0;
-    if(p>=.08&&p<.088&&Math.random()<.6)sparks(kx+9,G,3,'#cfcabd');
-    if(p<.1){var T1='JAKE VS JOSH',T2='THE DUEL OF THE YARD';ctx.save();ctx.translate(Math.round(W/2-tw(T1)),284);ctx.scale(2,2);text(ctx,T1,0,0,'#ffe81f');ctx.restore();
+  if(p<.1){                                    /* Josh drops in flipping; the blades light */
+    jx=-20+seg(p,0,.05)*150;kx=220;jstep=p<.05?st:0;
+    q=seg(p,.03,.07);ky=G-Math.round(Math.pow(1-q,2)*360);krot=p<.07?(1-q)*2:0;
+    if(p>=.07&&p<.076&&Math.random()<.6)sparks(kx+9,G,3,'#cfcabd');
+    if(p<.08){var T1='JAKE VS JOSH',T2='THE DUEL OF THE YARD';ctx.save();ctx.translate(Math.round(W/2-tw(T1)),284);ctx.scale(2,2);text(ctx,T1,0,0,'#ffe81f');ctx.restore();
       text(ctx,T2,W/2-tw(T2)/2,298,'#ffe81f');}
-    if(p>=.08)shout('VMMMMM',W/2-60,300,nowT);}
-  else if(p<.42){                              /* up and down the football field */
-    q=seg(p,.13,.42);var cx=172+Math.sin(q*Math.PI*3)*42,sep=24+Math.round(Math.abs(Math.sin(t/700))*14),hit=Math.sin(((t%900)/900)*Math.PI);
-    jx=cx-sep/2-10;kx=cx+sep/2;jstep=kstep=st;jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
-    var mx=(jh[0]+kh[0])/2,my=G-22-Math.round(Math.sin(t/1300)*6);
-    ja=mixA(-1.1,aimAt(jh,mx,my),hit);ka=mixA(-2.05,aimAt(kh,mx,my),hit);
-    if(hit>.93){if(Math.random()<.6)sparks(mx,my,3,Math.random()<.5?SABER_J:SABER_K);flash=.12;if(Math.floor(t/900)%4===1)shout('CLANG!',mx,my-24,nowT);}}
-  else if(p<.55){                              /* Force leap over the pond */
-    q=seg(p,.42,.55);var hop=Math.sin(q*Math.PI);jx=145+q*335;kx=185+q*395;jy=G-hop*72;ky=G-hop*84;
-    ja=-1.1+q*Math.PI*4;ka=-2.05-q*Math.PI*4;
+    if(p>=.07)shout('VMMMMM',W/2-60,300,nowT);}
+  else if(p<.3){                               /* the duel, with flips */
+    q=seg(p,.1,.3);var cx=172+Math.sin(q*Math.PI*3)*40,sep=26+Math.round(Math.abs(Math.sin(t/700))*12),hit=Math.sin(((t%900)/900)*Math.PI);
+    jx=cx-sep/2-10;kx=cx+sep/2;jstep=kstep=st;
+    if(q>.28&&q<.42){f=seg(q,.28,.42);krot=-f;kx+=Math.sin(f*Math.PI)*14;ky=G-Math.sin(f*Math.PI)*34;shout('BACKFLIP!',kx+5,G-70,nowT);}
+    if(q>.62&&q<.76){f=seg(q,.62,.76);jrot=f;jx+=Math.sin(f*Math.PI)*10;jy=G-Math.sin(f*Math.PI)*38;shout('FLIP!',jx+5,G-74,nowT);}
+    jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);var mx=(jh[0]+kh[0])/2,my=G-22-Math.round(Math.sin(t/1300)*6);
+    if(!jrot&&!krot){ja=mixA(-1.1,aimAt(jh,mx,my),hit);ka=mixA(-2.05,aimAt(kh,mx,my),hit);
+      if(hit>.93){if(Math.random()<.6)sparks(mx,my,3,Math.random()<.5?SABER_J:SABER_K);flash=.12;if(Math.floor(t/900)%4===1)shout('CLANG!',mx,my-24,nowT);}}}
+  else if(p<.38){                              /* saber throw: Josh's blade comes round like a boomerang; Jake backflips over it */
+    q=seg(p,.3,.38);jx=130;kx=210;kwave=q<.12;
+    jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
+    if(q>=.12&&q<.92){f=seg(q,.12,.92);kHand=false;var sw=Math.sin(f*Math.PI),sxp=kh[0]+(jh[0]-20-kh[0])*sw,syp=kh[1]-sw*14;
+      after.push(function(){saber([sxp,syp],t/35,24,SABER_K);});
+      if(f>.3&&f<.7){jrot=-seg(f,.3,.7);jy=G-Math.sin(seg(f,.3,.7)*Math.PI)*40;}}
+    shout('SABER THROW!',(jx+kx)/2,G-74,nowT);}
+  else if(p<.46){                              /* Force push: Josh slides back and flips onto his feet */
+    q=seg(p,.38,.46);jx=130;jwave=true;ja=-1.4;f=seg(q,.12,.7);kx=210+Math.sqrt(f)*60;
+    if(f>.35&&f<.9){krot=-seg(f,.35,.9);ky=G-Math.sin(seg(f,.35,.9)*Math.PI)*30;}
+    after.push(function(){ripple(jx+16,G-16,1,t);});
+    shout('FORCE PUSH!',jx+5,G-74,nowT);}
+  else if(p<.55){                              /* Force leap over the pond, double flips */
+    q=seg(p,.46,.55);var hop=Math.sin(q*Math.PI);jx=130+q*350;kx=270+q*310;jy=G-hop*78;ky=G-hop*90;
+    jrot=q*2;krot=-q*2;
     if(q>.15&&q<.85)shout('FORCE JUMP!',POND_X,POND_Y-POND_RY-12,nowT);
     if(q>.97&&Math.random()<.6){sparks(jx+9,G,2,'#cfcabd');sparks(kx+9,G,2,'#cfcabd');}}
-  else if(p<.70){                              /* the Force throw: Josh flings a bin, Jake cuts it in two */
-    q=seg(p,.55,.70);jx=480;kx=580;kwave=q<.6;jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
+  else if(p<.63){                              /* lightning from Josh, caught on Jake's blade */
+    q=seg(p,.55,.63);jx=480;kx=580;kwave=true;ja=-.7;
+    jh=handOf(jx,jy,1);var tipx=jh[0]+Math.cos(ja)*16,tipy=jh[1]+Math.sin(ja)*16;
+    after.push(function(){lightning(kx-2,G-16,tipx,tipy,'#b388ff');if(Math.random()<.7)sparks(tipx,tipy,2,'#b388ff');});
+    jx-=Math.round(seg(q,.1,.9)*12);
+    shout(Math.floor(t/1200)%2?'FEEL THE POWER!':'BLOCKED!',(jx+kx)/2+5,G-74,nowT);}
+  else if(p<.71){                              /* the Force throw: Josh flings a bin, Jake cuts it in two */
+    q=seg(p,.63,.71);jx=468;kx=580;kwave=q<.6;
     ka=-2.05;ja=q<.55?-1.1:mixA(-1.7,.4,seg(q,.55,.65));
     var bx,by,BG='#2f9e44',BD='#1f6f30';
     if(q<.55){bx=q<.25?556:556-(seg(q,.25,.55))*58;by=q<.25?G-8-seg(q,0,.25)*26:G-34+seg(q,.25,.55)*10;
       if(q<.25)by+=Math.round(Math.sin(t/60));
       rect(ctx,BD,bx,by,18,10);rect(ctx,BG,bx,by+2,18,8);rect(ctx,BD,bx+2,by+4,14,1);
       ctx.globalAlpha=.25;oval('#9ad8ff',bx+9,by+5,12,8);ctx.globalAlpha=1;
-      shout('THE FORCE!',kx+5,G-56,nowT);}
+      shout('THE FORCE!',kx+5,G-74,nowT);}
     else{var f2=seg(q,.55,1),y2=G-24+f2*f2*22;
       if(f2<.08&&Math.random()<.8)sparks(498,G-24,3,SABER_J);
       rect(ctx,BD,498-f2*24,y2,9,10);rect(ctx,BG,498-f2*24,y2+2,9,8);rect(ctx,BD,507+f2*20,y2+f2*3,9,10);rect(ctx,BG,507+f2*20,y2+2+f2*3,9,8);
       rect(ctx,'#ff9a3c',506-f2*24,y2+1,1,9);rect(ctx,'#ff9a3c',507+f2*20,y2+1+f2*3,1,9);
-      shout('SLICE!',jx+5,G-56,nowT);}}
-  else if(p<.88){                              /* the blade lock */
-    q=seg(p,.70,.88);var sh=Math.random()<.5?-1:1,push=Math.sin(q*Math.PI*5)*6;
+      shout('SLICE!',jx+5,G-74,nowT);}}
+  else if(p<.79){                              /* spinning sabers, closing in */
+    q=seg(p,.71,.79);jx=470+q*30;kx=580-q*36;jstep=kstep=st;ja=t/45;ka=-t/40;
+    after.push(function(){ctx.globalAlpha=.15;oval(SABER_J,jh[0],jh[1],22,22);oval(SABER_K,kh[0],kh[1],22,22);ctx.globalAlpha=1;
+      if(q>.5&&Math.random()<.6)sparks((jh[0]+kh[0])/2,G-14,2,Math.random()<.5?SABER_J:SABER_K);});
+    shout('SPIN ATTACK!',(jx+kx)/2+5,G-74,nowT);}
+  else if(p<.9){                               /* the blade lock */
+    q=seg(p,.79,.9);var sh=Math.random()<.5?-1:1,push=Math.sin(q*Math.PI*5)*6;
     jx=500+push+(Math.random()<.4?sh:0);kx=544+push+(Math.random()<.4?-sh:0);jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
     var lx=(jh[0]+kh[0])/2,ly=G-30;ja=aimAt(jh,lx+6,ly);ka=aimAt(kh,lx-6,ly);
     if(Math.random()<.8)sparks(lx,ly+2,2,Math.random()<.5?SABER_J:SABER_K);
     if(t%600<90)flash=.25;
-    shout(Math.floor(t/1500)%2?'AAARGH!':'NOOOO!',lx,G-62,nowT);}
-  else{                                        /* the win */
-    q=seg(p,.88,1);jx=500;kx=548;var loserJake=!jakeWins,dir=loserJake?-1:1;
+    shout(Math.floor(t/1500)%2?'AAARGH!':'NOOOO!',lx,G-74,nowT);}
+  else{                                        /* the win, and a victory backflip */
+    q=seg(p,.9,1);jx=500;kx=548;var loserJake=!jakeWins,dir=loserJake?-1:1;
     jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);
-    if(q<.6){kneel=loserJake?'jake':'josh';}
-    var win=jakeWins?'JAKE':'JOSH';
-    if(jakeWins){ja=-Math.PI/2;kL=0;}else{ka=-Math.PI/2;jL=0;}
+    if(q<.7)kneel=loserJake?'jake':'josh';
+    if(jakeWins){ja=-Math.PI/2;kL=-1;if(q>.35&&q<.6){jrot=-seg(q,.35,.6);jy=G-Math.sin(seg(q,.35,.6)*Math.PI)*36;}}
+    else{ka=-Math.PI/2;jL=-1;if(q>.35&&q<.6){krot=seg(q,.35,.6);ky=G-Math.sin(seg(q,.35,.6)*Math.PI)*36;}}
     var lh=loserJake?jh:kh,fx=lh[0]+dir*q*160,fy=lh[1]-Math.sin(Math.min(q*1.4,1)*Math.PI)*90+q*20;
-    if(q<.7)saber([fx,fy],q*22,22,loserJake?SABER_J:SABER_K);
-    shout(q<.75?win+' WINS!':'GG!',(jx+kx)/2+5,G-62,nowT);}
-  if(jh===undefined){jh=handOf(jx,jy,1);kh=handOf(kx,ky,-1);}
+    if(q<.7)after.push(function(){saber([fx,fy],q*22,22,loserJake?SABER_J:SABER_K);});
+    shout(q<.75?(jakeWins?'JAKE':'JOSH')+' WINS!':'GG!',(jx+kx)/2+5,G-74,nowT);}
   var jdy=kneel==='jake'?5:0,kdy=kneel==='josh'?5:0;
   ctx.globalAlpha=.12*dim;oval(SABER_J,Math.round(jx+9),G+1,16,4);oval(SABER_K,Math.round(kx+9),G+1,16,4);ctx.globalAlpha=1;
-  duelist(JAKE,jx,jy+jdy,1,{step:jstep});duelist(JOSH,kx,ky+kdy,-1,{step:kstep,wave:kwave,arm:st});
-  saber([jh[0],jh[1]+jdy],ja,jL,SABER_J);saber([kh[0],kh[1]+kdy],ka,kL,SABER_K);
-  badge(ctx,'JAKE',jx+5,jy+jdy-36,C.sign);badge(ctx,'JOSH',kx+5,ky+kdy-42,C.sign);
+  jh=fighter({look:JAKE,robe:ROBE_J,name:'JAKE',x:jx,feet:jy+jdy,face:1,rot:jrot,step:jstep,wave:jwave,arm:st,a:ja,L:jL,col:SABER_J});
+  kh=fighter({look:JOSH,robe:ROBE_K,name:'JOSH',x:kx,feet:ky+kdy,face:-1,rot:krot,step:kstep,wave:kwave,arm:st,a:ka,L:kHand?kL:-1,col:SABER_K});
+  after.forEach(function(fn){fn();});
   if(flash){ctx.globalAlpha=flash;rect(ctx,C.white,0,0,W,H);ctx.globalAlpha=1;}
 },{cast:['jake','josh'],w:2});
+/* ---------- giant monsters and superheroes (Jake, 2026-11-03) - our own versions, with our
+   own names: a giant lizard that stomps through town and blasts the dump pile, a giant ape
+   that climbs the dump pile and swats a biplane, the two of them brawling in town, and a
+   team of heroes - a thunder god, a green giant, a shield hero and an iron suit - against a
+   metal-masked villain. Drawn big: ctx.scale on simple block shapes with a dark outline. ---------- */
+var KG=300;   /* where the giants and heroes stand: the street edge above the park */
+function big(x,feet,s,flip,draw){ctx.save();ctx.translate(Math.round(x),Math.round(feet));ctx.scale(flip?-s:s,s);draw();ctx.restore();}
+function blocks(list,col){list.forEach(function(r){rect(ctx,C.ink,r[0]-1,r[1]-1,r[2]+2,r[3]+2);});list.forEach(function(r){rect(ctx,col,r[0],r[1],r[2],r[3]);});}
+function zap(x1,y1,x2,y2,col){var dx=x2-x1,dy=y2-y1,n=Math.max(1,Math.round(Math.sqrt(dx*dx+dy*dy))),i;
+  ctx.globalAlpha=.5;for(i=0;i<=n;i++)rect(ctx,col,x1+dx*i/n-2,y1+dy*i/n-2,4,4);ctx.globalAlpha=1;
+  for(i=0;i<=n;i++)rect(ctx,C.white,x1+dx*i/n,y1+dy*i/n,1,1);}
+function bolt(x,y2){var px=x+Math.random()*10-5,py=0,nx,ny;while(py<y2){ny=Math.min(y2,py+14);nx=ny>=y2?x:x+Math.random()*16-8;zap(px,py,nx,ny,'#bfe3ff');px=nx;py=ny;}}
+function whiteFlash(a){ctx.globalAlpha=a;rect(ctx,C.white,0,0,W,H);ctx.globalAlpha=1;}
+/* the giant lizard, facing right, feet at 0 */
+function lizard(st,mouth,glow){var G='#4d5c4a',sc=glow?'#bfe3ff':'#9fb0b8';
+  if(glow){ctx.globalAlpha=.3;oval('#9ad8ff',-8,-18,14,16);ctx.globalAlpha=1;}
+  blocks([[-27,-6,6,2],[-22,-8,10,4],[-12,-20,13,16],[-2,-23,5,4],[-3,-31,9,8],[5,-29,5,5],[1,-17,4,2],[-10,-5-(st?1:0),4,5],[-3,-5-(st?0:1),4,5]],G);
+  rect(ctx,'#7d8a66',-2,-18,3,12);rect(ctx,'#ffe28a',2,-29,1,1);rect(ctx,'#e6e4dc',5,-17,1,1);
+  if(mouth){rect(ctx,'#7a1f1f',5,-25,5,2);rect(ctx,C.white,6,-25,1,1);rect(ctx,C.white,8,-25,1,1);}
+  [[-2,-34],[-6,-23],[-10,-23],[-15,-18],[-15,-13],[-19,-11],[-25,-9]].forEach(function(q){rect(ctx,sc,q[0],q[1],2,3);});}
+/* the giant ape, facing right, feet at 0 */
+function ape(st,pose){var F='#4a3226',arm;
+  if(pose==='beat')arm=st?[[3,-20,7,4]]:[[5,-29,4,10]];else if(pose==='punch')arm=[[5,-20,15,4]];else if(pose==='up')arm=[[5,-34,4,15]];else arm=[[5,-20,4,18]];
+  blocks([[-12,-20,4,18]],'#3f2a20');
+  blocks([[-6,-6-(st?1:0),4,6],[0,-6-(st?0:1),4,6],[-9,-22,15,16],[-2,-31,10,10]],F);
+  rect(ctx,'#7a6a5a',-4,-19,7,9);rect(ctx,'#9a8a78',1,-29,7,7);rect(ctx,F,1,-29,7,1);rect(ctx,C.ink,3,-27,1,1);rect(ctx,C.ink,6,-27,1,1);rect(ctx,C.ink,2,-24,5,1);
+  blocks(arm,'#3f2a20');}
+function biplane(x,y,dir,t){x=Math.round(x);y=Math.round(y);var f=dir<0;
+  rect(ctx,'#c4482b',x,y,10,2);rect(ctx,'#e3b13a',x+3,y-2,4,1);rect(ctx,'#e3b13a',x+3,y+2,4,1);rect(ctx,'#c4482b',f?x+9:x,y-2,1,2);
+  if(Math.floor(t/60)%2)rect(ctx,'#e6e4dc',f?x-1:x+10,y-2,1,6);}
+function binBox(x,y){rect(ctx,'#1f6f30',x,y,16,9);rect(ctx,'#2f9e44',x,y+2,16,7);rect(ctx,'#1f6f30',x+2,y+4,12,1);}
+sur('kaiju',26000,ANY,function(p,t,nowT){var st=Math.floor(t/600)%2,x,mouth=false,glow=false,walking=p<.4||p>=.78;
+  x=p<.4?-50+seg(p,0,.4)*270:p<.78?220:220+seg(p,.78,1)*(W+80-220);
+  if(p>=.4&&p<.5){mouth=true;shout('SKREEEONK!',x,KG-118,nowT);}
+  if(p>=.5&&p<.78)glow=p>.6||Math.floor(t/120)%2;
+  big(x,KG,3,false,function(){lizard(walking&&st,mouth||(p>=.6&&p<.76),glow);});
+  if(p>=.6&&p<.76){var ty=96+Math.sin(t/200)*6;zap(x+30,KG-75,448,ty,'#6fd2ff');if(Math.random()<.7)sparks(448,ty,3,'#9ad8ff');shout('BOOM!',448,ty-24,nowT);}
+  if(p<.25)badge(ctx,'KAIJU',x,KG-112,C.sign);});
+sur('giantape',28000,ANY,function(p,t,nowT){var st=Math.floor(t/400)%2,x,feet,pose='walk',PX=448,PY=62,RD=ROADY+8,j,q;
+  if(p<.25){x=W+50-seg(p,0,.25)*(W+50-PX);feet=RD;}
+  else if(p<.45){x=PX;feet=RD-(RD-PY)*seg(p,.25,.45);pose=st?'up':'walk';}
+  else if(p<.85){x=PX;feet=PY;pose=p>.68&&p<.74?'up':'beat';if(p<.6)shout('ROAAAR!',PX,PY-72,nowT);}
+  else if(p<.9){j=seg(p,.85,.9);x=PX-j*40;feet=PY+(RD-PY)*j-Math.sin(j*Math.PI)*20;}
+  else{x=PX-40-seg(p,.9,1)*(PX+100);feet=RD;}
+  if(p>=.45&&p<.85){if(p<.71){var a=(p-.45)*30;biplane(PX+Math.cos(a)*70,PY-34+Math.sin(a)*18,Math.sin(a)>0?-1:1,t);}
+    else{q=seg(p,.71,.85);var bx=PX+60+q*200,by=PY-44+q*q*160;biplane(bx,by,1,t);parts.push({x:bx,y:by,vx:-10,vy:-4,life:.6,c:'#6b727e'});shout('WHACK!',PX+30,PY-64,nowT);}}
+  big(x,feet,2,true,function(){ape(st,pose);});
+  if(p<.2)badge(ctx,'GIANT APE',x,feet-72,C.sign);});
+sur('monsterbrawl',32000,ANY,function(p,t,nowT){var st=Math.floor(t/600)%2,lx=250,ax=390,ly=KG,ay=KG,lm=false,lg=false,lflip=false,ap='walk',walk=false,flash=0,q;
+  if(p<.2){q=seg(p,0,.2);lx=-50+q*300;ax=W+50-q*(W+50-390);walk=true;}
+  else if(p<.3){lm=true;ap='beat';shout(Math.floor(t/700)%2?'ROAR!':'SKREEONK!',320,KG-120,nowT);}
+  else if(p<.45){q=seg(p,.3,.45);ax=390-Math.sin(q*Math.PI)*90;walk=true;if(q>.4&&q<.62){ap='punch';lx=250-(q-.4)*90;flash=.12;if(Math.random()<.6)sparks(lx+24,KG-62,3,C.gold);shout('POW!',lx+20,KG-118,nowT);}}
+  else if(p<.6){q=seg(p,.45,.6);lx=250+Math.sin(q*Math.PI)*60;lflip=q>.3&&q<.7;if(q>.45&&q<.65){ax=390+(q-.45)*120;flash=.12;shout('WHAM!',ax-20,KG-118,nowT);}}
+  else if(p<.72){q=seg(p,.6,.72);ap=q<.45?'up':'punch';
+    var bx=q<.45?ax-14:ax-14-(seg(q,.45,.75))*(ax-lx-10),by=q<.45?KG-114:KG-114+seg(q,.45,.75)*40;
+    if(q>.75){var r=seg(q,.75,1);bx=lx+10-r*160;by=KG-74-Math.sin(r*Math.PI)*80+r*60;shout('THWACK!',lx+10,KG-118,nowT);}
+    binBox(bx,by);}
+  else if(p<.86){q=seg(p,.72,.86);lg=true;lm=q>.3;if(q>.3){zap(lx+30,KG-75,W+10,KG-75+Math.sin(t/150)*3,'#6fd2ff');ay=KG-Math.sin(seg(q,.3,1)*Math.PI)*110;if(Math.random()<.5)sparks(lx+30,KG-75,2,'#9ad8ff');}ap=q>.3?'up':'beat';}
+  else{q=seg(p,.86,1);walk=q>.4;lx=250-seg(q,.4,1)*320;ax=390+seg(q,.4,1)*330;shout(q<.4?'DRAW!':'SEE YOU NEXT TIME',320,KG-120,nowT);}
+  big(lx,ly,3,lflip,function(){lizard(walk&&st,lm,lg);});
+  big(ax,ay,3,true,function(){ape(walk?st:Math.floor(t/300)%2,ap);});
+  if(flash)whiteFlash(flash);});
+/* the heroes (look-alikes with our own names) and the villain they team up against */
+var HERO={thunder:{look:{hair:'#e3b13a',long:true,shirt:'#3a4a6a',pants:'#3a4a6a'},name:'THUNDER GOD'},
+  giant:{look:{hair:'#1d1d1d',shirt:'#5fae48',pants:'#6b3fa0'},skin:'#5fae48',s:3,name:'GREEN GIANT'},
+  shield:{look:{hair:'#2f4fa0',shirt:'#2f4fa0',pants:'#2f4fa0'},name:'SHIELD HERO'},
+  iron:{look:{hair:'#b3262b',shirt:'#b3262b',pants:'#b3262b'},skin:'#b3262b',name:'IRON SUIT'},
+  villain:{look:{hair:'#2f6a3a',shirt:'#2f6a3a',hood:true,pants:'#5a6068'},skin:'#9aa0a6',name:'METAL MASK'}};
+function shieldDisc(cx,cy){oval(C.red,cx,cy,2,2);oval(C.white,cx,cy,1,1);rect(ctx,'#2f4fa0',cx,cy,1,1);}
+function hero(k,x,feet,face,f){var H=HERO[k],s=H.s||2,y=Math.round(feet)-13*s,sk=C.skin;f=f||{};
+  ctx.save();ctx.translate(Math.round(x),y);ctx.scale(s,s);
+  if(k==='thunder')rect(ctx,C.red,-1,5,7,8);if(k==='villain')rect(ctx,'#1f4f2a',-1,5,7,8);
+  if(f.fly&&(k==='iron'))[0,3].forEach(function(fx){rect(ctx,Math.random()<.5?'#ffe28a':'#e8590c',fx,13,2,1+(Math.random()*3|0));});
+  if(H.skin)C.skin=H.skin;person(ctx,0,0,H.look,{face:face,step:f.step,wave:f.wave,arm:f.arm});C.skin=sk;
+  var hx=face>0?7:-3;
+  if(k==='thunder'){rect(ctx,'#c9ced4',0,-1,5,2);rect(ctx,'#e6e4dc',-1,0,1,2);rect(ctx,'#e6e4dc',5,0,1,2);if(!f.noHammer){rect(ctx,'#6b4a32',hx,4,1,4);rect(ctx,'#8a8f98',hx-1,2,3,2);}}
+  if(k==='shield'){rect(ctx,C.white,2,6,1,1);rect(ctx,C.white,1,0,3,1);if(!f.noShield)shieldDisc(face>0?7:-3,7);}
+  if(k==='iron'){rect(ctx,C.gold,0,1,5,4);rect(ctx,C.white,1,2,1,1);rect(ctx,C.white,3,2,1,1);rect(ctx,'#9ad8ff',2,6,1,1);rect(ctx,C.gold,-1,9,7,1);}
+  if(k==='villain'){rect(ctx,'#9aa0a6',0,1,5,4);rect(ctx,C.ink,1,2,1,1);rect(ctx,C.ink,3,2,1,1);rect(ctx,C.ink,1,4,3,1);}
+  if(k==='giant'){rect(ctx,'#3f7a2e',0,2,5,1);rect(ctx,'#6b3fa0',-1,9,7,1);}
+  ctx.restore();
+  if(f.name)badge(ctx,H.name,x+2.5*s,y-9,k==='villain'?'#2f6a3a':C.sign);
+  return[x+(face>0?7:-2)*s,y+7*s];}
+sur('heroes',36000,ANY,function(p,t,nowT){
+  var VX=340,vy=KG,vf=-1,sx=200,gx=236,gy=KG,tx=286,ix=400,iy=KG-8+Math.round(Math.sin(t/300)*2),flash=0,q,vHit=0,vSpin=null,
+      show={villain:true,iron:p>=.08,thunder:p>=.16,shield:p>=.18,giant:p>=.24},named=p<.36,shieldAt=null,thunderUp=false;
+  ctx.globalAlpha=.3*Math.min(seg(p,0,.05),1-seg(p,.95,1));rect(ctx,'#0b0f1e',0,0,W,H);ctx.globalAlpha=1;
+  if(p<.08){vy=KG-(1-seg(p,0,.08))*300;}
+  if(p>=.04&&p<.14)shout('KNEEL, TOWN!',VX+5,KG-44,nowT);
+  if(p>=.08&&p<.16){q=seg(p,.08,.16);ix=W+30-q*(W+30-400);iy=110+q*(KG-118);}
+  if(p>=.14&&p<.17){bolt(tx+5,KG-20);flash=.3;}
+  if(p>=.18&&p<.26)sx=-20+seg(p,.18,.26)*220;
+  if(p>=.24&&p<.3){q=seg(p,.24,.3);gx=-40+q*276;gy=KG-Math.sin(q*Math.PI)*90;if(q>.92){flash=.2;sparks(gx+8,KG,4,'#cfcabd');shout('SMASH!',gx+8,KG-52,nowT);}}
+  if(p>=.3&&p<.82){q=seg(p,.3,.82)*10;var k=Math.floor(q)%5,f=q%1,src;
+    if(k===0){var tgt=Math.floor(q)%2?[sx+5,KG-14]:[gx+8,KG-20];zap(VX-4,KG-12,tgt[0],tgt[1],'#4cff6a');if(f>.5){if(tgt[0]===sx+5)sx-=4;else gx-=4;}shout('FEEBLE HEROES!',VX+5,KG-44,nowT);}
+    else if(k===1){zap(ix-3,iy-12,VX+8,KG-14,'#fff3a0');vHit=f>.4;shout('BLAST!',ix,iy-40,nowT);}
+    else if(k===2){bolt(VX+5,KG-20);flash=f<.15?.3:0;vHit=true;thunderUp=true;shout('THUNDER!',tx+5,KG-44,nowT);}
+    else if(k===3){var sp=Math.sin(f*Math.PI);shieldAt=[sx+12+(VX-sx-12)*sp,KG-12-sp*20];vHit=f>.4&&f<.6;shout('CATCH!',sx+5,KG-44,nowT);}
+    else{gx=236+Math.sin(f*Math.PI)*(VX-236-40);vHit=f>.45&&f<.6;if(vHit){flash=.12;sparks(VX,KG-14,3,'#4cff6a');}shout('SMASH!',gx+8,KG-52,nowT);}}
+  if(p>=.82&&p<.92){q=seg(p,.82,.92);zap(ix-3,iy-12,VX+8,KG-14,'#fff3a0');bolt(VX+5,KG-20);shieldAt=[VX-10,KG-16];gx=VX-46;flash=Math.floor(t/90)%2?.35:.1;
+    if(q>.5){vSpin=seg(q,.5,1);shout('NOOOOO!',VX+5,KG-60,nowT);}else shout('TOGETHER!',260,KG-60,nowT);}
+  if(p>=.92){vSpin=1;thunderUp=true;shout('HEROES WIN!',290,KG-60,nowT);}
+  if(vSpin!=null){if(vSpin<1){var vxx=VX+vSpin*260,vyy=KG-vSpin*260;ctx.save();ctx.translate(vxx,vyy-13);ctx.rotate(vSpin*12);ctx.translate(-vxx,-(vyy-13));hero('villain',vxx-5,vyy,vf);ctx.restore();}}
+  else hero('villain',VX+(vHit?3:0),vy,vf,{name:named&&p>=.08,wave:p>=.3&&p<.82&&Math.floor(t/400)%2,arm:1});
+  if(show.shield)hero('shield',sx,KG,1,{step:p<.26&&Math.floor(t/150)%2,noShield:!!shieldAt,name:named&&p>=.2});
+  if(shieldAt)shieldDisc(Math.round(shieldAt[0]),Math.round(shieldAt[1]));
+  if(show.thunder){var th=hero('thunder',tx,KG,1,{name:named&&p>=.17,wave:thunderUp,arm:1});if(thunderUp&&Math.random()<.4)bolt(th[0],th[1]-8);}
+  if(show.giant)hero('giant',gx,gy,1,{name:named&&p>=.3});
+  if(show.iron)hero('iron',ix,iy,-1,{fly:true,name:named&&p>=.16,wave:p>=.3,arm:1});
+  if(flash)whiteFlash(flash);});
 /* the energy drink truck drops off cans for Jake and Josh */
 sur('redbull',16000,ANY,function(p,t,nowT){var stop=DX+64,x=p<.3?-40+p/.3*(stop+40):p<.7?stop:stop+(p-.7)/.3*(W-stop+40),y=ROADY;
   rect(ctx,'#c9ced4',x,y,30,10);rect(ctx,'#2b3a8a',x,y+6,30,2);oval(C.red,x+12,y+3,3,2);oval(C.gold,x+12,y+3,1,1);rect(ctx,'#2b3a8a',x+30,y+2,6,8);rect(ctx,C.glass,x+32,y+3,3,3);
@@ -1945,7 +2134,8 @@ window.JJHQ={
   },
   hide:function(){cancelAnimationFrame(raf);raf=0;},
   /* play one surprise now, whatever the time (for the preview page) */
-  surprise:function(kind){if(!SUR_DEFS[kind])throw new Error('JJHQ.surprise: no surprise called '+kind);startSurprise(kind,performance.now());},
+  /* from (0..1, optional) starts it partway through - the preview page uses it to skip ahead */
+  surprise:function(kind,from){if(!SUR_DEFS[kind])throw new Error('JJHQ.surprise: no surprise called '+kind);startSurprise(kind,performance.now()-(from||0)*SUR_DEFS[kind].len);},
   surpriseKinds:function(){return Object.keys(SUR_DEFS);},
   badgeCount:function(){return M?badgeCount():0;}
 };
