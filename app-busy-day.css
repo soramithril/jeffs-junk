@@ -1,0 +1,10 @@
+/* ── Is the day full? (see app-busy-day.js) ── */
+.busy-day{margin-top:10px;padding:10px 14px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);
+  display:flex;flex-direction:column;gap:2px;font-size:13.5px;color:var(--text)}
+.busy-day[hidden]{display:none}
+.busy-day b{font-size:14px}
+.busy-day span{color:var(--muted)}
+/* The full day: one big red bar, the only red on this part of the form. */
+.busy-day.busy-full{background:#dc2626;border-color:#b91c1c;color:#fff;padding:14px 16px}
+.busy-day.busy-full b{font-size:16px}
+.busy-day.busy-full span{color:#fff;opacity:.92}

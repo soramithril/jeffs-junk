@@ -46,10 +46,10 @@ var HOME_GMAPS_KEY = 'AIzaSyDP9mUAQ0DCWBt8GRQN6649senq4hIDIG8';
 
 // Each layout: which pieces go where, how Today's Jobs is drawn, and where the map sits.
 var HOME_LAYOUTS = {
-  a: { top:['strip', 'bins'],  main:['jobs', 'overdue', 'folds'], side:['yours', 'trucks'], bottom:[], jobs:'legs', map:null },
-  b: { top:['strip', 'chips'], main:['map'], side:['jobs'], bottom:['bins', 'overdue', 'folds'], jobs:'list', map:'home-map-big' },
-  c: { top:['strip', 'bins'],  main:['jobs', 'overdue', 'folds'], side:['yours', 'trucks'], bottom:[], jobs:'legs', map:'home-map-small' },
-  d: { top:['strip', 'bins'],  main:['jobs', 'overdue', 'folds'], side:['yours', 'trucks'], bottom:[], jobs:'lanes', map:null }
+  a: { top:['strip', 'bins'],  main:['jobs', 'overdue', 'folds'], side:['yours', 'week', 'trucks'], bottom:[], jobs:'legs', map:null },
+  b: { top:['strip', 'chips'], main:['map'], side:['jobs'], bottom:['week', 'bins', 'overdue', 'folds'], jobs:'list', map:'home-map-big' },
+  c: { top:['strip', 'bins'],  main:['jobs', 'overdue', 'folds'], side:['yours', 'week', 'trucks'], bottom:[], jobs:'legs', map:'home-map-small' },
+  d: { top:['strip', 'bins'],  main:['jobs', 'overdue', 'folds'], side:['yours', 'week', 'trucks'], bottom:[], jobs:'lanes', map:null }
 };
 var HOME_PICKS = [
   { id:'old', label:'Old', tip:'The dashboard as it always was' },
@@ -59,7 +59,7 @@ var HOME_PICKS = [
   { id:'d', label:'D', tip:'Today\'s stops in one lane per driver' }
 ];
 var HOME_PIECE = { strip:'home-p-strip', chips:'home-p-chips', bins:'home-p-bins', map:'home-p-map', jobs:'home-jobs',
-  overdue:'home-overdue', folds:'home-p-folds', yours:'home-p-yours', trucks:'home-p-trucks' };
+  overdue:'home-overdue', folds:'home-p-folds', yours:'home-p-yours', trucks:'home-p-trucks', week:'home-p-week' };
 
 var _homePref = null;     // this person's saved choice: null, 'old' or 'a'..'d'
 var _homeLay = 'old';     // the layout on screen right now
@@ -220,6 +220,8 @@ function _homeBuild(){
       + '<div id="home-p-yours" class="home-panel home-yours"><div class="home-ph" id="home-list-title"></div><div id="home-todos"></div></div>'
       + '<div id="home-p-trucks" class="home-panel"><div class="home-ph">Trucks right now <span class="home-ph-note" id="home-trucks-at"></span></div>'
         + '<div id="home-map-small"></div><div id="home-trucks" class="home-trucks"></div></div>'
+      + '<div id="home-p-week" class="home-panel"><div class="home-ph">Junk hours this week <span class="home-ph-note">8 hours is a full day</span></div>'
+        + '<div id="home-week" class="home-week"></div></div>'
       + '<div id="home-mapbox"></div>'
     + '</div>';
   var view = document.getElementById('view-dashboard');
@@ -261,12 +263,13 @@ async function homeRefresh(){
   try {
     var who = _jjbWho();
     var day = _homeJobsDay || todayStr();
-    var extra = await Promise.all([_jjbGather(), who === 'barbara' ? reviewFollowupsDue() : [], who === 'barbara' ? _homeQuotesNoPhotos() : [], _homeOverdue(), _homeJobsLoad(day)]);
+    var extra = await Promise.all([_jjbGather(), who === 'barbara' ? reviewFollowupsDue() : [], who === 'barbara' ? _homeQuotesNoPhotos() : [], _homeOverdue(), _homeJobsLoad(day), _homeWeekLoad()]);
     _homeGreet();
     _homeFoldCounts();
     _homeTodosPaint(_homeTodos(extra[0], who, extra[1], extra[2]));
     _homeOverduePaint(extra[3]);
     _homeJobsPaint(day, extra[4]);
+    _homeWeekPaint(extra[5]);
   } catch(e){
     document.getElementById('home-todos').innerHTML = '<div class="home-err">Couldn\'t load your list: ' + escHtml(e.message) + '</div>';
     throw e;
@@ -604,6 +607,37 @@ async function homeJobsDay(step){
   _homeShowAll = {};
   var day = _homeJobsDay || todayStr();
   _homeJobsPaint(day, await _homeJobsLoad(day));
+}
+
+// ── Junk hours this week, Monday to Friday (junk work never runs on weekends) ──
+// The booking form's rule (app-busy-day.js): Junk Removal hours only, 8 in total is full.
+function _homeWeekDays(){
+  var t = new Date(todayStr() + 'T12:00:00'), dow = t.getDay();
+  var mon = new Date(t);
+  mon.setDate(t.getDate() + (dow === 0 ? 1 : dow === 6 ? 2 : 1 - dow));   // a weekend shows the week ahead
+  return [0, 1, 2, 3, 4].map(function(i){ var d = new Date(mon); d.setDate(mon.getDate() + i); return ymdLocal(d); });
+}
+async function _homeWeekLoad(){
+  var days = _homeWeekDays(), a = days[0], z = days[4];
+  var r = await db.from('jobs').select('junk_date,date,est_duration_min').eq('service', 'Junk Removal').neq('status', 'Cancelled')
+    .or('and(junk_date.gte.' + a + ',junk_date.lte.' + z + '),and(junk_date.is.null,date.gte.' + a + ',date.lte.' + z + ')');
+  if(r.error) throw new Error('Homepage: junk hours query failed: ' + r.error.message);
+  return days.map(function(day){
+    var js = r.data.filter(function(j){ return (j.junk_date || j.date) === day; });
+    return { day:day, n:js.length, min: js.reduce(function(t, j){ return t + (j.est_duration_min || 0); }, 0),
+      unset: js.filter(function(j){ return !j.est_duration_min; }).length };
+  });
+}
+function _homeWeekPaint(week){
+  var today = todayStr();
+  document.getElementById('home-week').innerHTML = week.map(function(w){
+    var full = w.min >= HOME_DAY_FULL_MIN;
+    var tip = w.n + ' junk removal' + _homeS(w.n, '', 's') + (w.unset ? ', ' + w.unset + ' with no hours yet' : '');
+    return '<div class="home-wd' + (full ? ' home-wd-full' : '') + (w.day === today ? ' home-wd-today' : '') + (w.day < today ? ' home-wd-past' : '') + '" title="' + escHtml(tip) + '">'
+      + '<span class="home-wd-col"><i style="height:' + Math.min(100, Math.round(w.min / HOME_DAY_FULL_MIN * 100)) + '%"></i></span>'
+      + '<b>' + (full ? 'Full' : (Math.round(w.min / 30) / 2) + ' h') + '</b>'
+      + new Date(w.day + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short' }) + '</div>';
+  }).join('');
 }
 
 // ── Bins that should have come back: always open, nothing folded ──
