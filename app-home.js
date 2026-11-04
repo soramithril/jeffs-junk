@@ -580,8 +580,9 @@ function _homeLanesHtml(drops, picks, other){
   if(other.length){ var o = lane('other', 'Junk, quotes and furniture'); o.rows = other; o.hours = _homeHoursHtml(other); }
   if(!order.length) return '<div class="home-jempty">Nothing booked.</div>';
   return '<div class="home-lanes">' + order.map(function(k){
-    var L = lanes[k], rows = _homeSortRows(L.rows), bad = rows.some(function(r){ return r.flag; });
-    return '<div class="home-lane' + (bad ? ' home-lane-bad' : '') + '">'
+    // Only the "No driver yet" lane is pink; elsewhere the stop that needs something is.
+    var L = lanes[k], rows = _homeSortRows(L.rows);
+    return '<div class="home-lane' + (k === 'none' ? ' home-lane-bad' : '') + '">'
       + '<div class="home-lane-who"><b>' + escHtml(L.who) + '</b><small>' + rows.length + ' stop' + _homeS(rows.length, '', 's') + (L.hours || '') + '</small></div>'
       + '<div class="home-lane-stops">' + rows.map(_homeStopHtml).join('') + '</div></div>';
   }).join('') + '</div>';
