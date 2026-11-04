@@ -1589,8 +1589,10 @@ function lizard(st,mouth,glow){var G='#4d5c4a',sc=glow?'#bfe3ff':'#9fb0b8';
 /* the giant ape, facing right, feet at 0 */
 function ape(st,pose){var F='#4a3226',arm;
   if(pose==='beat')arm=st?[[3,-20,7,4]]:[[5,-29,4,10]];else if(pose==='punch')arm=[[5,-20,15,4]];else if(pose==='up')arm=[[5,-34,4,15]];else arm=[[5,-20,4,18]];
-  blocks([[-12,-20,4,18],[-6,-6-(st?1:0),4,6],[0,-6-(st?0:1),4,6],[-9,-22,15,16],[-2,-31,10,10]].concat(arm),F);
-  rect(ctx,'#7a6a5a',-4,-19,7,9);rect(ctx,'#9a8a78',1,-29,7,7);rect(ctx,F,1,-29,7,1);rect(ctx,C.ink,3,-27,1,1);rect(ctx,C.ink,6,-27,1,1);rect(ctx,C.ink,2,-24,5,1);}
+  blocks([[-12,-20,4,18]],'#3f2a20');
+  blocks([[-6,-6-(st?1:0),4,6],[0,-6-(st?0:1),4,6],[-9,-22,15,16],[-2,-31,10,10]],F);
+  rect(ctx,'#7a6a5a',-4,-19,7,9);rect(ctx,'#9a8a78',1,-29,7,7);rect(ctx,F,1,-29,7,1);rect(ctx,C.ink,3,-27,1,1);rect(ctx,C.ink,6,-27,1,1);rect(ctx,C.ink,2,-24,5,1);
+  blocks(arm,'#3f2a20');}
 function biplane(x,y,dir,t){x=Math.round(x);y=Math.round(y);var f=dir<0;
   rect(ctx,'#c4482b',x,y,10,2);rect(ctx,'#e3b13a',x+3,y-2,4,1);rect(ctx,'#e3b13a',x+3,y+2,4,1);rect(ctx,'#c4482b',f?x+9:x,y-2,1,2);
   if(Math.floor(t/60)%2)rect(ctx,'#e6e4dc',f?x-1:x+10,y-2,1,6);}
