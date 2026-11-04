@@ -36,7 +36,8 @@
 <link rel="stylesheet" href="app-brief.css?v=706">
 <link rel="stylesheet" href="app-fun.css?v=706">
 <link rel="stylesheet" href="app-halloween.css?v=708">
-<link rel="stylesheet" href="app-home.css?v=715">
+<link rel="stylesheet" href="app-home.css?v=716">
+<link rel="stylesheet" href="app-busy-day.css?v=716">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -2156,7 +2157,7 @@
           </div>
         </div>
         <div id="junk-duration-wrap" style="display:none;margin-top:10px">
-          <div class="form-group"><label>⏱️ Estimated Duration</label>
+          <div class="form-group"><label>⏱️ Estimated Duration <span class="req-mark" id="est-dur-req" style="display:none">required</span></label>
             <!-- The typed unit is minutes for Junk Removal and HOURS for Extra Jobs, which
                  are day-length jobs where "480 minutes" is the wrong thing to think in.
                  What gets STORED is always minutes (estDurationMin) — the two conversions
@@ -2173,6 +2174,7 @@
               <button type="button" class="btn btn-ghost btn-sm" onclick="setEstDuration(360)">6h</button>
               <button type="button" class="btn btn-ghost btn-sm" onclick="setEstDuration(480)">All day (8h)</button>
             </div>
+            <div class="field-error-msg" id="err-f-est-duration">Estimated duration is missing.</div>
           </div>
         </div>
       </div>
@@ -3162,7 +3164,7 @@
 <script src="jwg-stamp.js?v=466"></script>
 <script src="app-fun.js?v=706"></script>
 <script src="app-icons-3d.js?v=614"></script>
-<script src="app.js?v=715"></script>
+<script src="app.js?v=716"></script>
 <script src="app-halloween.js?v=708"></script>
 <script src="app-mobile.js?v=629"></script>
 <script src="app-jwg-inventory.js?v=682"></script>
@@ -3188,7 +3190,8 @@
 <script src="app-prospects.js?v=628"></script>
 <script src="liquid-nav.js?v=638"></script>
 <script src="app-onboarding.js?v=687"></script>
-<script src="app-home.js?v=715"></script>
+<script src="app-home.js?v=716"></script>
+<script src="app-busy-day.js?v=716"></script>
 </body>
 </html>
                                                                                                                                                          

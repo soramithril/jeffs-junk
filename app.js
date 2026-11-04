@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '715';
+var APP_VERSION = '716';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11752,7 +11752,7 @@ async function saveJob(e){
   if(visibleDate) date = visibleDate;
 
   // Clear previous field errors
-  ['f-svc','f-names','f-date','f-referral','f-addr','f-city','f-bdrop','f-junk-date','f-fb-date'].forEach(clearErr);
+  ['f-svc','f-names','f-date','f-referral','f-addr','f-city','f-bdrop','f-junk-date','f-fb-date','f-est-duration'].forEach(clearErr);
 
   // Validate and collect errors
   var errs = [];
@@ -11769,6 +11769,9 @@ async function saveJob(e){
   // Extra Jobs are JWG's own work — nobody phoned in off an ad, so there is no source
   // to record and demanding one just taught people to pick a junk answer.
   if(!referral && !editId && svc!=='Extra Jobs') { showErr('f-referral'); errs.push('Referral source is required.'); if(!firstErrField) firstErrField='f-referral'; }
+  // Hours on a junk removal are how full the day is counted (app-busy-day.js): 8 h in
+  // total is a full day. Required since v716 - before that 46% were left blank.
+  if(svc==='Junk Removal' && !document.getElementById('f-est-duration').value) { showErr('f-est-duration'); errs.push('Estimated duration is required for a junk removal, so the hours for that day add up.'); if(!firstErrField) firstErrField='f-est-duration'; }
   if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); if(!firstErrField) firstErrField='bin-extra'; }
   if(svc==='Bin Rental'){
     var _binStreet=document.getElementById('f-addr').value.trim();
