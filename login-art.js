@@ -443,9 +443,9 @@
       ]
     },
     {
-      // American Thanksgiving and the 3 days before it (THE CALENDAR). The card covers the
-      // Cowboys banner top-right; the players, the truck and the title stay clear.
-      key: 'football', season: 'football', layout: 'console tr', font: 'caps', phoneX: '50%', theme: ['dusk'],
+      // American Thanksgiving and the 3 days before it (THE CALENDAR). The card sits over the
+      // Cowboys helmet bottom-right: top-right it hid half the title on a laptop.
+      key: 'football', season: 'football', layout: 'console br', font: 'caps', phoneX: '50%', theme: ['dusk'],
       title: 'Thanksgiving kickoff', intro: 'Turkey, football and a full bin.', button: 'KICK OFF',
       effects: [
         { fx: 'glints', box: [0, 0, IW, 260], pick: 'bright', count: 50, size: 2.2, colour: '255,245,220' },
