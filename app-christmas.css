@@ -2,8 +2,8 @@
    Jeff's Junk — CHRISTMAS fun touches (Jake, 2026-11-04)
    Everything hangs off html.jj-xmas, which app-christmas.js sets from November 1
    to Boxing Day. The dashboard keeps its normal look; these are small additions on
-   top of it, plus (2026-11-04, Jake: "more wintery") gentle snowfall behind the cards,
-   snow caps on them and a frosty page. Everything that moves is opacity or transform,
+   top of it, plus (2026-11-04, Jake: "more wintery") gentle snowfall behind the cards
+   and a frosty page (snow caps on the cards were tried and taken off). Everything that moves is opacity or transform,
    so the graphics card does it. Dashboard pieces also need body.signed-in, so nothing
    shows behind the sign-in screen.
    ========================================================================== */
@@ -46,28 +46,6 @@ html.jj-xmas body.signed-in:has(#view-dashboard.active)::after{
 /* ── frosty page: a cool winter blue behind the dashboard, brightest at the top ── */
 html.jj-xmas body.signed-in:has(#view-dashboard.active){
   background:radial-gradient(1200px 340px at 50% -120px,rgba(255,255,255,.95),transparent 70%),linear-gradient(180deg,#dce8f4 0%,#e8f0f8 38%,#f2f6f9 100%)}
-
-/* ── snow caps: a ridge of snow along the top of the dashboard's cards ──
-   Half sits above the card's top edge, half on it. A still picture. */
-html.jj-xmas body.signed-in #view-dashboard #dash-strip,
-html.jj-xmas body.signed-in #view-dashboard .chart-card,
-html.jj-xmas body.signed-in #home .home-strip,
-html.jj-xmas body.signed-in #home .home-card,
-html.jj-xmas body.signed-in #home .home-panel,
-html.jj-xmas body.signed-in #home .home-binrow,
-html.jj-xmas body.signed-in #home .home-fold{position:relative}
-html.jj-xmas body.signed-in #view-dashboard #dash-strip::after,
-html.jj-xmas body.signed-in #view-dashboard .chart-card::after,
-html.jj-xmas body.signed-in #home .home-strip::after,
-html.jj-xmas body.signed-in #home .home-card::after,
-html.jj-xmas body.signed-in #home .home-panel::after,
-html.jj-xmas body.signed-in #home .home-binrow::after,
-html.jj-xmas body.signed-in #home .home-fold::after{
-  content:"";position:absolute;left:10px;right:10px;top:-8px;height:15px;pointer-events:none;z-index:2;
-  filter:drop-shadow(0 1px 1px rgba(80,110,140,.35));background-repeat:repeat-x;background-size:120px 15px;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='15' viewBox='0 0 120 15'%3E%3Cpath d='M0 15V8C8 4 15 3 24 6S40 3 50 4 66 10 76 7 96 2 106 5 116 7 120 7V15Z' fill='%23fff'/%3E%3Cpath d='M0 8C8 4 15 3 24 6S40 3 50 4 66 10 76 7 96 2 106 5 116 7 120 7' stroke='%23c9d8e6' stroke-width='.8' fill='none'/%3E%3C/svg%3E")}
-/* Cards that clip (overflow:hidden) show only the lower half, sitting on their header. */
-html.jj-xmas body.signed-in #home .home-card::after{top:0}
 
 @media (prefers-reduced-motion:reduce){
   html.jj-xmas body.signed-in #view-dashboard::after{animation:none;opacity:.7}
