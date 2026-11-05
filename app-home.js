@@ -426,6 +426,18 @@ async function _homeQuotesNoPhotos(){
 var HOME_JOB_COLS = 'job_id,name,city,service,status,date,time,bin_size,bin_bid,bin_dropoff,bin_pickup,bin_dropoff_time,bin_pickup_time,'
   + 'junk_date,junk_time,fb_date,fb_time,dropoff_crew_id,pickup_crew_id,assigned_crew_ids,bin_live_load,bin_instatus,est_duration_min,completed';
 var HOME_OTHER = ['Junk Removal', 'Junk Quote', 'Furniture Pickup', 'Furniture Delivery', 'Extra Jobs'];
+// The original Today's Jobs colours and icons (app.js makeCat), one per kind of stop, so a
+// row says what it is at a glance: the left stripe, the time, the tag and the heading carry
+// it (Jake, 2026-11-04: the plain rows didn't show what each job was).
+var HOME_KIND = {
+  drop:                 { color:'#0891b2', label:'Drop-off', icon:'binDrop' },
+  pick:                 { color:'#ec4899', label:'Pickup', icon:'binPickup' },
+  'Junk Removal':       { color:'#eab308', label:'Junk removal', icon:'junk' },
+  'Junk Quote':         { color:'#0d6efd', label:'Quote visit', icon:'junkQuote' },
+  'Furniture Pickup':   { color:'#8b5cf6', label:'Furniture pickup', icon:'furniture' },
+  'Furniture Delivery': { color:'#f97316', label:'Furniture delivery', icon:'furniture' },
+  'Extra Jobs':         { color:'#65a30d', label:'Extra job', icon:'landscaping' }
+};
 
 async function _homeJobsLoad(day){
   var res = await Promise.all([
@@ -453,11 +465,26 @@ function _homeCrewName(id){
   return c ? c.name.split(' ')[0] : 'Unknown crew';
 }
 function _homeTime(t){ return t === 'anytime' ? 'Any' : t ? ft(t).replace(/ (AM|PM)$/, '') : ''; }
+// The driver or crew as the original's coloured initials badges (teamAvatar); clicking them
+// opens the same Assign picker the old rows open. No one yet: the red words do the same.
+function _homeCrewHtml(r, ids, none){
+  var open = ' onclick="event.stopPropagation();openAssignCrewPicker(\'' + r.id + '\'' + (r.crewLeg ? ',\'' + r.crewLeg + '\'' : '') + ')"';
+  if(!ids.length) return '<span class="home-drv home-miss home-assign" title="Assign someone"' + open + '>' + none + '</span>';
+  return '<span class="home-avs" title="Change who\'s on it"' + open + '>' + ids.map(function(id){
+    var c = crewMembers.find(function(m){ return m.id === id; }), nm = c ? c.name : '?';
+    return teamAvatar(nm, crewAvatarColor(id), 26, nm);
+  }).join('') + '</span>';
+}
+function _homeKindTag(k){
+  return '<span class="home-kind" style="color:' + svcInk(k.color) + ';--kc:' + k.color + '">' + escHtml(k.label) + '</span>';
+}
 
 // One row's facts. sub = html pieces joined with " · "; who = html.
 function _homeJobRow(j, leg, kevinId){
-  var r = { id:j.job_id, leg:leg, city:j.city || '', flag:false, back:false, drv:null, size:'', sub:[], who:'', junk:false, hours:0 };
-  if(j.city) r.sub.push(escHtml(j.city));
+  var r = { id:j.job_id, leg:leg, city:j.city || '', flag:false, back:false, drv:null, size:'', sub:[], who:'', junk:false, hours:0,
+    kind: HOME_KIND[j.service === 'Bin Rental' ? leg : j.service], crewLeg: j.service === 'Bin Rental' ? (leg === 'drop' ? 'dropoff' : 'pickup') : null };
+  var cc = j.city ? _cityColor(j.city) : null;
+  if(j.city) r.sub.push(cc ? '<span class="djj-city" style="background:' + cc.bg + ';color:' + cc.fg + '">' + escHtml(j.city) + '</span>' : escHtml(j.city));
   if(j.service === 'Bin Rental'){
     r.name = j.name;
     r.time = _homeTime(leg === 'drop' ? j.bin_dropoff_time : j.bin_pickup_time);
@@ -467,25 +494,25 @@ function _homeJobRow(j, leg, kevinId){
     var size = parseInt(j.bin_size, 10);
     r.drv = drv || null;
     r.size = size || '';
-    if(leg === 'pick' && j.bin_instatus === 'pickedup'){ r.who = '<span class="home-drv home-ok">Back ✓</span>'; r.back = true; }
-    else if(!drv){ r.who = '<span class="home-drv home-miss">No driver yet</span>'; r.flag = true; }
+    var badges = _homeCrewHtml(r, drv ? [drv] : [], 'No driver yet');
+    if(leg === 'pick' && j.bin_instatus === 'pickedup'){ r.who = badges + '<span class="home-drv home-ok">Back ✓</span>'; r.back = true; }
+    else if(!drv){ r.who = badges; r.flag = true; }
     else if(leg === 'pick' && (size === 4 || size === 7) && drv !== kevinId){
-      r.who = '<span class="home-drv home-miss">' + escHtml(_homeCrewName(drv)) + ' · needs Kevin</span>'; r.flag = true;
+      r.who = badges + '<span class="home-drv home-miss">needs Kevin</span>'; r.flag = true;
     }
-    else r.who = '<span class="home-drv">' + escHtml(_homeCrewName(drv)) + '</span>';
+    else r.who = badges;
     return r;
   }
-  var label = j.service === 'Junk Quote' ? 'Quote visit' : j.service === 'Extra Jobs' ? 'Extra job' : j.service;
   var furn = j.service === 'Furniture Pickup' || j.service === 'Furniture Delivery';
-  r.name = label + ' · ' + (j.name || '');
+  r.name = j.name || '';
   r.time = _homeTime(furn ? j.fb_time : j.junk_time);
   r.junk = j.service === 'Junk Removal';
   r.hours = j.est_duration_min || 0;
   if(j.est_duration_min) r.sub.push(fmtDur(j.est_duration_min));
   else if(r.junk) r.sub.push('hours not set');
   var crew = j.assigned_crew_ids || [];
-  if(!crew.length){ r.who = '<span class="home-drv home-miss">No crew yet</span>'; r.flag = true; }
-  else r.who = '<span class="home-drv">' + escHtml(crew.map(_homeCrewName).join(', ')) + '</span>';
+  r.who = _homeCrewHtml(r, crew, 'No crew yet');
+  if(!crew.length) r.flag = true;
   return r;
 }
 
@@ -500,10 +527,12 @@ function _homeTimeKey(t){
 function _homeSortRows(rows){
   return rows.slice().sort(function(a, b){ var x = _homeTimeKey(a.time), y = _homeTimeKey(b.time); return x < y ? -1 : x > y ? 1 : 0; });
 }
-function _homeRowHtml(r, kind){
-  return '<button type="button" class="home-jrow' + (r.flag ? ' home-flag' : '') + '" onclick="openDetail(\'' + r.id + '\')">'
-    + '<span class="home-jtm">' + escHtml(r.time) + '</span>'
-    + '<span class="home-jmain"><span class="home-jnm">' + escHtml(r.name || r.id) + '</span><span class="home-jsub">' + (kind ? kind + ' · ' : '') + r.sub.join(' · ') + '</span></span>'
+// tagged: show the kind tag (on every non-bin row, and on bins where no heading says it).
+function _homeRowHtml(r, tagged){
+  var tag = (tagged || r.leg === 'other') ? _homeKindTag(r.kind) : '';
+  return '<button type="button" class="home-jrow' + (r.flag ? ' home-flag' : '') + '" style="--tjr-c:' + r.kind.color + '" onclick="openDetail(\'' + r.id + '\')">'
+    + '<span class="home-jtm" style="color:' + svcInk(r.kind.color) + '">' + escHtml(r.time) + '</span>'
+    + '<span class="home-jmain"><span class="home-jnm">' + escHtml(r.name || r.id) + '</span><span class="home-jsub">' + tag + r.sub.join(' · ') + '</span></span>'
     + '<span class="home-jrt">' + (r.size ? '<span class="home-size">' + r.size + '</span>' : '') + r.who + '</span></button>';
 }
 // A list of rows, cut to its first few with a "Show N more" (never for just one more).
@@ -511,7 +540,7 @@ function _homeListHtml(rows, key, short, empty, kindOf){
   if(!rows.length) return empty ? '<div class="home-jempty">' + empty + '</div>' : '';
   rows = _homeSortRows(rows);
   var all = _homeShowAll[key] || rows.length <= short + 1;
-  return (all ? rows : rows.slice(0, short)).map(function(r){ return _homeRowHtml(r, kindOf ? kindOf(r) : ''); }).join('')
+  return (all ? rows : rows.slice(0, short)).map(function(r){ return _homeRowHtml(r, !!kindOf); }).join('')
     + (all ? '' : '<button type="button" class="home-more" onclick="homeMore(\'' + key + '\')">Show ' + (rows.length - short) + ' more</button>');
 }
 function homeMore(key){
@@ -555,10 +584,14 @@ function _homeJobsPaint(day, d){
   _homeMapPaint();
 }
 
+// A section heading in its kind's colour, with the original's icon.
+function _homeKindHead(k, text){
+  return '<div class="home-leg-h home-leg-kind" style="color:' + svcInk(k.color) + ';--tjc:' + k.color + '">' + iconTile(k.icon, { size:22 }) + '<span>' + text + '</span></div>';
+}
 function _homeLegsHtml(drops, picks, other){
   var os = _homeSortRows(other), half = Math.ceil(os.length / 2);
-  return '<div class="home-legs"><div class="home-leg"><div class="home-leg-h">Dropping off bins · ' + drops.length + '</div>' + _homeListHtml(drops, 'drop', HOME_ROWS_SHORT, 'No drop-offs.') + '</div>'
-      + '<div class="home-leg"><div class="home-leg-h">Picking up bins · ' + picks.length + '</div>' + _homeListHtml(picks, 'pick', HOME_ROWS_SHORT, 'No pickups.') + '</div></div>'
+  return '<div class="home-legs"><div class="home-leg">' + _homeKindHead(HOME_KIND.drop, 'Bin drop-offs · ' + drops.length) + _homeListHtml(drops, 'drop', HOME_ROWS_SHORT, 'No drop-offs.') + '</div>'
+      + '<div class="home-leg">' + _homeKindHead(HOME_KIND.pick, 'Bin pickups · ' + picks.length) + _homeListHtml(picks, 'pick', HOME_ROWS_SHORT, 'No pickups.') + '</div></div>'
     + (os.length ? '<div class="home-leg-h home-leg-top">Junk, quotes and furniture · ' + os.length + _homeHoursHtml(other) + '</div>'
       + '<div class="home-legs"><div class="home-leg">' + _homeListHtml(os.slice(0, half), 'o1', 99, '') + '</div><div class="home-leg">' + _homeListHtml(os.slice(half), 'o2', 99, '') + '</div></div>' : '');
 }
@@ -566,19 +599,19 @@ function _homeLegsHtml(drops, picks, other){
 // Layout B: everything in one list, time order, each row saying what kind of stop it is.
 function _homeOneListHtml(all, other){
   return '<div class="home-leg-h">Every stop · ' + all.length + _homeHoursHtml(other) + '</div>'
-    + _homeListHtml(all, 'all', HOME_LIST_SHORT, 'Nothing booked.', function(r){ return r.leg === 'drop' ? 'Drop-off' : r.leg === 'pick' ? 'Pickup' : ''; });
+    + _homeListHtml(all, 'all', HOME_LIST_SHORT, 'Nothing booked.', true);
 }
 
 // Layout D: a lane per driver for the bins, a red lane on top for stops nobody has yet,
 // and one lane for junk, quotes and furniture (their crews are listed on each stop).
 function _homeLanesHtml(drops, picks, other){
   var lanes = {}, order = [];
-  function lane(key, who){ if(!lanes[key]){ lanes[key] = { who:who, rows:[] }; order.push(key); } return lanes[key]; }
+  function lane(key, who, drv){ if(!lanes[key]){ lanes[key] = { who:who, drv:drv, rows:[] }; order.push(key); } return lanes[key]; }
   var bins = drops.concat(picks);
   if(bins.some(function(r){ return !r.drv; })) lane('none', 'No driver yet');
   bins.filter(function(r){ return r.drv; })
     .sort(function(a, b){ var x = _homeCrewName(a.drv), y = _homeCrewName(b.drv); return x < y ? -1 : x > y ? 1 : 0; })
-    .forEach(function(r){ lane('d:' + r.drv, _homeCrewName(r.drv)); });
+    .forEach(function(r){ lane('d:' + r.drv, _homeCrewName(r.drv), r.drv); });
   bins.forEach(function(r){ lanes[r.drv ? 'd:' + r.drv : 'none'].rows.push(r); });
   if(other.length){ var o = lane('other', 'Junk, quotes and furniture'); o.rows = other; o.hours = _homeHoursHtml(other); }
   if(!order.length) return '<div class="home-jempty">Nothing booked.</div>';
@@ -586,14 +619,13 @@ function _homeLanesHtml(drops, picks, other){
     // Only the "No driver yet" lane is pink; elsewhere the stop that needs something is.
     var L = lanes[k], rows = _homeSortRows(L.rows);
     return '<div class="home-lane' + (k === 'none' ? ' home-lane-bad' : '') + '">'
-      + '<div class="home-lane-who"><b>' + escHtml(L.who) + '</b><small>' + rows.length + ' stop' + _homeS(rows.length, '', 's') + (L.hours || '') + '</small></div>'
+      + '<div class="home-lane-who">' + (L.drv ? teamAvatar(L.who, crewAvatarColor(L.drv), 30, L.who) : '') + '<b>' + escHtml(L.who) + '</b><small>' + rows.length + ' stop' + _homeS(rows.length, '', 's') + (L.hours || '') + '</small></div>'
       + '<div class="home-lane-stops">' + rows.map(_homeStopHtml).join('') + '</div></div>';
   }).join('') + '</div>';
 }
 function _homeStopHtml(r){
-  var kind = r.leg === 'drop' ? 'Drop' : r.leg === 'pick' ? 'Pickup' : '';
-  return '<button type="button" class="home-stop' + (r.flag ? ' home-flag' : '') + (r.back ? ' home-stop-done' : '') + '" onclick="openDetail(\'' + r.id + '\')">'
-    + '<span class="home-stop-k">' + escHtml([r.time, kind, r.size ? r.size + ' yd' : ''].filter(Boolean).join(' · ')) + '</span>'
+  return '<button type="button" class="home-stop' + (r.flag ? ' home-flag' : '') + (r.back ? ' home-stop-done' : '') + '" style="--tjr-c:' + r.kind.color + '" onclick="openDetail(\'' + r.id + '\')">'
+    + '<span class="home-stop-k" style="color:' + svcInk(r.kind.color) + '">' + escHtml([r.time, r.kind.label, r.size ? r.size + ' yd' : ''].filter(Boolean).join(' · ')) + '</span>'
     + '<span class="home-stop-nm">' + escHtml(r.name || r.id) + '</span>'
     + '<span class="home-stop-sub">' + r.sub.join(' · ') + '</span>'
     + (r.flag || r.back || r.leg === 'other' ? '<span class="home-stop-who">' + r.who + '</span>' : '')
