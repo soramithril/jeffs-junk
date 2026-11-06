@@ -10,13 +10,16 @@
 //   B  a big map, Today's Jobs down the right, your list as a row of chips
 //   C  A, with a small trucks map in the side column
 //   D  Today's stops in one lane per driver
+//   E  the old layout, but every page in the glass look over this season's login
+//      picture (Jake, 2026-11-05). Not a layout: app-glass.js / app-glass.css.
+//      To drop it: its HOME_PICKS line, _homeKnown/_homeGlass here, the two files.
 // Jake will tell people about it himself, so nothing pops up to ask. Every pick is
 // logged to page_views ('home-layout:<id>') so it's plain later which ones get used.
 // To drop a layout: delete its line in HOME_LAYOUTS and in HOME_PICKS (and, for B or
 // D, its renderer below: _homeOneListHtml / _homeLanesHtml).
 //
 // The choice is per person, on their user_profiles row (home_layout: null = never
-// chosen, 'old', 'a'..'d'; v711's 'new' reads as 'a'), written through the
+// chosen, 'old', 'a'..'e'; v711's 'new' reads as 'a'), written through the
 // set_home_layout() database function because people can't edit their own profile row
 // directly (it carries their role).
 //
@@ -56,13 +59,15 @@ var HOME_PICKS = [
   { id:'a', label:'A', tip:'Today\'s Jobs in plain rows, your list beside it' },
   { id:'b', label:'B', tip:'A big map, Today\'s Jobs down the right' },
   { id:'c', label:'C', tip:'Like A, with a small trucks map' },
-  { id:'d', label:'D', tip:'Today\'s stops in one lane per driver' }
+  { id:'d', label:'D', tip:'Today\'s stops in one lane per driver' },
+  { id:'e', label:'E', tip:'The dashboard as it always was, in the glass look' }
 ];
 var HOME_PIECE = { strip:'home-p-strip', chips:'home-p-chips', bins:'home-p-bins', map:'home-p-map', jobs:'home-jobs',
   overdue:'home-overdue', folds:'home-p-folds', yours:'home-p-yours', trucks:'home-p-trucks', week:'home-p-week' };
 
-var _homePref = null;     // this person's saved choice: null, 'old' or 'a'..'d'
-var _homeLay = 'old';     // the layout on screen right now
+var _homePref = null;     // this person's saved choice: null, 'old' or 'a'..'e'
+var _homeLay = 'old';     // the layout on screen right now ('old' under E too)
+var _homeGlass = false;   // E is on: the old layout in the glass look on every page (app-glass.js)
 var _homeReady = false;   // the dashboard's data (jobs, crew) has loaded since sign-in
 var _homeMoved = [];      // [{node, mark}] cards moved into the new layout, and where they came from
 var _homeBusy = false, _homeAgain = false, _homeTimer = null, _homeTruckTimer = null;
@@ -87,11 +92,14 @@ async function homeSignedIn(loaded){
   if(r.error) throw new Error('Homepage: could not read your layout setting: ' + r.error.message);
   _homePref = r.data.home_layout === 'new' ? 'a' : r.data.home_layout;
   _homeSwitchMount();
-  if(HOME_LAYOUTS[_homePref]) homeApply(_homePref);
+  if(_homeKnown(_homePref)) homeApply(_homePref);
   await loaded;
   _homeReady = true;
   homeRefresh();
 }
+
+function _homeKnown(lay){ return lay === 'e' || !!HOME_LAYOUTS[lay]; }
+function _homePick(){ return _homeGlass ? 'e' : _homeLay; }   // what the picker shows pressed
 
 async function _homeSave(choice){
   var r = await db.rpc('set_home_layout', { choice: choice });
@@ -124,11 +132,11 @@ function _homeSwitchMount(){
 }
 function _homeSwitchPaint(){
   var w = document.getElementById('home-switch');
-  w.querySelectorAll('[data-lay]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.lay === _homeLay ? 'true' : 'false'); });
-  w.querySelector('.home-fb').hidden = _homeLay === 'old';
+  w.querySelectorAll('[data-lay]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.lay === _homePick() ? 'true' : 'false'); });
+  w.querySelector('.home-fb').hidden = _homePick() === 'old';
 }
 async function homePick(lay){
-  if(lay === _homeLay) return;
+  if(lay === _homePick()) return;
   await _homeSave(lay);
   homeApply(lay);
 }
@@ -136,7 +144,10 @@ async function homePick(lay){
 // ── Putting a layout on, switching between them, taking them off ──
 function homeApply(lay){
   if(!HOME_DESKTOP.matches) lay = 'old';
-  if(lay === _homeLay) return;
+  _homeGlass = lay === 'e';
+  JJGlass.set(_homeGlass);
+  if(_homeGlass) lay = 'old';   // E keeps the old layout; only the look changes
+  if(lay === _homeLay){ _homeSwitchPaint(); return; }
   var was = _homeLay;
   var view = document.getElementById('view-dashboard');
   if(lay === 'old'){
@@ -178,7 +189,7 @@ function homeApply(lay){
 }
 // The width can cross the desktop line (a window dragged narrow): follow the setting.
 HOME_DESKTOP.addEventListener('change', function(){
-  if(currentUser && _homePref) homeApply(HOME_LAYOUTS[_homePref] ? _homePref : 'old');
+  if(currentUser && _homePref) homeApply(_homeKnown(_homePref) ? _homePref : 'old');
 });
 
 function _homeBuild(){
