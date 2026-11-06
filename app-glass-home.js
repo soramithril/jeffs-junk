@@ -14,7 +14,6 @@
    - junk hours are Junk Removal est_duration_min, 8 hours a full day;
    - quotes to chase is the morning brief's list (_jjbGather). */
 
-var GH_DAY_FULL_MIN = HOME_DAY_FULL_MIN;
 var GH_SIZES = ['4 yard', '7 yard', '14 yard', '20 yard'];
 var GH_FIELD = { bin_dropoff:'drop-off date', bin_pickup:'pickup date', bin_bid:'bin number', bin_size:'bin size',
   bin_instatus:'bin status', status:'status', dropoff_crew_id:'drop-off driver', pickup_crew_id:'pickup driver',
@@ -186,7 +185,7 @@ async function glassHomePaint(gather, dayList){
   var fleet = binItems.filter(function(b){ return binInService(b) && !b.show_bin; }).length;
   var out = _ghBinsOut(today);
   var dayName = _ghLabel(today, { weekday:'short' });
-  var full = td.junkMin >= GH_DAY_FULL_MIN;
+  var full = td.junkMin >= HOME_DAY_FULL_MIN;
   var h = new Date().getHours();
 
   var stats = _ghStat(0, 'jobs', 'Jobs today', td.stops, (diff > 0 ? '+' : '') + diff + ' vs last ' + dayName, diff > 0 ? 'up' : 'flat',
@@ -194,7 +193,7 @@ async function glassHomePaint(gather, dayList){
     + _ghStat(1, 'bins', 'Bins out', out + ' <small>/ ' + fleet + '</small>', Math.max(0, fleet - out) + ' in the yard', 'flat',
       _ghSpark(next7.map(_ghBinsOut), '#e5e7eb'), 'go(\'bininventory\')')
     + _ghStat(2, 'hours', 'Junk hours booked', _ghHours(td.junkMin) + ' <small>/ 8h</small>',
-      full ? 'Full' : td.junkMin >= GH_DAY_FULL_MIN * .75 ? 'Almost full' : 'Room for more', full ? 'bad' : td.junkMin >= GH_DAY_FULL_MIN * .75 ? 'warn' : 'up',
+      full ? 'Full' : td.junkMin >= HOME_DAY_FULL_MIN * .75 ? 'Almost full' : 'Room for more', full ? 'bad' : td.junkMin >= HOME_DAY_FULL_MIN * .75 ? 'warn' : 'up',
       _ghSpark(past7.map(function(d){ return _ghDay(L, d).junkMin; }), '#fcd34d'), 'go(\'dispatch\')')
     + _ghStat(3, 'quotes', 'Quotes to chase', gather.quotes.length, 'Visited, no answer yet', 'flat',
       _ghSpark(past7.map(function(d){ return _ghDay(L, d).quotes; }), '#c4b5fd'), 'go(\'junkquotes\')');
@@ -227,13 +226,13 @@ async function glassHomePaint(gather, dayList){
       + '<span class="jg-st' + (x.n ? '' : ' jg-off') + '">' + (x.n ? x.n + ' stop' + _homeS(x.n, '', 's') : x.off ? 'Off today' : 'No stops yet') + '</span></div>';
   }).join('');
 
-  var pct = Math.min(100, Math.round(td.junkMin / GH_DAY_FULL_MIN * 100));
+  var pct = Math.min(100, Math.round(td.junkMin / HOME_DAY_FULL_MIN * 100));
   var next = [];
   for(var d2 = _jjbPlus(today, 1); next.length < 2; d2 = _jjbPlus(d2, 1)) if(_ghWeekday(d2) !== 0) next.push(d2);
   var ring = '<div class="jg-ttl"><div><h3>Busy day</h3><p>Junk removal hours</p></div></div>'
     + '<div class="jg-ring"><svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="jg-rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4ade80"/><stop offset="1" stop-color="#16a34a"/></linearGradient></defs>'
     + '<circle class="jg-rbg" cx="50" cy="50" r="42"/><circle class="jg-rfg" cx="50" cy="50" r="42" style="--off:' + (264 - 264 * pct / 100).toFixed(0) + '"/></svg>'
-    + '<div><div class="jg-big">' + pct + '%</div><p>' + _ghHours(td.junkMin).replace('h', '') + ' of 8 hours</p><p>' + (full ? 'Today is full' : 'Room for ' + _ghHours(GH_DAY_FULL_MIN - td.junkMin) + ' more') + '</p></div></div>'
+    + '<div><div class="jg-big">' + pct + '%</div><p>' + _ghHours(td.junkMin).replace('h', '') + ' of 8 hours</p><p>' + (full ? 'Today is full' : 'Room for ' + _ghHours(HOME_DAY_FULL_MIN - td.junkMin) + ' more') + '</p></div></div>'
     + '<div class="jg-mini">' + next.map(function(x, j){ return '<div>' + (j === 0 && x === _jjbPlus(today, 1) ? 'Tomorrow' : _ghLabel(x, { weekday:'long' })) + '<b>' + _ghHours(_ghDay(L, x).junkMin) + '</b></div>'; }).join('') + '</div>';
 
   var el = document.getElementById('home-p-glass');
