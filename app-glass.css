@@ -116,6 +116,9 @@ html.jj-glass body.signed-in .modal{
   background:rgba(16,22,19,.8);border:1px solid rgba(255,255,255,.16);
   backdrop-filter:blur(24px) saturate(140%);-webkit-backdrop-filter:blur(24px) saturate(140%)}
 html.jj-glass body.signed-in .modal-overlay{background:rgba(0,0,0,.4)}
+/* Pop-ups go above E's menus (top bar 620, icon strip 610): the New Job sheet's title
+   and close button were under them. */
+html.jj-glass body.signed-in .modal-overlay{z-index:1100}
 
 /* Typing boxes */
 html.jj-glass body.signed-in :is(input,select,textarea){background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.18);color:var(--text)}
@@ -283,7 +286,7 @@ html.jj-glass body.signed-in #view-jwgscheduler{
   --sc-ink:#f4f7f5; --sc-mut:#c3cbc6; --sc-line:rgba(255,255,255,.14); --sc-line2:rgba(255,255,255,.22); --sc-green:#86efac;
   --sc-stripe:repeating-linear-gradient(135deg,rgba(255,255,255,.10) 0 7px,rgba(255,255,255,.04) 7px 14px)}
 /* --dark is a fill in 49 places, so only its few text uses change. */
-html.jj-glass body.signed-in #view-jwgscheduler :is(.cl-link,.status-badge.in_stock){color:#86efac}
+html.jj-glass body.signed-in #view-jwgscheduler :is(.cl-link,.status-badge.in_stock,.th-day.is-today,.th-date.is-today){color:#86efac}
 /* Shift chips and the day panel: each job type has a pale fill and a deep ink (--tb, --tt).
    On glass: a see-through tint of the fill, and the ink mixed most of the way to white, so
    every type keeps its own colour and reads. */
