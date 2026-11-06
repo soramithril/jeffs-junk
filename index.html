@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=726">
+<link rel="stylesheet" href="style.css?v=728">
 <link rel="stylesheet" href="mobile.css?v=638">
 <link rel="stylesheet" href="login-art.css?v=724">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=719">
@@ -283,11 +283,13 @@
     <!-- The command bar (v630). Staff did not know this box finds everything, so on
          desktop it is no longer a 300px afterthought beside the date: it gets its own
          full-width row under the date line, the placeholder says what it searches, and
-         the hint chip teaches the "/" shortcut. Sizing lives in style.css (.gs-*) so the
+         the hint chip teaches the "/" shortcut. v726: Kelly still stepped the date back
+         day by day to find a caller's bin, so the box now says what it is FOR, in her
+         words, and the hint is a green "Find their booking" button. Sizing lives in style.css (.gs-*) so the
          phone layout that shipped in v629 keeps the small box it already had. -->
     <div id="global-search-wrap" style="position:relative;z-index:1001">
-      <input id="global-search-input" class="search-icon gs-input" type="text" readonly placeholder="Search anything — a name, phone, address, job #…" autocomplete="off" onfocus="openPalette()" onclick="openPalette()">
-      <span class="gs-hint" aria-hidden="true">press /</span>
+      <input id="global-search-input" class="search-icon gs-input" type="text" readonly placeholder="Customer calling? Type their name, phone number or address" autocomplete="off" onfocus="openPalette()" onclick="openPalette()">
+      <span class="gs-hint" aria-hidden="true">Find their booking</span>
       
     </div>
   </section>
@@ -2526,7 +2528,7 @@
 <div class="palette" id="palette" role="dialog" aria-modal="true" aria-label="Search and go to">
   <div class="pal-input">
     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
-    <input id="pal-q" type="text" autocomplete="off" spellcheck="false" placeholder="Search jobs, clients and bins — or a page name" oninput="globalSearchDebounce(this.value)" onkeydown="globalSearchKey(event)">
+    <input id="pal-q" type="text" autocomplete="off" spellcheck="false" placeholder="Type the customer's name, phone number or address" oninput="globalSearchDebounce(this.value)" onkeydown="globalSearchKey(event)">
     <span class="kbd">esc</span>
   </div>
   <div class="pal-list" id="pal-list"></div>
@@ -3167,7 +3169,7 @@
 <script src="jwg-stamp.js?v=466"></script>
 <script src="app-fun.js?v=706"></script>
 <script src="app-icons-3d.js?v=614"></script>
-<script src="app.js?v=718"></script>
+<script src="app.js?v=728"></script>
 <script src="app-halloween.js?v=708"></script>
 <script src="app-christmas.js?v=716"></script>
 <script src="app-mobile.js?v=629"></script>

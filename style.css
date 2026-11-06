@@ -2791,6 +2791,20 @@ input[type=date],input[type=time]{position:relative;}
 .pal-foot span{display:inline-flex;align-items:center;gap:6px;}
 .pal-tag{margin-left:auto;color:var(--n10);}
 .pal-msg{padding:14px 12px;color:var(--n10);font-size:13px;}
+/* v726 — the search answers a caller's "where's my bin?" without opening the job.
+   The idle tip says what the box is for; each Bin Rental row carries a second line
+   with where the bin is, which bin, and the drop-off and pickup days. The status pills
+   are light with dark ink, so they read the same on the plain and the glass look. */
+.pal-tip{margin:4px 4px 8px;padding:10px 12px;border-radius:var(--radius-sm);font-size:13.5px;
+  line-height:1.45;color:var(--n12);background:color-mix(in oklab,var(--accent) 12%,transparent);
+  border:1px solid color-mix(in oklab,var(--accent) 35%,transparent);}
+.pal-bin{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin-top:4px;font-size:13px;}
+.pal-bin b{font-weight:700;}
+.pal-bst{font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;}
+.pal-bst.out{background:#dcfce7;color:#166534;}
+.pal-bst.wait{background:#ffedd5;color:#9a3412;}
+.pal-bst.done{background:#e5e7eb;color:#374151;}
+.pal-bst.bad{background:#fee2e2;color:#991b1b;}
 .kbd{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   font-size:11px;line-height:1.5;padding:1px 6px;border-radius:var(--radius-xs);color:var(--n11);
   background:linear-gradient(var(--n1),var(--n3));
@@ -2822,13 +2836,17 @@ body.pal-open{overflow:hidden;}
   /* Date on its own line, the bar full width underneath it. */
   #dash-strip-date{flex:1 1 100%}
   #global-search-wrap{flex:1 1 100%;max-width:none;min-width:0;margin-top:2px}
-  .gs-input{padding:13px 92px 13px 12px;font-size:15px;border-radius:10px}
+  /* v726: a green-edged box that reads as the place to start a phone call, with the
+     hint as a green button. The whole box still opens the search, button included. */
+  .gs-input{padding:15px 190px 15px 12px;font-size:16px;border-radius:12px;
+    border:2px solid var(--accent);background-color:color-mix(in oklab,var(--accent) 6%,var(--surface))}
+  .gs-input::placeholder{color:var(--n11);font-weight:600}
   .gs-input:focus{box-shadow:0 0 0 3px rgba(34,197,94,.16)}
   .gs-hint{
-    display:inline-flex;align-items:center;position:absolute;right:12px;top:50%;
+    display:inline-flex;align-items:center;position:absolute;right:9px;top:50%;
     transform:translateY(-50%);pointer-events:none;
-    font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted);
-    background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;
+    font-size:13px;font-weight:700;color:#fff;
+    background:var(--accent);border-radius:8px;padding:8px 14px;
   }
 }
 /* ── FLEET STRIP (v631) ──────────────────────────────────────────────────────
