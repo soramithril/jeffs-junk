@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tv-looks.css?v=730">
 <script>
   // Google Maps key. PUBLIC BY DESIGN — a browser map key cannot be hidden the
   // way the Places key is (that one lives as a secret on the places-proxy edge
@@ -858,7 +859,7 @@
             <span class="spacer"></span><span class="status" id="loMeta"></span></div>
           <div class="p-body"><div id="opsWrap">
             <div class="lo-card"><div id="tvmap"></div><div id="loLegend"></div>
-              <div id="loTown"></div><div id="loRail"></div></div>
+              <div id="loTown"></div><div id="loRail"></div><div id="loDay"></div></div>
           </div></div>
         </section>
 
@@ -895,6 +896,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app-hq.js?v=729"></script>
+  <script src="tv-looks.js?v=730"></script>
   <script>
   (function(){
     "use strict";
@@ -1061,6 +1063,18 @@
                  inv:[], cats:{}, kpi:{}, junk:{}, binBoard:[], trucks:[], trucksAt:0,
                  crewAll:{}, trails:{}, trailsAt:0, truckDriver:{} };
     var panelIdx = 0, rotTimer = null;
+    // Laps of the board so far. Each screen takes turns between its looks, one per lap
+    // (tv-looks.js, Jake 2026-11-06), so the wall changes without the lap getting longer.
+    var _lap = 0;
+    function lookOf(name){ return JJTVLooks.lookFor(name, _lap); }
+    // Everything the looks in tv-looks.js draw from - the data this page already loaded.
+    function looksCtx(extra){
+      var c = { board:DATA.binBoard||[], kpi:DATA.kpi||{}, hq:DATA.hq, yardIn:DATA.yardIn||0,
+                month:new Date().toLocaleDateString(undefined,{month:'long'}),
+                driverColor:driverColor, esc:esc, fmt12:fmt12, timeMins:timeMins };
+      Object.keys(extra||{}).forEach(function(k){ c[k] = extra[k]; });
+      return c;
+    }
 
     function jobTime(j){
       var s=j.service;
@@ -1477,17 +1491,28 @@
         wrap.innerHTML = '<div class="bins-empty">No bin drop-offs or pick-ups today</div>';
         return;
       }
+      var look = lookOf('bins');
+      wrap.classList.toggle('tvl-host', look !== 'a');
+      if(look !== 'a'){
+        wrap.style.gridTemplateColumns = 'minmax(0,1fr)';
+        wrap.innerHTML = look === 'b' ? JJTVLooks.binsB(looksCtx()) : JJTVLooks.binsC(looksCtx());
+        JJTVLooks.settle(wrap);
+        return;
+      }
       wrap.innerHTML = board.map(function(g, gi){
         var color = driverColor(g.crewId);
+        var nextLeg = null; g.legs.forEach(function(l){ if(!nextLeg && !l.done) nextLeg = l; });
         var last = g.legs.length-1;
         var rows = g.legs.map(function(l,idx){
           var j = l.j, who = j.business_name || j.name || 'Customer';
           var sizeTxt = (j.bin_size||'').replace(/\s*yard/i,' YD') || '—';
           var sub = [who, l.time?fmt12(l.time):''].filter(Boolean).join(' · ');
           var stateCls, stateTxt;
-          if(l.done){ stateCls='s-done'; stateTxt='✓ Done'; }
+          // the mark: a tick when done, a spinning arc on the driver's next stop, a ring for later
+          var mk = JJTVLooks.mark(l.done ? 'done' : (l === nextLeg && g.crewId ? 'next' : 'later'), 22, !g.crewId);
+          if(l.done){ stateCls='s-done'; stateTxt=mk+' Done'; }
           else if(!g.crewId){ stateCls='s-assign'; stateTxt='Assign!'; }
-          else { stateCls='s-todo'; stateTxt='To do'; }
+          else { stateCls='s-todo'; stateTxt=mk+(l === nextLeg ? ' Next' : ' To do'); }
           return '<div class="bb-row'+(l.done?' done':'')+(idx===last?' last':'')+'" style="--i:'+idx+'">'
             + '<span class="bb-size'+(g.crewId?'':' warn')+'">'+esc(sizeTxt)+'</span>'
             + '<span class="bb-dest"><span class="bb-city">'+esc(j.city||'')+'</span><span class="bb-who">'+esc(sub)+'</span></span>'
@@ -1495,7 +1520,7 @@
             + '<span class="bb-state '+stateCls+'">'+stateTxt+'</span>'
             + '</div>';
         }).join('');
-        return '<div class="bb-group'+(g.crewId?'':' warn')+'" style="--i:'+gi+'">'
+        return '<div class="bb-group'+(g.crewId?'':' warn tvl-star')+'" style="--i:'+gi+'">'
           + '<div class="bb-strip" style="background:'+color+'">'
           + '<span class="bb-name">'+(g.crewId?esc(g.name):'⚠ Needs a driver')+'</span>'
           + '<span class="bb-count" style="color:'+color+'"><span>'+g.done+'</span> / <span>'+g.legs.length+'</span>'+(g.crewId?' done':'')+'</span></div>'
@@ -1506,6 +1531,7 @@
       // fitBins() then has to shrink. Only when there are many drivers do we wrap
       // to 2 rows (kept wide enough that the leg rows still fit).
       var n = board.length;
+      wrap.classList.remove('tvl-host');
       var cols = n<=3 ? n : n<=4 ? 2 : n<=6 ? 3 : 4;
       wrap.style.gridTemplateColumns = 'repeat('+cols+',minmax(0,1fr))';
       fitBins(wrap);
@@ -1533,9 +1559,15 @@
         s.pct   = s.lastTd>0 ? Math.round((s.cur-s.lastTd)/s.lastTd*100) : null;
       });
 
-      el('kpiGrid').innerHTML = beatCelebrationActive(services)
-        ? renderOpsArena(services, MONTH)
-        : renderOpsLanes(services, MONTH);
+      var look = lookOf('kpis'), grid = el('kpiGrid');
+      if(beatCelebrationActive(services)) grid.innerHTML = renderOpsArena(services, MONTH);
+      else if(look === 'lanes') grid.innerHTML = renderOpsLanes(services, MONTH);
+      else {
+        var c = looksCtx({ services:services });
+        grid.innerHTML = look === 'a' ? JJTVLooks.opsA(c) : look === 'b' ? JJTVLooks.opsB(c) : JJTVLooks.opsC(c);
+        JJTVLooks.settle(grid);
+      }
+      grid.classList.toggle('tvl-host', look !== 'lanes');
       // count-up runs centrally in renderCurrent (covers kpiGrid + the bins-out pill)
     }
 
@@ -2134,6 +2166,29 @@
     // Today's work still outstanding for one crew member. Bin legs come from the
     // board (done/not-done is geofence-driven, same as Screen 1); everything else
     // counts as left until the job is marked completed.
+    // One crew member's stops today in time order, bin legs and other jobs together,
+    // for the marks on their rail card. Same done/not-done rules as crewProgress.
+    function crewStops(crewId){
+      var out = [];
+      (DATA.binBoard||[]).forEach(function(g){
+        if(g.crewId !== crewId) return;
+        g.legs.forEach(function(l){ out.push({ time:l.time, city:l.j.city, done:l.done }); });
+      });
+      (DATA.jobs||[]).forEach(function(e){
+        if(e.service === 'Bin Drop-off' || e.service === 'Bin Pick-up') return;
+        if((e.crewIds||[]).indexOf(crewId) === -1) return;
+        out.push({ time:e.time, city:e.city, done:e.completed });
+      });
+      return out.sort(function(a,b){ return timeMins(a.time)-timeMins(b.time); });
+    }
+    // How long a truck has stood still, in minutes - only once the board has SEEN it
+    // move (_lastMoved), because before that we cannot know. A truck still out with
+    // work left that has sat LONG_STOP_MIN gets the running light round its card.
+    var LONG_STOP_MIN = 30;
+    function stoppedMin(t){
+      if(truckState(t) !== 'stopped' || !_lastMoved[t.id]) return null;
+      return Math.round((Date.now() - _lastMoved[t.id]) / 60000);
+    }
     function crewProgress(crewId){
       var done = 0, total = 0;
       (DATA.binBoard||[]).forEach(function(g){
@@ -2171,10 +2226,19 @@
         : '<div class="rw"><span>Speed</span><b>' + Math.round(t.speed || 0) + ' km/h</b></div>';
       // Jobs only when there is work to measure - a 0 of 0 reads as "finished" when
       // it means "nothing was assigned", and Darrin's truck carries no bin legs.
-      var pr = crewId ? crewProgress(crewId) : null;
-      if(pr && pr.total){
-        rows += '<div class="rw"><span>' + pr.done + ' of ' + pr.total + ' done</span>'
-             +  '<b>' + pr.left + ' left</b></div>';
+      // The next stop, then every stop as a mark: a tick done, a spinning arc for the
+      // one they are on their way to, a ring for later (Jake, 2026-11-06).
+      var stops = crewId ? crewStops(crewId) : [];
+      var next = null; stops.forEach(function(s){ if(!next && !s.done) next = s; });
+      if(next){
+        rows += '<div class="rw nx"><span>Next: ' + esc(next.city || 'stop') + '</span><b>'
+             +  (next.time ? fmt12(next.time) : 'Any time') + '</b></div>';
+      }
+      if(stops.length){
+        var done = stops.filter(function(s){ return s.done; }).length;
+        rows += '<div class="rw mk">' + stops.slice(0, 8).map(function(s){
+                  return JJTVLooks.mark(s.done ? 'done' : (s === next ? 'next' : 'later'), 18);
+                }).join('') + '<em>' + done + ' of ' + stops.length + '</em></div>';
       }
       // Only when it is worth reading. A truck pinging normally says nothing by
       // saying "1 min ago", and that row was the third line on every card - which
@@ -2184,7 +2248,10 @@
         rows += '<div class="rw sm"><span>Last ping</span><b>'
              +  (age === null ? '\u2014' : age + ' min ago') + '</b></div>';
       }
-      return '<div class="card" data-tid="' + esc(t.id) + '">'
+      var sat = stoppedMin(t);
+      if(sat !== null) label += ' ' + sat + ' min';
+      var long = sat !== null && sat >= LONG_STOP_MIN && !!next;
+      return '<div class="card' + (long ? ' tvl-star' : '') + '" data-tid="' + esc(t.id) + '">'
         + '<div class="hd" style="background:' + c + '">'
         + '<span class="nm">' + esc(driver || t.name) + '</span>'
         + '<span class="st">' + label + '</span></div>'
@@ -2212,7 +2279,36 @@
       // to pick up its real size — otherwise it renders against a zero-width box
       // and comes back blank. Re-centring after is what actually puts it right.
       google.maps.event.trigger(map, 'resize');
+      drawTails(list);
       drawJobPins();
+    }
+
+    // A short tail behind each truck: the last sixth of its 90-minute trail (about
+    // the last quarter hour), fading out away from the truck, so it reads as "came
+    // from there" and not as where the truck is. The full 90-minute path came off the
+    // wall on 2026-09-09 because the office read it as the truck's position; Jake
+    // asked for the short tail with the new looks (2026-11-06).
+    var TAIL_FRACTION = 1/6, _tails = [];
+    function drawTails(list){
+      _tails.forEach(function(p){ p.setMap(null); });
+      _tails = [];
+      list.forEach(function(t){
+        var pts = (DATA.trails || {})[t.id];
+        if(!pts || truckState(t) === 'stopped') return;
+        var tail = pts.slice(-Math.max(2, Math.ceil(pts.length * TAIL_FRACTION)))
+          .map(function(p){ return { lat:p[0], lng:p[1] }; });
+        tail.push({ lat:t.lat, lng:t.lng });
+        var driver = driverFor(t), crewId = driver ? crewIdByName(driver) : null;
+        var color = crewId ? driverColor(crewId) : '#f5efde';
+        // three pieces, faintest first, overlapping by a point so the line is unbroken
+        var n = tail.length, cut = [0, Math.floor(n/3), Math.floor(2*n/3), n - 1];
+        [.22, .5, .9].forEach(function(op, i){
+          var seg = tail.slice(cut[i], cut[i+1] + 1);
+          if(seg.length < 2) return;
+          _tails.push(new google.maps.Polyline({ map:_map, path:seg, clickable:false,
+            strokeColor:color, strokeOpacity:op, strokeWeight:7, zIndex:1 }));
+        });
+      });
     }
 
     // Today's work, pinned by TOWN rather than address. Two reasons, and both are
@@ -2419,7 +2515,11 @@
       // footer, which is why nothing extra is reserved for it down there.
       // The top also carries the driver bubble's height (~80px over the truck), or
       // the northernmost driver's name lands behind the town chip.
-      _map.fitBounds(b, { top:352, right:380, bottom:150, left:64 });
+      // Look C has no rail but the day timeline across the bottom, so the frame
+      // keeps clear of that instead.
+      var day = el('board').classList.contains('map-day');
+      _map.fitBounds(b, day ? { top:352, right:120, bottom:196 + el('loDay').offsetHeight + 60, left:64 }
+                            : { top:352, right:380, bottom:150, left:64 });
       // fitBounds takes no maxZoom, and one truck out collapses the bounds to a
       // point, which would slam the map to rooftop level. THAT is the only case
       // worth clamping. Capping at the old fixed tour zoom of 13 was wrong and made
@@ -2545,8 +2645,10 @@
       // the GPS feed has given us nothing, which the header can't tell you.
       el('loMeta').textContent = DATA.trucksAt ? '' : 'Waiting on GPS…';
 
-      // Every truck that is out, as a card on the right.
+      // Every truck that is out, as a card on the right (look A), or the day as a
+      // timeline under the map (look C).
       el('loRail').innerHTML = railTrucks(list).map(truckCard).join('');
+      el('loDay').innerHTML = lookOf('liveops') === 'c' ? JJTVLooks.dayLanes(looksCtx()) : '';
       // The periodic refresh calls renderCurrent, which lands here and rebuilds
       // the rail from scratch - so the highlight has to be put back or the lit card
       // goes dark mid-walk and stays dark until the next truck.
@@ -2611,7 +2713,9 @@
     }
 
     function showPanel(i){
+      var wrapped = (i+PANELS.length)%PANELS.length === 0 && !!document.querySelector('.panel.on');
       panelIdx = (i+PANELS.length)%PANELS.length;
+      if(wrapped) _lap++;
       var name = PANELS[panelIdx];
       // Today at HQ animates only while it is the screen up
       if(name === 'hq') JJHQ.show(hqSnapshot());
@@ -2620,6 +2724,7 @@
       syncFooter();
       // the trucks screen runs the map full bleed; the other two do not
       el('board').classList.toggle('map-full', name === 'liveops');
+      el('board').classList.toggle('map-day', name === 'liveops' && lookOf('liveops') === 'c');
       // ...and Today at HQ fills the whole TV, header and footer included
       el('board').classList.toggle('hq-full', name === 'hq');
       // ...and the map has to be told, or it keeps framing for the old box
@@ -2673,7 +2778,8 @@
       // Verification hook only — inert unless the URL carries ?debug. Lets a
       // reviewer pin a panel (window.__tv.show(i)) without the rotation moving on.
       if(/[?&]debug\b/.test(location.search)){
-        window.__tv = { show:function(i){ clearTimeout(rotTimer); showPanel(i); }, next:nextPanel, DATA:DATA, render:renderCurrent, brief:checkBriefing, play:playBriefing };
+        window.__tv = { show:function(i){ clearTimeout(rotTimer); showPanel(i); }, next:nextPanel,
+                        look:function(name, l){ JJTVLooks.force[name] = l; }, DATA:DATA, render:renderCurrent, brief:checkBriefing, play:playBriefing };
       }
     }
 
