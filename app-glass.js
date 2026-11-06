@@ -55,7 +55,8 @@ window.JJGlass = (function () {
     if (!b) throw new Error('Glass menus: no side-menu button for ' + click);
     return b;
   }
-  function label(b) { return b.querySelector('.nav-txt > span').textContent.trim(); }
+  // A button's name: the span after its icon (the Daily ones nest a hint line inside it).
+  function label(b) { var s = b.querySelector(':scope > span:not(.icon)'); return (s.querySelector('span') || s).textContent.trim(); }
   function viewOf(click) { return /^goJwg/.test(click) ? 'view-jwgscheduler' : 'view-' + click.match(/go\('([^']+)'\)/)[1]; }
   function button(cls, click, inner, tip) {
     var b = document.createElement('button');
