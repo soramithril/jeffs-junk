@@ -1,0 +1,179 @@
+/* ── Office TV: the new looks (Jake, 2026-11-06: "do it all") ─────────────────────
+   Each screen takes turns between its looks, one per lap (tv-looks.js). The effects
+   are plain-CSS versions of the React Bits ones in the mockup, kept light for the
+   Yodeck box: transforms and opacity only, nothing that blurs a big area. */
+
+/* status mark: a dashed ring (later), a spinning arc (next), a green tick (done) */
+.tvl-mk{display:inline-block; flex:0 0 auto; vertical-align:middle}
+.tvl-mk circle{fill:none}
+.tvl-mk .rg{stroke:var(--gold-line); stroke-width:3; stroke-dasharray:3 5; opacity:.8}
+.tvl-mk .arc{stroke:var(--gold); stroke-width:3.5; stroke-linecap:round; stroke-dasharray:44 100;
+  transform-origin:50% 50%; animation:tvlSpin 1.1s linear infinite}
+.tvl-mk .ok{fill:#4ade80}
+.tvl-mk .tk{fill:none; stroke:#12301f; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:20; stroke-dashoffset:20; animation:tvlTick .5s .2s ease-out forwards}
+.tvl-mk.warn .rg{stroke:#fca5a5; opacity:1}
+@keyframes tvlSpin{to{transform:rotate(360deg)}}
+@keyframes tvlTick{to{stroke-dashoffset:0}}
+
+/* odometer: each digit is a 0-9 strip that rolls to its place */
+.tvl-odo{display:inline-flex; height:1em; line-height:1; overflow:hidden; vertical-align:top}
+.tvl-odo i{display:block; font-style:normal; transform:translateY(0);
+  transition:transform 1.3s cubic-bezier(.2,.8,.2,1)}
+
+/* shiny text: a light sweep across the letters */
+.tvl-shine{background:linear-gradient(100deg, var(--sc,#e2c364) 40%, #fff7d6 50%, var(--sc,#e2c364) 60%) 0 0/250% 100%;
+  -webkit-background-clip:text; background-clip:text; color:transparent; animation:tvlShine 3s linear infinite}
+@keyframes tvlShine{from{background-position:100% 0}to{background-position:-150% 0}}
+
+/* rotating text: the items take turns in one spot */
+.tvl-rot{display:inline-grid; vertical-align:bottom}
+.tvl-rot > span{grid-area:1/1; opacity:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  animation:var(--rk) var(--rd) infinite both}
+@keyframes tvlRot2{0%{opacity:0;transform:translateY(.35em)}4%,46%{opacity:1;transform:none}50%,100%{opacity:0;transform:translateY(-.35em)}}
+@keyframes tvlRot3{0%{opacity:0;transform:translateY(.35em)}3%,30%{opacity:1;transform:none}33.3%,100%{opacity:0;transform:translateY(-.35em)}}
+
+/* star border: a light gliding along the top edge and another back along the bottom
+   edge of an alert card. Two 6px strips, so only a thin line ever repaints. */
+.tvl-star{position:relative; overflow:hidden}
+.tvl-star::before, .tvl-star::after{content:''; position:absolute; left:0; right:0; height:6px; pointer-events:none; z-index:3;
+  background:radial-gradient(closest-side, #ffd2c4, #ff7a5c 45%, transparent) no-repeat; background-size:34% 100%}
+.tvl-star::before{top:0; animation:tvlStarT 3.6s linear infinite}
+.tvl-star::after{bottom:0; animation:tvlStarB 3.6s linear infinite}
+@keyframes tvlStarT{from{background-position:-60% 0}to{background-position:160% 0}}
+@keyframes tvlStarB{from{background-position:160% 0}to{background-position:-60% 0}}
+
+/* border glow: a tile edge that breathes in its own colour */
+.tvl-glow{position:relative; border:2px solid var(--gc) !important; animation:tvlGlow 3.6s ease-in-out infinite}
+@keyframes tvlGlow{0%,100%{box-shadow:0 0 0 rgba(0,0,0,0), 0 14px 28px rgba(0,0,0,.2)}
+  50%{box-shadow:0 0 30px var(--gc), 0 14px 28px rgba(0,0,0,.2)}}
+
+/* ticker: what just happened, sliding past */
+.tvl-tick{flex:0 0 64px; display:flex; align-items:center; border-radius:16px; overflow:hidden;
+  background:rgba(17,24,18,.72); border:1px solid var(--card-line)}
+.tvl-tick .tl{flex:0 0 auto; height:100%; display:flex; align-items:center; padding:0 22px;
+  background:var(--gold); color:var(--ink); font:900 20px/1 Inter; letter-spacing:.12em}
+.tvl-tick .vw{flex:1; min-width:0; overflow:hidden; -webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
+.tvl-tick .rn{display:inline-flex; white-space:nowrap; animation:tvlRun var(--td) linear infinite}
+.tvl-tick .it{display:inline-flex; align-items:center; gap:12px; margin-right:70px; font:700 25px/1 Inter; color:var(--cream)}
+.tvl-tick .it i{width:12px; height:12px; border-radius:50%}
+.tvl-tick .it em{font-style:normal; color:var(--muted); font-weight:600}
+@keyframes tvlRun{to{transform:translateX(-50%)}}
+
+/* tank: fills to its level, with a slow wave on top */
+.tvl-tank{position:relative; overflow:hidden; border-radius:26px; background:rgba(255,255,255,.07);
+  border:2px solid rgba(241,229,186,.22)}
+.tvl-tank .lq{position:absolute; left:0; right:0; bottom:0; height:0; background:var(--lc);
+  transition:height 1.6s cubic-bezier(.2,.8,.2,1)}
+.tvl-tank .lq svg{position:absolute; left:0; bottom:100%; width:200%; height:14px; margin-bottom:-1px;
+  fill:var(--lc); animation:tvlWave 3.2s linear infinite}
+.tvl-tank .tks{position:absolute; inset:0; background:repeating-linear-gradient(0deg, transparent 0 calc(25% - 2px), rgba(255,255,255,.12) calc(25% - 2px) 25%)}
+.tvl-tank .pc{position:absolute; left:0; right:0; top:14px; text-align:center; font:900 30px/1 Inter;
+  color:var(--cream); text-shadow:0 2px 8px rgba(0,0,0,.6)}
+@keyframes tvlWave{to{transform:translateX(-50%)}}
+
+/* every look fills its screen and never grows past it (the ticker's strip is very wide) */
+.tvl-bwb, .tvl-bwc, .tvl-opa, .tvl-opb, .tvl-opc, .tvl-tick{min-width:0}
+/* the host grid's rows must not grow to fit the look (1fr alone would) */
+#binsWrap.tvl-host{grid-auto-rows:minmax(0,1fr)}
+#kpiGrid.tvl-host > *{flex:1 1 0; min-height:0; height:auto}
+.tvl-bwb .gd, .tvl-opc .gd{grid-template-rows:minmax(0,1fr)}
+
+/* ── Bin Work B: next up + one list ── */
+.tvl-bwb{height:100%; display:flex; flex-direction:column; gap:20px}
+.tvl-bwb .gd{flex:1; min-height:0; display:grid; grid-template-columns:1.45fr 1fr; gap:24px}
+.tvl-card{background:var(--card-fill); border:1px solid var(--card-line); border-radius:24px; overflow:hidden; min-height:0}
+.tvl-next{padding:34px 40px; display:flex; flex-direction:column; gap:16px; min-width:0}
+.tvl-k{font:800 22px/1 Inter; letter-spacing:.2em; text-transform:uppercase; color:var(--muted)}
+.tvl-next .big{font:900 96px/1.08 Inter; letter-spacing:-.03em; color:var(--cream); min-width:0}
+.tvl-next .big .tvl-rot{max-width:100%}
+.tvl-next .sub{font:700 34px/1.2 Inter; color:var(--gold-line)}
+.tvl-next .nums{margin-top:auto; display:flex; gap:56px}
+.tvl-next .nums b{display:block; margin-top:10px; font:900 112px/1 Inter}
+.tvl-list{padding:18px; display:flex; flex-direction:column; gap:10px}
+.tvl-list .it{flex:0 0 auto; display:grid; grid-template-columns:96px minmax(0,1fr) 40px; gap:14px; align-items:center;
+  padding:13px 18px; border-radius:16px; background:rgba(255,255,255,.06); border-left:7px solid var(--c)}
+.tvl-list .it.done{opacity:.45}
+.tvl-list .it .t{font:800 25px/1 Inter; color:var(--gold-line)}
+.tvl-list .it b{display:block; font:800 27px/1.1 Inter; color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.tvl-list .it span{display:block; font:600 19px/1.2 Inter; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.tvl-list .more{font:700 20px/1 Inter; color:var(--muted); text-align:center; padding-top:4px}
+
+/* ── Bin Work C: a tank per driver ── */
+.tvl-bwc{height:100%; display:grid; gap:24px; grid-auto-rows:minmax(0,1fr)}
+.tvl-gc{display:flex; flex-direction:column; align-items:center; gap:14px; padding:22px 16px 18px; text-align:center}
+.tvl-gc.warn{background:linear-gradient(180deg, rgba(64,24,20,.82), rgba(56,21,19,.92))}
+.tvl-gc .nm{font:900 38px/1 Inter; color:#fff}
+.tvl-gc.warn .nm{color:#fca5a5}
+.tvl-gc .sub{margin-top:6px; font:700 21px/1 Inter; color:var(--muted)}
+.tvl-gc .tvl-tank{flex:1 1 auto; min-height:90px; width:130px}
+.tvl-gc .stops{width:100%; display:flex; flex-direction:column; gap:7px}
+.tvl-gc .stp{display:flex; align-items:center; gap:10px; padding:6px 10px; border-radius:10px;
+  background:rgba(255,255,255,.05); font:700 20px/1.1 Inter; color:var(--cream); text-align:left; white-space:nowrap; overflow:hidden}
+.tvl-gc .stp.done{opacity:.5}
+.tvl-gc .more{font:700 18px/1 Inter; color:var(--muted)}
+
+/* ── Operations A: odometer tiles ── */
+.tvl-opa{height:100%; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:1fr 1fr; gap:24px}
+.tvl-tile{padding:28px 32px; display:flex; flex-direction:column; justify-content:space-between; min-width:0}
+.tvl-tile .v{font:900 128px/1 Inter; letter-spacing:-.03em}
+.tvl-tile .d{font:800 25px/1.2 Inter; color:var(--muted)}
+.tvl-up{color:#8fd6a5 !important}.tvl-down{color:#f0a884 !important}
+
+/* ── Operations B: tanks ── */
+.tvl-opb{height:100%; display:grid; gap:24px}
+.tvl-gauge{display:flex; flex-direction:column; align-items:center; gap:16px; padding:24px 18px; text-align:center}
+.tvl-gauge .k{font:900 30px/1.1 Inter; color:var(--cream)}
+.tvl-gauge .tvl-tank{flex:1 1 auto; width:170px; min-height:0}
+.tvl-gauge .s{font:700 21px/1.25 Inter; color:var(--muted)}
+
+/* ── Operations C: one big number at a time ── */
+.tvl-opc{height:100%; display:flex; flex-direction:column; gap:20px}
+.tvl-opc .gd{flex:1; min-height:0; display:grid; grid-template-columns:1.35fr 1fr; gap:24px}
+.tvl-hero{position:relative}
+.tvl-hero .tvl-rot{display:grid; height:100%; width:100%}
+.tvl-hero .sl{display:flex; flex-direction:column; justify-content:center; gap:14px; padding:40px 56px}
+.tvl-hero .nm{font:900 58px/1.1 Inter; color:var(--cream)}
+.tvl-hero .big{font:900 230px/.95 Inter; letter-spacing:-.04em}
+.tvl-hero .vs{font:800 32px/1.2 Inter}
+.tvl-hero .win{font:900 42px/1.1 Inter}
+.tvl-side{display:flex; flex-direction:column; gap:24px; min-height:0}
+.tvl-side .tvl-card{flex:1; padding:22px 32px; display:flex; flex-direction:column; justify-content:center; gap:10px}
+.tvl-side .v{font:900 78px/1 Inter; color:var(--cream)}
+.tvl-side .v small{font:700 28px/1 Inter; color:var(--muted); margin-left:10px}
+
+/* ── Trucks on the Road ── */
+/* the rail cards: next stop and each stop as a mark */
+#loRail .card .rw.nx span{color:var(--cream); font-weight:800}
+#loRail .card .rw.mk{align-items:center; gap:4px}
+#loRail .card .rw.mk .tvl-mk{width:18px; height:18px}
+#loRail .card .rw.mk em{font-style:normal; margin-left:6px; white-space:nowrap}
+/* a truck that has sat still a long time while it still has work */
+#loRail .card.tvl-star{box-shadow:0 0 0 2px rgba(245,104,76,.55), 0 10px 26px rgba(0,0,0,.45)}
+
+/* look C: the day under the map, one lane per driver */
+#loDay{display:none}
+#board.map-day #loDay{display:block; position:absolute; left:40px; right:40px; bottom:196px; z-index:5;
+  padding:14px 44px 16px 26px; border-radius:22px; background:rgba(15,22,16,.93); border:1px solid var(--card-line);
+  box-shadow:0 12px 30px rgba(0,0,0,.45)}
+#board.map-day #loRail{display:none}
+#loDay .hrs{position:relative; height:24px; margin-left:190px; font:700 17px/1 Inter; color:var(--muted)}
+#loDay .hrs span{position:absolute; transform:translateX(-50%); white-space:nowrap}
+#loDay .bd{position:relative}
+#loDay .ln{display:grid; grid-template-columns:180px minmax(0,1fr); gap:10px; align-items:center; height:64px}
+#loDay .who{display:flex; align-items:center; gap:12px; font:900 26px/1 Inter; color:var(--cream); white-space:nowrap; overflow:hidden}
+#loDay .who i{flex:0 0 auto; width:14px; height:38px; border-radius:7px}
+#loDay .ln.warn .who{color:#fca5a5}
+#loDay .tr{position:relative; height:100%; border-top:1px solid rgba(235,224,183,.1)}
+#loDay .seg{position:absolute; top:50%; height:8px; margin-top:-14px; border-radius:4px; opacity:.55}
+#loDay .sd{position:absolute; top:4px; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center}
+#loDay .sd .tvl-mk{width:30px; height:30px}
+#loDay .sd small{margin-top:3px; font:700 14px/1 Inter; color:var(--muted); white-space:nowrap}
+#loDay .any{position:absolute; top:-2px; bottom:0; width:2px; background:rgba(235,224,183,.18)}
+#loDay .now{position:absolute; top:-4px; bottom:0; width:3px; margin-left:-1px; background:var(--gold); box-shadow:0 0 12px var(--gold); z-index:2}
+#loDay .now b{position:absolute; top:-26px; left:50%; transform:translateX(-50%); padding:2px 8px; border-radius:6px;
+  background:var(--gold); color:var(--ink); font:900 15px/1.2 Inter; white-space:nowrap}
+
+/* Bin Work A: the mark sits inside the existing state pill */
+.bb-state .tvl-mk{width:calc(22px*var(--cs)); height:calc(22px*var(--cs)); margin:-4px 2px -4px 0}
+.bb-state.s-done .tvl-mk .ok{fill:#86efac}
