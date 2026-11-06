@@ -112,7 +112,7 @@
   // phoneX: where the picture sits on a phone, which shows a slice of it full height.
   var SHEETS = [
     {
-      key: 'anime', season: 'springfall',
+      key: 'anime', file: 'anime-login', season: 'springfall',
       headline: ['BEYOND', 'THE NEXT LOAD'], eyebrow: 'A NEW ROUTE AWAITS', tagline: 'EVERY ROAD LEADS HOME',
       title: 'Begin the next journey', intro: 'Your next pickup is waiting beyond the horizon.', button: 'CONTINUE THE JOURNEY'
     },
@@ -532,7 +532,8 @@
       if (theme[k]) shell.style.setProperty('--t-' + k, theme[k]);
     });
   }
-  function artUrl(sh) { return 'assets/login/jeffs-junk-' + sh.key + '.webp'; }
+  // A sheet's poster is jeffs-junk-<key>.webp; the anime one is named for its own CSS (file).
+  function artUrl(sh) { return 'assets/login/jeffs-junk-' + (sh.file || sh.key) + '.webp'; }
 
   var btn = document.getElementById('login-btn');
   // loginFail() puts this label back after a bad password, so it has to
@@ -1171,5 +1172,7 @@
 
   // Homepage option E (app-glass.js) puts these same pictures behind every page, just the
   // poster with no sign-in card: today's sheets, in this list's order.
-  window.JJSeasonArt = { pictures: function () { return eligible(new Date()).map(artUrl); } };
+  // signIn is the poster on this page's sign-in screen: E keeps it as the background until
+  // the hour turns, so signing in looks like the dashboard building on the same picture.
+  window.JJSeasonArt = { pictures: function () { return eligible(new Date()).map(artUrl); }, signIn: artUrl(sheet) };
 })();

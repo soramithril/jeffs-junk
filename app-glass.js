@@ -16,12 +16,15 @@
 
    The picture is one of today's login posters (JJSeasonArt in login-art.js), moving on
    to the next every hour on the hour. It is worked out from the clock, so every tab
-   and every computer shows the same one. Jake chose real blur (2026-11-05), knowing
+   and every computer shows the same one; until the first hour turns it is the poster
+   you signed in on, and the menus and cards build in over it (the entrance, Jake
+   2026-11-06; html.jj-glass-enter in app-glass.css). Jake chose real blur (2026-11-05), knowing
    that blur over a full-screen picture is what made October's Halloween look lag:
    that is why the picture here never moves and nothing animates behind the cards. */
 window.JJGlass = (function () {
   var HOUR = 60 * 60 * 1000;
-  var layer = null, timer = null, shown = '', menus = null;
+  var layer = null, timer = null, shown = '', menus = null, startHour = null;
+  var ENTER_MS = 2400;   // the entrance's longest animation, with room to spare
   // Chart labels and grid lines are drawn by Chart.js, not CSS: light ones on glass.
   var CHART = { color: Chart.defaults.color, borderColor: Chart.defaults.borderColor };
   // Which side-menu buttons go where, by the page they open.
@@ -48,8 +51,10 @@ window.JJGlass = (function () {
   function svg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICO[k] + '</svg>'; }
 
   function picture() {
+    var hour = Math.floor(Date.now() / HOUR);
+    if (hour === startHour) return JJSeasonArt.signIn;
     var list = JJSeasonArt.pictures();
-    return list[Math.floor(Date.now() / HOUR) % list.length];
+    return list[hour % list.length];
   }
   // The new picture is swapped in only once it has loaded, so the page never goes blank.
   function paint() {
@@ -142,7 +147,15 @@ window.JJGlass = (function () {
       layer.setAttribute('aria-hidden', 'true');
       document.body.insertBefore(layer, document.body.firstChild);
     }
-    if (!menus) menus = build();
+    if (!menus) {
+      // The first time E goes on in this page (just after sign-in, or picked from the
+      // picker): the picture you signed in on, and the entrance.
+      menus = build();
+      startHour = Math.floor(Date.now() / HOUR);
+      var html = document.documentElement;
+      html.classList.add('jj-glass-enter');
+      setTimeout(function () { html.classList.remove('jj-glass-enter'); }, ENTER_MS);
+    }
     paint();
     timer = setInterval(paint, 60 * 1000);   // catches the hour within a minute
   }
