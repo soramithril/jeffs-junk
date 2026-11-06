@@ -271,6 +271,21 @@ html.jj-glass body.signed-in #view-jwgscheduler{
 /* Suggestions are paper sticky notes in their own colours: left as they are (the
    generator skips .sugg-*). Town chips get a darker fill so their light lettering reads. */
 html.jj-glass body.signed-in .djj-city{background:rgba(0,0,0,.38)!important}
+/* The quote board's solid green Convert button stays a solid green button. */
+html.jj-glass body.signed-in .djj-btn.green{background:var(--accent-hero);color:#052e16}
+/* Bin Pricing: each zone and rental type has a pale fill and a deep ink (style.css). On
+   glass the fill is a see-through tint of the same colour and the ink its light step. */
+html.jj-glass body.signed-in .pv-z1{--zc:#86efac;--zc-soft:rgba(34,197,94,.16)}
+html.jj-glass body.signed-in .pv-z2{--zc:#5eead4;--zc-soft:rgba(20,184,166,.16)}
+html.jj-glass body.signed-in .pv-z3{--zc:#fcd34d;--zc-soft:rgba(245,158,11,.16)}
+html.jj-glass body.signed-in .pv-z4{--zc:#fdba74;--zc-soft:rgba(249,115,22,.16)}
+html.jj-glass body.signed-in .pv-z5{--zc:#fca5a5;--zc-soft:rgba(239,68,68,.16)}
+html.jj-glass body.signed-in .pv-z0{--zc:#cbd5e1;--zc-soft:rgba(148,163,184,.16)}
+html.jj-glass body.signed-in .pv-g-special{--gc:#fcd34d;--gc-soft:rgba(245,158,11,.16)}
+html.jj-glass body.signed-in .pv-g-week{--gc:#86efac;--gc-soft:rgba(34,197,94,.16)}
+html.jj-glass body.signed-in .pv-g-dirt{--gc:#fdba74;--gc-soft:rgba(180,83,9,.2)}
+html.jj-glass body.signed-in .pv-g-conc{--gc:#cbd5e1;--gc-soft:rgba(148,163,184,.16)}
+html.jj-glass body.signed-in .pv-g-month{--gc:#c7d2fe;--gc-soft:rgba(99,102,241,.18)}
 
 /* Maps' own pop-ups are white with dark text; dark text rules above would clash. */
 html.jj-glass body.signed-in :is(.leaflet-popup-content-wrapper,.leaflet-popup-tip){background:#1b2420;color:#f4f7f5}
