@@ -52,6 +52,25 @@ html.jj-glass body.signed-in #jj-glass-bg::after{
   background:linear-gradient(180deg,rgba(6,10,8,.50),rgba(6,10,8,.66) 60%,rgba(6,10,8,.74))}
 html.jj-glass body.signed-in .main{background:none}
 
+/* The entrance (app-glass.js adds html.jj-glass-enter for 2.4 s the first time E goes on):
+   the sign-in picture settles and dims, the top menu drops in, the icon strip slides in and
+   the page fades up; E's home cards rise on their own when their data arrives (.jg-in).
+   .main only fades: a transform on it would re-anchor the pop-ups inside it. */
+@media (prefers-reduced-motion:no-preference){
+  html.jj-glass-enter body.signed-in #jj-glass-bg{animation:jgSettle 1.4s cubic-bezier(.2,.8,.2,1) both}
+  html.jj-glass-enter body.signed-in #jj-glass-bg::after{animation:jgDim 1.1s ease both}
+  html.jj-glass-enter body.signed-in #jg-top > *{animation:jgDrop .6s cubic-bezier(.2,.9,.3,1.1) both}
+  html.jj-glass-enter body.signed-in #jg-top > :nth-child(2){animation-delay:.08s}
+  html.jj-glass-enter body.signed-in #jg-top > :nth-child(3){animation-delay:.16s}
+  html.jj-glass-enter body.signed-in #jg-rail{animation:jgRail .6s .2s cubic-bezier(.2,.9,.3,1.1) both}
+  html.jj-glass-enter body.signed-in .main{animation:jgFade .7s .3s ease both}
+}
+@keyframes jgSettle{from{transform:scale(1.06)}to{transform:none}}
+@keyframes jgDim{from{opacity:.25}to{opacity:1}}
+@keyframes jgDrop{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:none}}
+@keyframes jgRail{from{opacity:0;transform:translate(-30px,-50%)}to{opacity:1;transform:translateY(-50%)}}
+@keyframes jgFade{from{opacity:0}to{opacity:1}}
+
 /* Christmas snowfall moves behind the cards; under real blur every card would redraw
    its blur on every frame. Off while E is on (the string of lights stays). */
 html.jj-glass.jj-xmas body.signed-in:has(#view-dashboard.active)::before,

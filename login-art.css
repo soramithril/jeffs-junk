@@ -249,6 +249,10 @@
 .jjl-drawn .jjl-grain, .jjl-drawn .jjl-copy, .jjl-drawn .jjl-sweep { display: none; }
 .jjl-drawn .jjl-grade { background: var(--t-grade); }
 .jjl-glow { position: absolute; z-index: 1; pointer-events: none; }
+/* Pixel Snow on the snowy sheets (login-art.js pixelSnow): the whole screen, over the picture
+   and its grade, under the headline (16) and the sign-in panel (40). */
+.jjl-snow { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
+.jjl-snow .pixel-snow-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 .jjl-still .jjl-parallax { transform: none; transition: none; }
 .jjl-still .jjl-dot { animation: none; }
 .jjl-drawn .jjl-portal { color: var(--t-accent); }
