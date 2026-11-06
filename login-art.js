@@ -1153,4 +1153,8 @@
   else if (sheet.effects) runEffects(sheet);
   // No window.JJLoginArt any more: the pick happens on load, so there is nothing for
   // app.js to move on at sign-in. Its call there is guarded and now does nothing.
+
+  // Homepage option E (app-glass.js) puts these same pictures behind every page, just the
+  // poster with no sign-in card: today's sheets, in this list's order.
+  window.JJSeasonArt = { pictures: function () { return eligible(new Date()).map(artUrl); } };
 })();

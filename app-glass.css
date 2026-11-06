@@ -1,0 +1,392 @@
+/* ============================================================================
+   HOMEPAGE OPTION E: THE GLASS LOOK (Jake, 2026-11-05)
+   Every page in dark frosted glass over this season's login picture. Switched on
+   by html.jj-glass (app-glass.js); every rule also needs body.signed-in, so the
+   sign-in screen never sees it. The layout is the old dashboard's, untouched:
+   this file only changes colours, the picture behind, and the blur.
+
+   PART 1 is by hand: the colour settings the whole app runs on, the picture, the
+   blur, and the side menu. PART 2 is generated: every rule in the dashboard's
+   stylesheets that typed a light background or dark text straight in (instead of
+   using the colour settings), given its dark-glass version. Regenerate PART 2 with
+   the scratch script if those stylesheets gain more; don't hand-edit it.
+   ========================================================================== */
+
+/* ── PART 1 ── */
+
+/* The colour settings. Same step = same job as in style.css: 1-5 fills and states,
+   6-8 borders, 9-10 icons, 11-12 text. Fills are see-through white over the dark
+   picture; text is solid so it stays crisp on the blur. */
+html.jj-glass body.signed-in{
+  --n1:rgba(255,255,255,.04); --n2:rgba(255,255,255,.06); --n3:rgba(255,255,255,.09); --n4:rgba(255,255,255,.12);
+  --n5:rgba(255,255,255,.15); --n6:rgba(255,255,255,.16); --n7:rgba(255,255,255,.24); --n8:rgba(255,255,255,.34);
+  --n9:#8f9893; --n10:#a1aaa5; --n11:#c3cbc6; --n12:#f4f7f5;
+  --bg:transparent;
+  --surface:rgba(18,25,21,.46);
+  --surface2:rgba(255,255,255,.08);
+  --surface-solid:#1b2420;
+  --surface-hover:rgba(255,255,255,.11);
+  --text-secondary:#d3d9d5;
+  --accent-light:rgba(34,197,94,.16);
+  --ok-ink:#86efac; --warn-ink:#fcd34d; --bad-ink:#fca5a5; --info-ink:#93c5fd;
+  --ok-soft:rgba(34,197,94,.18); --warn-soft:rgba(245,158,11,.2); --bad-soft:rgba(239,68,68,.2); --info-soft:rgba(59,130,246,.2);
+  --data-soft:rgba(34,211,238,.18);
+  --shadow-sm:0 4px 14px rgba(0,0,0,.22);
+  --shadow-md:0 10px 30px rgba(0,0,0,.28);
+  --shadow-lg:0 18px 50px rgba(0,0,0,.4);
+  color-scheme:dark;   /* date pickers, scrollbars and dropdown lists go dark too */
+  background:transparent;
+}
+html.jj-glass{background:#0d1310}
+
+/* The picture. app-glass.js puts the poster on #jj-glass-bg; the dark wash over it is
+   what keeps white text readable on a bright picture. Nothing here moves. */
+#jj-glass-bg{display:none}
+html.jj-glass body.signed-in #jj-glass-bg{
+  display:block;position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:#0d1310 center/cover no-repeat;transition:background-image .6s}
+html.jj-glass body.signed-in #jj-glass-bg::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(6,10,8,.50),rgba(6,10,8,.66) 60%,rgba(6,10,8,.74))}
+html.jj-glass body.signed-in .main{background:none}
+
+/* Christmas snowfall moves behind the cards; under real blur every card would redraw
+   its blur on every frame. Off while E is on (the string of lights stays). */
+html.jj-glass.jj-xmas body.signed-in:has(#view-dashboard.active)::before,
+html.jj-glass.jj-xmas body.signed-in:has(#view-dashboard.active)::after{content:none}
+
+/* The blur: the big boxes only. Blur inside blur costs double, so rows, chips and
+   inputs inside these boxes stay plain see-through. */
+html.jj-glass body.signed-in :is(.chart-card,.glass-card,.stat-card,.table-wrap,.pv-table-wrap,.client-card,
+  .veh-card,.week-cal-wrap,.timeline-wrap,.metric-box,.lj-stat,.h-kpi,.notif-panel){
+  background:var(--surface);
+  backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);
+  border:1px solid rgba(255,255,255,.14);border-top-color:rgba(255,255,255,.24);
+  box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.12)}
+html.jj-glass body.signed-in :is(.chart-card,.stat-card):hover{background:rgba(24,33,28,.56);border-color:rgba(255,255,255,.2)}
+
+/* Pop-ups sit over busy pages, so they are darker glass than the cards. */
+html.jj-glass body.signed-in .modal{
+  background:rgba(16,22,19,.8);border:1px solid rgba(255,255,255,.16);
+  backdrop-filter:blur(24px) saturate(140%);-webkit-backdrop-filter:blur(24px) saturate(140%)}
+html.jj-glass body.signed-in .modal-overlay{background:rgba(0,0,0,.4)}
+
+/* Typing boxes */
+html.jj-glass body.signed-in :is(input,select,textarea){background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.18);color:var(--text)}
+html.jj-glass body.signed-in :is(input,textarea)::placeholder{color:var(--placeholder)}
+html.jj-glass body.signed-in select option{background:#1b2420;color:#f4f7f5}
+
+/* The side menu: dark green glass instead of solid green. */
+html.jj-glass body.signed-in .sidebar{
+  background:rgba(10,32,19,.58);border-right:1px solid rgba(255,255,255,.12);
+  backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%)}
+/* Jake's stretching tab (liquid-nav.js) fills its notch with the page colour. Over a
+   picture there is no one page colour, so it takes the cards' dark glass (Jake chose
+   this, 2026-11-05). The stretch itself is untouched. */
+html.jj-glass body.signed-in .liquid-nav-svg path{fill:rgba(22,30,26,.82)}
+
+/* Maps' own pop-ups are white with dark text; dark text rules above would clash. */
+html.jj-glass body.signed-in :is(.leaflet-popup-content-wrapper,.leaflet-popup-tip){background:#1b2420;color:#f4f7f5}
+
+/* ── PART 2 (generated: the light colours typed straight into other stylesheets) ── */
+/* from style.css */
+html.jj-glass body.signed-in .nav-item-action{background:rgba(255,255,255,.07);color:hsl(142,72%,78%)}
+html.jj-glass body.signed-in .nav-item-action:hover{background:hsla(138,70%,55%,.16);color:hsl(142,72%,78%)}
+html.jj-glass body.signed-in .nav-item-action .icon{color:hsl(142,72%,78%)}
+html.jj-glass body.signed-in .nav-item-action .icon{color:hsl(142,72%,78%)}
+html.jj-glass body.signed-in .nav-item-daily.active .nav-hint{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in #nav-more .nav-item.active{color:hsl(142,72%,78%)}
+html.jj-glass body.signed-in .glass-card{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .stat-card{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .cat-section-header.quote .cat-title{color:hsl(216,90%,78%)}
+html.jj-glass body.signed-in .lb-period-btn.active{background:rgba(255,255,255,.22)}
+html.jj-glass body.signed-in .job-avatar-empty:hover{color:hsl(221,83%,78%) !important}
+html.jj-glass body.signed-in .lj-sect-driver .lj-section-header .pa{border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .bps-over-h{color:hsl(41,88%,78%)}
+html.jj-glass body.signed-in .bps-no-h{color:hsl(354,61%,78%)}
+html.jj-glass body.signed-in .bps-no-list li b{color:hsl(354,61%,78%)}
+html.jj-glass body.signed-in .filter-chip.active{background:rgba(255,255,255,.22)}
+html.jj-glass body.signed-in tbody tr:hover{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .job-id-quote{color:hsl(216,90%,78%)}
+html.jj-glass body.signed-in .sugg-compose{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .sugg-body{color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in .sugg-foot{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in .sugg-replybox input{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in .modal-warn{background:hsla(53,70%,55%,.16)}
+html.jj-glass body.signed-in .leaflet-popup-close-button{color:rgba(255,255,255,.72) !important}
+html.jj-glass body.signed-in .p-addr{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in .p-meta{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in .sort-chip.on{background:rgba(255,255,255,.22)}
+html.jj-glass body.signed-in .fleet-table tbody tr:hover{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .chart-filter.active{background:rgba(255,255,255,.22)}
+html.jj-glass body.signed-in .metric-box{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .atab.active{background:rgba(255,255,255,.22)}
+html.jj-glass body.signed-in .addr-ac-dropdown{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .addr-ac-item{color:hsl(217,33%,78%)}
+html.jj-glass body.signed-in .addr-ac-item:hover,html.jj-glass body.signed-in .addr-ac-item.active{background:rgba(255,255,255,.22)}
+html.jj-glass body.signed-in #lj-map{background:hsla(210,70%,55%,.16)}
+html.jj-glass body.signed-in .lj-map-banner{background:hsla(45,70%,55%,.16);color:hsl(43,90%,78%)}
+html.jj-glass body.signed-in .lj-map-banner.enter{background:hsla(140,70%,55%,.16);color:hsl(134,61%,78%)}
+html.jj-glass body.signed-in .lj-map-banner.exit{background:hsla(212,70%,55%,.16);color:hsl(216,81%,78%)}
+html.jj-glass body.signed-in .lj-truck-marker{border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .lj-stat{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .lj-status-badge.lj-pending{background:hsla(218,70%,55%,.16)}
+html.jj-glass body.signed-in .lj-status-badge.lj-onsite{background:hsla(37,70%,55%,.16)}
+html.jj-glass body.signed-in .lj-status-badge.lj-done{background:hsla(125,70%,55%,.16)}
+html.jj-glass body.signed-in .lj-status-badge.lj-notstarted{background:hsla(210,70%,55%,.16);color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in .lj-status-badge.lj-enroute{background:hsla(218,70%,55%,.16)}
+html.jj-glass body.signed-in .lj-status-badge.lj-issue{background:hsla(0,70%,55%,.16);color:hsl(0,72%,78%)}
+html.jj-glass body.signed-in .lj-issue{background:hsla(0,70%,55%,.16)}
+html.jj-glass body.signed-in .lj-stat-issue .lj-stat-num{color:hsl(0,72%,78%)}
+html.jj-glass body.signed-in .lj-section-body{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .lj-sect-driver{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .lj-sect-driver .lj-section-header .job-avatar{border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .lj-size{background:hsla(48,70%,55%,.16)}
+html.jj-glass body.signed-in .lj-leg-drop{background:hsla(204,70%,55%,.16);color:hsl(201,90%,78%)}
+html.jj-glass body.signed-in .lj-leg-pick{background:hsla(326,70%,55%,.16);color:hsl(335,78%,78%)}
+html.jj-glass body.signed-in .lj-nozone{background:hsla(48,70%,55%,.16)}
+html.jj-glass body.signed-in #view-staffcheckin{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .sc-crew-card:hover{border-color:rgba(255,255,255,.16) !important}
+html.jj-glass body.signed-in .skeleton{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .pv-hero .btn-primary{background:rgba(255,255,255,.07);color:hsl(142,72%,78%);border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .pv-sec td{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .pv-row:hover td{background:hsla(137,70%,55%,.16)}
+html.jj-glass body.signed-in .pv-cell:hover:not(.pv-empty){background:hsla(139,70%,55%,.16)}
+html.jj-glass body.signed-in .pv-row td.pv-cell.pv-selected{background:hsla(140,70%,55%,.16)}
+html.jj-glass body.signed-in .btn-inv-hover:hover{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in .pj-name{color:hsl(86,69%,78%)}
+html.jj-glass body.signed-in .pj-pill{background:hsla(80,70%,55%,.16);color:hsl(86,69%,78%)}
+html.jj-glass body.signed-in .bin-alert-action{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .bin-alert-action:hover{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .h-kpi{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .h-chip.on{background:rgba(255,255,255,.22)}
+html.jj-glass body.signed-in .h-tl-mini .c.weekend{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .djj-btn{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .djj-btn.assign:hover{background:hsla(194,70%,55%,.16);color:hsl(193,82%,78%)}
+html.jj-glass body.signed-in .djj-btn.confirm:hover{background:hsla(48,70%,55%,.16)}
+html.jj-glass body.signed-in .djj-btn.email:hover{background:hsla(226,70%,55%,.16);color:hsl(245,58%,78%)}
+html.jj-glass body.signed-in .djj-btn.call:hover{background:hsla(138,70%,55%,.16)}
+html.jj-glass body.signed-in .djj-biz{color:hsl(262,83%,78%);background:hsla(256,70%,55%,.16)}
+html.jj-glass body.signed-in .djj-row{border-color:rgba(255,255,255,.16);background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .djj-row.attn{background:hsla(0,70%,55%,.16)}
+html.jj-glass body.signed-in .djj-sub.attn{color:hsl(17,88%,78%)}
+html.jj-glass body.signed-in .tjr2{border-color:rgba(255,255,255,.16);background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .tjr2.fixed{background:hsla(142,70%,55%,.16)}
+html.jj-glass body.signed-in .djj-seg.is-active{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .djj-seg:nth-child(1) .djj-seg-badge{background:hsla(141,70%,55%,.16);color:hsl(142,72%,78%)}
+html.jj-glass body.signed-in .djj-seg:nth-child(2) .djj-seg-badge{background:hsla(48,70%,55%,.16);color:hsl(23,82%,78%)}
+html.jj-glass body.signed-in .djj-seg:nth-child(3) .djj-seg-badge{background:hsla(32,70%,55%,.16);color:hsl(15,79%,78%)}
+html.jj-glass body.signed-in .djj-seg:nth-child(4) .djj-seg-badge{background:hsla(185,70%,55%,.16);color:hsl(194,70%,78%)}
+html.jj-glass body.signed-in .pal-row.sel{background:rgba(255,255,255,.22)}
+html.jj-glass body.signed-in #jj-vibe-shimmer{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .jj-bin-sheen{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .drdc-side__truck{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .drdc-readouts{background:hsla(44,70%,55%,.16)}
+html.jj-glass body.signed-in .team-av::after{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .team-pop{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .team-pop-custom{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in .hm-chip.active{background:rgba(255,255,255,.22)}
+@media(max-width:900px){
+html.jj-glass body.signed-in .medit-banner{background:hsla(48,70%,55%,.16);color:hsl(23,82%,78%)}
+}
+html.jj-glass body.signed-in .nx-tab.on{background:rgba(255,255,255,.22)}
+html.jj-glass body.signed-in .nx-t thead th.nx-colon{background:hsla(144,70%,55%,.16)}
+html.jj-glass body.signed-in .nx-t td.nx-city.nx-rowon,html.jj-glass body.signed-in .nx-t td.nx-cost.nx-rowon,html.jj-glass body.signed-in .nx-t td.nx-now.nx-rowon{background:hsla(144,70%,55%,.16)}
+html.jj-glass body.signed-in .nx-zrow td{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .nx-stat .v.pos{color:hsl(142,72%,78%)}
+html.jj-glass body.signed-in .nx-say{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in .nx-rd-head{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in .rc-pos{color:hsl(142,72%,78%)}
+html.jj-glass body.signed-in .rc-map-tabs{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .rc-map-brand{color:hsl(142,72%,78%)}
+html.jj-glass body.signed-in .rc-map-tabsep{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .rc-map-tabs .nx-tab{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .rc-map-modecard{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .rc-map-modeseg{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .rc-map-glass{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .rc-map-ghead{border-bottom-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .rc-leg-name{color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in .rc-dir-z{background:rgba(255,255,255,.07);border-top-color:rgba(255,255,255,.16);border-bottom-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .rc-dir-row{border-bottom-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .rc-dir-name{color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in .rc-dir-price{color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in #rc-map-board .leaflet-bar a{background:rgba(255,255,255,.07) !important;color:rgba(255,255,255,.9) !important}
+html.jj-glass body.signed-in #rc-map-board .leaflet-bar a:hover{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in #rc-map-board .leaflet-control-attribution{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in #rc-map-board .leaflet-control-attribution a{color:hsl(142,72%,78%) !important}
+html.jj-glass body.signed-in .leaflet-popup.rc-pop .leaflet-popup-content-wrapper{background:rgba(255,255,255,.07) !important;color:rgba(255,255,255,.9) !important}
+html.jj-glass body.signed-in .leaflet-popup.rc-pop .leaflet-popup-content{color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in .leaflet-popup.rc-pop .leaflet-popup-tip{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in .op-chip.active .op-dot{background:rgba(255,255,255,.22)}
+html.jj-glass body.signed-in .ana-skel::after{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .adv-chip.on{background:rgba(255,255,255,.22)}
+html.jj-glass body.signed-in .ffv-type{color:hsl(193,82%,78%);background:hsla(193,70%,55%,.16)}
+html.jj-glass body.signed-in .ffv-nav{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in .ffv-nav:hover{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .ffv-track{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .ffv-live{background:hsla(145,70%,55%,.16)}
+/* from icons.css */
+/* from jwg-stamp.css */
+html.jj-glass body.signed-in .jwg-stamp{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .jwg-stamp-slot{border-color:rgba(255,255,255,.16)}
+/* from app-brief.css */
+/* from app-busy-day.css */
+/* from app-fun.css */
+html.jj-glass body.signed-in .jjf-stage{background:rgba(255,255,255,.07)}
+/* from app-home.css */
+html.jj-glass body.signed-in .home-mk-town{border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .home-mk-yard{border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in.home-em-on #home-em{background:rgba(255,255,255,.07);border-right-color:rgba(255,255,255,.16);color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in .home-em-h{border-bottom-color:rgba(255,255,255,.16);background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .home-em-x{border-color:rgba(255,255,255,.16);background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in .home-em-row{border-bottom-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in .home-em-cur{background:hsla(138,70%,55%,.16)}
+html.jj-glass body.signed-in .home-em-next{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .home-em-did .home-em-pick b{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in .home-em-pick small{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in .home-em-skip{border-color:rgba(255,255,255,.16);background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in .home-em-ok{color:hsl(142,78%,78%)}
+/* from app-christmas.css */
+html.jj-glass.jj-xmas body.signed-in.signed-in:has(#view-dashboard.active){background:rgba(255,255,255,.22)}
+html.jj-glass.jj-xmas #dash-strip-date::after,html.jj-glass.jj-xmas #home-hello-sub::after{background:hsla(0,70%,55%,.16);color:hsl(0,74%,78%)}
+html.jj-glass.jj-xmas #dash-needs-you > .chart-card:not(:has(.ny-row)) > div:last-child::after,html.jj-glass.jj-xmas .lj-empty::after{color:hsl(0,74%,78%)}
+html.jj-glass body.signed-in .xm-cleared i{background:rgba(255,255,255,.07)}
+/* from app-jwg-scheduler.css */
+html.jj-glass body.signed-in #view-jwgscheduler .ctrl-btn-danger{color:hsl(0,72%,78%) !important}
+html.jj-glass body.signed-in #view-jwgscheduler tr.crew-band td{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler tr.crew-band .cb-name{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in #view-jwgscheduler .wk-fill .wkf-stale{background:hsla(33,70%,55%,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .save-bar{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .remove-shift-btn{color:hsl(0,72%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .rmbtn{color:hsl(0,72%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .tdelbtn{color:hsl(0,72%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .dc2.chip-sick{background:hsla(33,70%,55%,.16);color:hsl(17,88%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .sum-day-monday{background:hsla(141,70%,55%,.16);color:hsl(142,72%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .sum-day-tuesday{background:hsla(214,70%,55%,.16);color:hsl(224,76%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .sum-day-wednesday{background:hsla(251,70%,55%,.16);color:hsl(262,83%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .sum-day-thursday{background:hsla(34,70%,55%,.16);color:hsl(17,88%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .sum-day-friday{background:hsla(55,70%,55%,.16);color:hsl(35,90%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .sum-day-saturday{background:hsla(167,70%,55%,.16);color:hsl(175,77%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .svc-color-0{background:hsla(141,70%,55%,.16);color:hsl(142,72%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .svc-color-1{background:hsla(214,70%,55%,.16);color:hsl(224,76%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .svc-color-2{background:hsla(251,70%,55%,.16);color:hsl(262,83%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .svc-color-3{background:hsla(34,70%,55%,.16);color:hsl(17,88%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .svc-color-4{background:hsla(55,70%,55%,.16);color:hsl(35,90%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .svc-color-5{background:hsla(204,70%,55%,.16);color:hsl(201,90%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .svc-color-6{background:hsla(326,70%,55%,.16);color:hsl(335,78%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .svc-color-7{background:hsla(0,70%,55%,.16);color:hsl(0,72%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .status-badge.low{background:hsla(48,70%,55%,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .status-badge.out_of_stock{background:hsla(0,70%,55%,.16);color:hsl(0,72%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .status-badge.out{background:hsla(0,70%,55%,.16);color:hsl(0,72%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .status-badge.ordered{background:hsla(214,70%,55%,.16);color:hsl(221,83%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .loc-action-btn.delete,html.jj-glass body.signed-in #view-jwgscheduler .inv-action-btn.delete{color:hsl(0,72%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .loc-action-btn.delete:hover,html.jj-glass body.signed-in #view-jwgscheduler .inv-action-btn.delete:hover{background:hsla(0,70%,55%,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .salt-indicator{color:hsl(0,72%,78%);background:hsla(0,70%,55%,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .sum-day-monday{background:hsla(214,70%,55%,.16);color:hsl(224,76%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .sum-day-tuesday{background:hsla(141,70%,55%,.16);color:hsl(142,72%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .sum-day-wednesday{background:hsla(251,70%,55%,.16);color:hsl(262,83%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .sum-day-thursday{background:hsla(34,70%,55%,.16);color:hsl(17,88%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .sum-day-friday{background:hsla(326,70%,55%,.16);color:hsl(335,78%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .sum-day-saturday{background:hsla(167,70%,55%,.16);color:hsl(175,77%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-btn{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-btn.del{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-btn.del:hover{color:hsl(0,72%,78%);background:hsla(0,70%,55%,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-out{color:hsl(26,90%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-stock-row{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-sc-ctrl button{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-sc-ctrl input{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-logo{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-co.jj{background:hsla(48,70%,55%,.16);color:hsl(23,82%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-co.jwg{background:hsla(88,70%,55%,.16);color:hsl(86,69%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-design{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-person{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-former-tag{background:rgba(255,255,255,.07);color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-ho-row.on{background:rgba(255,255,255,.22)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-has{background:hsla(129,70%,55%,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-size{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-ho-sizes button{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-de-retake{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .cl-chips button{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .ctm-tile.warn .v{color:hsl(0,72%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .ctm-flagrow b{color:hsl(0,72%,78%)}
+@media(max-width:900px){
+html.jj-glass body.signed-in #view-jwgscheduler .ms-flag.sick{color:hsl(17,88%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .ms-badge.sick{background:hsla(33,70%,55%,.16);color:hsl(17,88%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .ms-badge.book{background:rgba(255,255,255,.07);color:hsl(224,76%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .jwg-mghost{color:hsl(224,76%,78%);background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .jwg-mflag{color:hsl(224,76%,78%)}
+}
+html.jj-glass body.signed-in #view-jwgscheduler #jwg-feed-strip{background:hsla(214,70%,55%,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .jwg-strip-title{color:hsl(224,76%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .jwg-strip-note{color:hsl(226,71%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .jwg-strip-row{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .jwg-strip-time{color:hsl(224,76%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .jwg-strip-use{background:rgba(255,255,255,.07);color:hsl(224,76%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .jwg-strip-use:hover{background:hsla(214,70%,55%,.16);color:hsl(224,76%,78%)}
+/* from app-jwg-theme.css */
+html.jj-glass body.signed-in #view-jwgscheduler .ctrl-btn-danger{color:hsl(0,72%,78%) !important}
+html.jj-glass body.signed-in #view-jwgscheduler .ctrl-btn-danger:hover{color:hsl(0,72%,78%) !important}
+html.jj-glass body.signed-in #view-jwgscheduler .day-cell.is-today:hover{background:hsla(143,70%,55%,.16) !important}
+html.jj-glass body.signed-in #view-jwgscheduler .sick-label{background:hsla(33,70%,55%,.16) !important;color:hsl(17,88%,78%) !important}
+html.jj-glass body.signed-in #view-jwgscheduler .moverlay:not(#jwg-confirm) :is(.sf-select,html.jj-glass body.signed-in .si-form-input,html.jj-glass body.signed-in .si-form-select,html.jj-glass body.signed-in .si-form-textarea,html.jj-glass body.signed-in .cl-input,html.jj-glass body.signed-in .cl-select,html.jj-glass body.signed-in .wt-input,html.jj-glass body.signed-in .wt-select,html.jj-glass body.signed-in .wt-textarea,html.jj-glass body.signed-in .day-note,html.jj-glass body.signed-in .wh-field select){background-color:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .moverlay:not(#jwg-confirm) :is(.ma-day-btn,html.jj-glass body.signed-in .ma-everyone-btn){background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal-cancel{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .moverlay:not(#jwg-confirm) .ctrl-btn{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in #view-jwgscheduler .sm-ibtn{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .sm-ibtn.is-del{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .sm-ebtn{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .sm-off-opt{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .sm-off-opt.is-sick{color:hsl(17,88%,78%);background:hsla(33,70%,55%,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .sm-off-sick{background:hsla(33,70%,55%,.16);color:hsl(15,79%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.ma-day-list,html.jj-glass body.signed-in .uw-list){border-color:rgba(255,255,255,.16);background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.ma-day-list,html.jj-glass body.signed-in .uw-list) .ma-actions{background:rgba(255,255,255,.07)}
+@media (prefers-reduced-transparency:reduce){
+html.jj-glass body.signed-in #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.ma-day-list,html.jj-glass body.signed-in .uw-list){background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.ma-day-list,html.jj-glass body.signed-in .uw-list) .ma-actions{background:rgba(255,255,255,.07)}
+}
+/* from app-schedule.css */
+html.jj-glass body.signed-in #view-jwgscheduler .sc-nav{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .sc-nav:hover{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .sc-today{background:hsla(141,70%,55%,.16);color:hsl(143,64%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .sc-more-menu{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .sc-more-menu button:hover{background:hsla(138,70%,55%,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .sc-lg{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .sc-main .grid-wrap{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .day-panel{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .sc-grid th.day-col.is-wknd,html.jj-glass body.signed-in #view-jwgscheduler .sc-grid td.day-cell.is-wknd{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .sc-grid th.day-col.is-today,html.jj-glass body.signed-in #view-jwgscheduler .sc-grid td.day-cell.is-today{background:hsla(138,70%,55%,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .sc-grid .emp-hbar{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .sc-grid .shift-bar.jwg-junk-chip{background:hsla(214,70%,55%,.16) !important;color:hsl(224,76%,78%) !important}
+html.jj-glass body.signed-in #view-jwgscheduler .dp-close{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .dp-entry{background:hsla(210,70%,55%,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .dp-editor .task-opt.dp-job{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .dp-editor .task-opt.dp-job:hover{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .dp-hc{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .dp-ac{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in #view-jwgscheduler .dp-clear{color:hsl(0,74%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .pc-f{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in #view-jwgscheduler .pc-card{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .pc-day.is-empty{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in .tm-away-opt{color:rgba(255,255,255,.9)}
+@media (max-width:900px){
+html.jj-glass body.signed-in #view-jwgscheduler .ds-sheet{background:rgba(255,255,255,.07)}
+}
+/* from app-winter-routes.css */
+html.jj-glass body.signed-in #view-jwgscheduler .wr-placing{background:hsla(45,70%,55%,.16);color:hsl(44,90%,78%)}
+html.jj-glass body.signed-in #view-jwgscheduler .wr-pin{border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .wr-shop{border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .wr-info{color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in #view-jwgscheduler .wr-info-nick{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in #view-jwgscheduler .wr-info-svc{color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in #view-jwgscheduler .wr-info-notes{color:rgba(255,255,255,.72)}
+html.jj-glass body.signed-in #view-jwgscheduler .wr-info-acts button{border-color:rgba(255,255,255,.16);background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in #view-jwgscheduler .sp-mark.sel{border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .sp-h{background:rgba(255,255,255,.07)}
+html.jj-glass body.signed-in #view-jwgscheduler .sp-mode{border-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .sp-mode button{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+html.jj-glass body.signed-in #view-jwgscheduler .sp-mode button+button{border-left-color:rgba(255,255,255,.16)}
+html.jj-glass body.signed-in #view-jwgscheduler .sp-v{background:rgba(255,255,255,.07)}
+/* from mobile.css */
+@media(max-width:900px){
+html.jj-glass body.signed-in .csm-flag{color:hsl(17,88%,78%)}
+}
