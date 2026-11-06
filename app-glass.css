@@ -278,7 +278,17 @@ html.jj-glass body.signed-in #view-jwgscheduler{
   --jjg-l:rgba(34,197,94,.16); --jjbg:transparent; --jjcard:rgba(255,255,255,.09); --jjc2:rgba(255,255,255,.08);
   --jjbd:rgba(255,255,255,.14); --jjbd2:rgba(255,255,255,.22);
   --jjtx:#f4f7f5; --jjtx2:#c3cbc6; --jjmut:#8f9893;
-  background:transparent}
+  --accent-dim:#86efac;   /* text in 21 places, a fill in one */
+  /* the Schedule page's own set (app-schedule.css) */
+  --sc-ink:#f4f7f5; --sc-mut:#c3cbc6; --sc-line:rgba(255,255,255,.14); --sc-line2:rgba(255,255,255,.22); --sc-green:#86efac;
+  --sc-stripe:repeating-linear-gradient(135deg,rgba(255,255,255,.10) 0 7px,rgba(255,255,255,.04) 7px 14px)}
+/* --dark is a fill in 49 places, so only its few text uses change. */
+html.jj-glass body.signed-in #view-jwgscheduler :is(.cl-link,.status-badge.in_stock){color:#86efac}
+/* Shift chips and the day panel: each job type has a pale fill and a deep ink (--tb, --tt).
+   On glass: a see-through tint of the fill, and the ink mixed most of the way to white, so
+   every type keeps its own colour and reads. */
+html.jj-glass body.signed-in #view-jwgscheduler :is(.sc-grid .shift-bar.ce-job,.dp-entry){
+  background:color-mix(in srgb,var(--tb,#f1f5f9) 22%,transparent)!important;color:color-mix(in oklab,var(--tt,#334155) 25%,white)!important}
 
 /* Suggestions are paper sticky notes in their own colours: left as they are (the
    generator skips .sugg-*). Town chips get a darker fill so their light lettering reads. */
