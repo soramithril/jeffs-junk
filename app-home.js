@@ -38,14 +38,30 @@ var HOME_ROWS_SHORT = 5, HOME_LIST_SHORT = 12;   // rows shown before "Show N mo
 
 // Each layout: which pieces go where, how Today's Jobs is drawn, and where the map sits.
 var HOME_LAYOUTS = {
-  e: { top:['glass'], main:[], side:[], bottom:[] }
+  e: { top:['glass'], main:[], side:[], bottom:[] },
+  // E's two other arrangements, only on Jake's switch for now (2026-11-06), from the
+  // layouts mockup (claude.ai/artifact/6SqjTXXDVSmRVv11iQSnFc): the homepage's working
+  // pieces in E's glass, with E's number cards, chart and activity underneath (gextra).
+  e1: { top:['strip'], main:['yours', 'jobs'], side:['bins', 'week', 'overdue'], bottom:['gextra', 'folds'] },
+  e2: { top:['strip'], main:['bins'], side:['week'], bottom:['jobs', 'yours', 'overdue', 'gextra', 'folds'] }
 };
+var HOME_EVIEWS = [
+  { id:'e', label:'Mockup' }, { id:'e1', label:'Day first' }, { id:'e2', label:'Booking desk' }
+];
+var HOME_EVIEW_KEY = 'jjEView';   // Jake's pick, this browser only
+function _homeIsE(lay){ return lay === 'e' || lay === 'e1' || lay === 'e2'; }
+// Saved choice 'e' opens the arrangement Jake last picked on his switch; everyone else gets E.
+function _homeOpen(pref){
+  if(pref !== 'e' || !canAccessDev()) return pref;
+  var v = localStorage.getItem(HOME_EVIEW_KEY);
+  return HOME_LAYOUTS[v] ? v : 'e';
+}
 var HOME_PICKS = [
   { id:'old', label:'Old', tip:'The dashboard as it always was' },
   { id:'e', label:'E', tip:'The glass dashboard: the mockup, with the menus across the top' }
 ];
 var HOME_PIECE = { strip:'home-p-strip', chips:'home-p-chips', bins:'home-p-bins', jobs:'home-jobs',
-  overdue:'home-overdue', folds:'home-p-folds', yours:'home-p-yours', week:'home-p-week', glass:'home-p-glass' };
+  overdue:'home-overdue', folds:'home-p-folds', yours:'home-p-yours', week:'home-p-week', glass:'home-p-glass', gextra:'home-p-gextra' };
 
 var _homePref = null;     // this person's saved choice: null, 'old' or 'e'
 var _homeLay = 'old';     // the layout on screen right now
@@ -68,10 +84,15 @@ function _homeDay(dateStr){ return new Date(dateStr + 'T12:00:00').toLocaleDateS
 // loaded = the dashboard's data load; the lists wait for it.
 async function homeSignedIn(loaded){
   var r = await db.from('user_profiles').select('home_layout').eq('id', currentUser.id).single();
-  if(r.error) throw new Error('Homepage: could not read your layout setting: ' + r.error.message);
+  if(r.error){
+    JJGlass.set(false);   // never leave the sign-in picture up waiting for an E that won't come
+    throw new Error('Homepage: could not read your layout setting: ' + r.error.message);
+  }
   _homePref = r.data.home_layout;
   _homeSwitchMount();
-  if(HOME_LAYOUTS[_homePref]) homeApply(_homePref);
+  var open = HOME_DESKTOP.matches && HOME_LAYOUTS[_homePref] ? _homeOpen(_homePref) : 'old';
+  if(_homeIsE(open)) homeApply(open);
+  else JJGlass.set(false);   // not E here: this computer gets the normal loading screen next time
   await loaded;
   _homeReady = true;
   homeRefresh();
@@ -97,6 +118,9 @@ function _homeSwitchMount(){
   w.id = 'home-switch';
   w.className = 'home-switch';
   w.innerHTML = '<button type="button" class="home-fb" onclick="go(\'suggestions\')">Tell us what you think</button>'
+    + (canAccessDev() ? '<span class="home-sw-seg home-ev" id="home-ev" role="group" aria-label="E layout">'
+        + HOME_EVIEWS.map(function(v){ return '<button type="button" data-ev="' + v.id + '" onclick="homeEView(\'' + v.id + '\')">' + v.label + '</button>'; }).join('')
+        + '</span>' : '')
     + '<span class="home-sw-lbl" id="home-sw-lbl">Homepage</span>'
     + '<span class="home-sw-seg" role="group" aria-labelledby="home-sw-lbl">'
     + HOME_PICKS.map(function(p){
@@ -108,20 +132,31 @@ function _homeSwitchMount(){
 }
 function _homeSwitchPaint(){
   var w = document.getElementById('home-switch');
-  w.querySelectorAll('[data-lay]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.lay === _homeLay ? 'true' : 'false'); });
+  var base = _homeIsE(_homeLay) ? 'e' : _homeLay;
+  w.querySelectorAll('[data-lay]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.lay === base ? 'true' : 'false'); });
   w.querySelector('.home-fb').hidden = _homeLay === 'old';
+  var ev = document.getElementById('home-ev');
+  if(ev){
+    ev.hidden = base !== 'e';
+    ev.querySelectorAll('[data-ev]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.ev === _homeLay ? 'true' : 'false'); });
+  }
 }
 async function homePick(lay){
-  if(lay === _homeLay) return;
+  if(lay === (_homeIsE(_homeLay) ? 'e' : _homeLay)) return;
   await _homeSave(lay);
-  homeApply(lay);
+  homeApply(_homeOpen(lay));
+}
+// Jake's switch between E's arrangements: shown only on his login, kept in this browser.
+function homeEView(v){
+  localStorage.setItem(HOME_EVIEW_KEY, v);
+  homeApply(v);
 }
 
 // ── Putting a layout on, switching between them, taking them off ──
 function homeApply(lay){
   if(!HOME_DESKTOP.matches) lay = 'old';
   if(lay === _homeLay) return;
-  JJGlass.set(lay === 'e');
+  JJGlass.set(_homeIsE(lay));
   var was = _homeLay;
   var view = document.getElementById('view-dashboard');
   if(lay === 'old'){
@@ -157,7 +192,7 @@ function homeApply(lay){
 }
 // The width can cross the desktop line (a window dragged narrow): follow the setting.
 HOME_DESKTOP.addEventListener('change', function(){
-  if(currentUser && _homePref) homeApply(HOME_LAYOUTS[_homePref] ? _homePref : 'old');
+  if(currentUser && _homePref) homeApply(HOME_LAYOUTS[_homePref] ? _homeOpen(_homePref) : 'old');
 });
 
 function _homeBuild(){
@@ -197,6 +232,7 @@ function _homeBuild(){
       + '<div id="home-p-week" class="home-panel"><div class="home-ph">Junk hours this week <span class="home-ph-note">8 hours is a full day</span></div>'
         + '<div id="home-week" class="home-week"></div></div>'
       + '<div id="home-p-glass" class="jg-home"></div>'
+      + '<div id="home-p-gextra" class="jg-home"></div>'
     + '</div>';
   var view = document.getElementById('view-dashboard');
   view.insertBefore(h, view.firstChild);
@@ -241,7 +277,7 @@ async function homeRefresh(){
     _homeOverduePaint(extra[3]);
     _homeJobsPaint(day, extra[4]);
     _homeWeekPaint(extra[5]);
-    if(_homeLay === 'e') await glassHomePaint(extra[0], day === todayStr() ? extra[4] : await _homeJobsLoad(todayStr()));   // E is always today
+    if(_homeIsE(_homeLay)) await glassHomePaint(extra[0], day === todayStr() ? extra[4] : await _homeJobsLoad(todayStr()));   // E is always today
   } catch(e){
     document.getElementById('home-todos').innerHTML = '<div class="home-err">Couldn\'t load your list: ' + escHtml(e.message) + '</div>';
     throw e;

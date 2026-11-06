@@ -22,6 +22,12 @@
    that blur over a full-screen picture is what made October's Halloween look lag:
    that is why the picture here never moves and nothing animates behind the cards. */
 window.JJGlass = (function () {
+  // The sign-in for E (Jake, 2026-11-06: "do we need the loading video?"). On a computer
+  // that last showed E, signing in keeps the sign-in picture up with a thin progress bar
+  // instead of the video loading screen; once E goes on, the same picture is its
+  // background and the entrance builds the page on it.
+  var BOOT = 'jjGlassBoot';
+  try { if (localStorage.getItem(BOOT) === '1') document.documentElement.classList.add('jj-glass-boot'); } catch (e) {}
   var HOUR = 60 * 60 * 1000;
   var layer = null, timer = null, shown = '', menus = null, startHour = null;
   var ENTER_MS = 2400;   // the entrance's longest animation, with room to spare
@@ -136,6 +142,10 @@ window.JJGlass = (function () {
   }
 
   function set(on) {
+    // This computer remembers E, so the next sign-in skips the video loading screen and
+    // keeps the sign-in picture up instead (html.jj-glass-boot in app-glass.css).
+    try { if (on) localStorage.setItem(BOOT, '1'); else localStorage.removeItem(BOOT); } catch (e) {}
+    if (!on) document.documentElement.classList.remove('jj-glass-boot');
     document.documentElement.classList.toggle('jj-glass', on);
     Chart.defaults.color = on ? 'rgba(244,247,245,.78)' : CHART.color;
     Chart.defaults.borderColor = on ? 'rgba(255,255,255,.12)' : CHART.borderColor;

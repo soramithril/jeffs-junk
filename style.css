@@ -959,6 +959,16 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
   #job-modal .jf-sec-wrap,
   #job-modal .jf-sec-service{grid-column:auto;grid-row:auto}
 }
+/* Short laptop screens (Jake, 2026-11-06: "too big, make it fit the screen"). At 1536x686
+   the form was 1,097px tall. On screens under 820px tall it is drawn smaller with zoom;
+   the sheet is made bigger by the same amount first, so it still fills the whole screen.
+   Taller screens are untouched. */
+@media(min-width:1100px) and (max-height:820px){
+  #job-modal .modal{zoom:.88;width:calc(100vw / .88);max-width:none;height:calc(100vh / .88);max-height:none;padding:28px 44px}
+}
+@media(min-width:1100px) and (max-height:740px){
+  #job-modal .modal{zoom:.8;width:calc(100vw / .8);height:calc(100vh / .8)}
+}
 /* Kelly's 2560px monitor (Jake, 2026-10-06): a bin rental booking was 1,602px tall in a
    ~1,300px window, so Save and the bottom of the form were always a scroll away. From
    2400px, Bin Rental only — laptops and every other service stay exactly as they are:
