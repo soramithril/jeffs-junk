@@ -87,6 +87,18 @@ html.jj-glass body.signed-in .sidebar{
    this, 2026-11-05). The stretch itself is untouched. */
 html.jj-glass body.signed-in .liquid-nav-svg path{fill:rgba(22,30,26,.82)}
 
+/* The landscaping scheduler has its own two sets of colour settings
+   (app-jwg-scheduler.css, then app-jwg-theme.css on top): dark glass versions of both. */
+html.jj-glass body.signed-in #view-jwgscheduler{
+  --bg-base:transparent; --bg-deep:rgba(255,255,255,.05); --bg-elevated:rgba(18,25,21,.46); --bg-raised:rgba(255,255,255,.08);
+  --surface:rgba(255,255,255,.06); --surface-h:rgba(255,255,255,.1); --surface-sm:rgba(255,255,255,.03);
+  --fg:#f4f7f5; --fg-muted:#c3cbc6; --fg-subtle:rgba(255,255,255,.45);
+  --accent-text:#86efac; --border:rgba(255,255,255,.14); --border-h:rgba(255,255,255,.22);
+  --jjg-l:rgba(34,197,94,.16); --jjbg:transparent; --jjcard:rgba(18,25,21,.46); --jjc2:rgba(255,255,255,.08);
+  --jjbd:rgba(255,255,255,.14); --jjbd2:rgba(255,255,255,.22);
+  --jjtx:#f4f7f5; --jjtx2:#c3cbc6; --jjmut:#8f9893;
+  background:transparent}
+
 /* Maps' own pop-ups are white with dark text; dark text rules above would clash. */
 html.jj-glass body.signed-in :is(.leaflet-popup-content-wrapper,.leaflet-popup-tip){background:#1b2420;color:#f4f7f5}
 
@@ -392,3 +404,75 @@ html.jj-glass body.signed-in #view-jwgscheduler .sp-v{background:rgba(255,255,25
 @media(max-width:900px){
 html.jj-glass body.signed-in .csm-flag{color:hsl(17,88%,78%)}
 }
+
+/* inline colours (style="...") in index.html and app*.js */
+html.jj-glass body.signed-in [style^="color:#000" i],html.jj-glass body.signed-in [style*=";color:#000" i],html.jj-glass body.signed-in [style*="; color:#000" i]{color:rgba(255,255,255,.9) !important}
+html.jj-glass body.signed-in [style^="color:#012b1f" i],html.jj-glass body.signed-in [style*=";color:#012b1f" i],html.jj-glass body.signed-in [style*="; color:#012b1f" i]{color:hsl(163,90%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#04160c" i],html.jj-glass body.signed-in [style*=";color:#04160c" i],html.jj-glass body.signed-in [style*="; color:#04160c" i]{color:hsl(147,69%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#062412" i],html.jj-glass body.signed-in [style*=";color:#062412" i],html.jj-glass body.signed-in [style*="; color:#062412" i]{color:hsl(144,71%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#0b5ed7" i],html.jj-glass body.signed-in [style*=";color:#0b5ed7" i],html.jj-glass body.signed-in [style*="; color:#0b5ed7" i]{color:hsl(216,90%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#0d6efd" i],html.jj-glass body.signed-in [style*=";color:#0d6efd" i],html.jj-glass body.signed-in [style*="; color:#0d6efd" i]{color:hsl(216,90%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#0e7490" i],html.jj-glass body.signed-in [style*=";color:#0e7490" i],html.jj-glass body.signed-in [style*="; color:#0e7490" i]{color:hsl(193,82%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#111" i],html.jj-glass body.signed-in [style*=";color:#111" i],html.jj-glass body.signed-in [style*="; color:#111" i]{color:rgba(255,255,255,.9) !important}
+html.jj-glass body.signed-in [style^="color:#14201a" i],html.jj-glass body.signed-in [style*=";color:#14201a" i],html.jj-glass body.signed-in [style*="; color:#14201a" i]{color:rgba(255,255,255,.9) !important}
+html.jj-glass body.signed-in [style^="color:#15803d" i],html.jj-glass body.signed-in [style*=";color:#15803d" i],html.jj-glass body.signed-in [style*="; color:#15803d" i]{color:hsl(142,72%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#17402a" i],html.jj-glass body.signed-in [style*=";color:#17402a" i],html.jj-glass body.signed-in [style*="; color:#17402a" i]{color:hsl(148,47%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#1a1a2e" i],html.jj-glass body.signed-in [style*=";color:#1a1a2e" i],html.jj-glass body.signed-in [style*="; color:#1a1a2e" i]{color:rgba(255,255,255,.9) !important}
+html.jj-glass body.signed-in [style^="color:#1d4ed8" i],html.jj-glass body.signed-in [style*=";color:#1d4ed8" i],html.jj-glass body.signed-in [style*="; color:#1d4ed8" i]{color:hsl(224,76%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#222" i],html.jj-glass body.signed-in [style*=";color:#222" i],html.jj-glass body.signed-in [style*="; color:#222" i]{color:rgba(255,255,255,.9) !important}
+html.jj-glass body.signed-in [style^="color:#2563eb" i],html.jj-glass body.signed-in [style*=";color:#2563eb" i],html.jj-glass body.signed-in [style*="; color:#2563eb" i]{color:hsl(221,83%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#26332c" i],html.jj-glass body.signed-in [style*=";color:#26332c" i],html.jj-glass body.signed-in [style*="; color:#26332c" i]{color:rgba(255,255,255,.9) !important}
+html.jj-glass body.signed-in [style^="color:#333" i],html.jj-glass body.signed-in [style*=";color:#333" i],html.jj-glass body.signed-in [style*="; color:#333" i]{color:rgba(255,255,255,.9) !important}
+html.jj-glass body.signed-in [style^="color:#343a40" i],html.jj-glass body.signed-in [style*=";color:#343a40" i],html.jj-glass body.signed-in [style*="; color:#343a40" i]{color:rgba(255,255,255,.9) !important}
+html.jj-glass body.signed-in [style^="color:#3f6212" i],html.jj-glass body.signed-in [style*=";color:#3f6212" i],html.jj-glass body.signed-in [style*="; color:#3f6212" i]{color:hsl(86,69%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#475569" i],html.jj-glass body.signed-in [style*=";color:#475569" i],html.jj-glass body.signed-in [style*="; color:#475569" i]{color:rgba(255,255,255,.72) !important}
+html.jj-glass body.signed-in [style^="color:#495057" i],html.jj-glass body.signed-in [style*=";color:#495057" i],html.jj-glass body.signed-in [style*="; color:#495057" i]{color:rgba(255,255,255,.72) !important}
+html.jj-glass body.signed-in [style^="color:#4d7c0f" i],html.jj-glass body.signed-in [style*=";color:#4d7c0f" i],html.jj-glass body.signed-in [style*="; color:#4d7c0f" i]{color:hsl(86,78%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#4f46e5" i],html.jj-glass body.signed-in [style*=";color:#4f46e5" i],html.jj-glass body.signed-in [style*="; color:#4f46e5" i]{color:hsl(243,75%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#555" i],html.jj-glass body.signed-in [style*=";color:#555" i],html.jj-glass body.signed-in [style*="; color:#555" i]{color:rgba(255,255,255,.72) !important}
+html.jj-glass body.signed-in [style^="color:#56655d" i],html.jj-glass body.signed-in [style*=";color:#56655d" i],html.jj-glass body.signed-in [style*="; color:#56655d" i]{color:rgba(255,255,255,.72) !important}
+html.jj-glass body.signed-in [style^="color:#64748b" i],html.jj-glass body.signed-in [style*=";color:#64748b" i],html.jj-glass body.signed-in [style*="; color:#64748b" i]{color:rgba(255,255,255,.72) !important}
+html.jj-glass body.signed-in [style^="color:#666" i],html.jj-glass body.signed-in [style*=";color:#666" i],html.jj-glass body.signed-in [style*="; color:#666" i]{color:rgba(255,255,255,.72) !important}
+html.jj-glass body.signed-in [style^="color:#6b7280" i],html.jj-glass body.signed-in [style*=";color:#6b7280" i],html.jj-glass body.signed-in [style*="; color:#6b7280" i]{color:rgba(255,255,255,.72) !important}
+html.jj-glass body.signed-in [style^="color:#6d28d9" i],html.jj-glass body.signed-in [style*=";color:#6d28d9" i],html.jj-glass body.signed-in [style*="; color:#6d28d9" i]{color:hsl(263,70%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#7a7c5f" i],html.jj-glass body.signed-in [style*=";color:#7a7c5f" i],html.jj-glass body.signed-in [style*="; color:#7a7c5f" i]{color:rgba(255,255,255,.72) !important}
+html.jj-glass body.signed-in [style^="color:#7c3aed" i],html.jj-glass body.signed-in [style*=";color:#7c3aed" i],html.jj-glass body.signed-in [style*="; color:#7c3aed" i]{color:hsl(262,83%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#8a4308" i],html.jj-glass body.signed-in [style*=";color:#8a4308" i],html.jj-glass body.signed-in [style*="; color:#8a4308" i]{color:hsl(27,89%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#8b5cf6" i],html.jj-glass body.signed-in [style*=";color:#8b5cf6" i],html.jj-glass body.signed-in [style*="; color:#8b5cf6" i]{color:hsl(258,90%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#92400e" i],html.jj-glass body.signed-in [style*=";color:#92400e" i],html.jj-glass body.signed-in [style*="; color:#92400e" i]{color:hsl(23,82%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#9a3412" i],html.jj-glass body.signed-in [style*=";color:#9a3412" i],html.jj-glass body.signed-in [style*="; color:#9a3412" i]{color:hsl(15,79%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#9b59b6" i],html.jj-glass body.signed-in [style*=";color:#9b59b6" i],html.jj-glass body.signed-in [style*="; color:#9b59b6" i]{color:hsl(283,39%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#a16207" i],html.jj-glass body.signed-in [style*=";color:#a16207" i],html.jj-glass body.signed-in [style*="; color:#a16207" i]{color:hsl(35,90%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#a1662f" i],html.jj-glass body.signed-in [style*=";color:#a1662f" i],html.jj-glass body.signed-in [style*="; color:#a1662f" i]{color:hsl(29,55%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#b02a37" i],html.jj-glass body.signed-in [style*=";color:#b02a37" i],html.jj-glass body.signed-in [style*="; color:#b02a37" i]{color:hsl(354,61%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#b35309" i],html.jj-glass body.signed-in [style*=";color:#b35309" i],html.jj-glass body.signed-in [style*="; color:#b35309" i]{color:hsl(26,90%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#b45309" i],html.jj-glass body.signed-in [style*=";color:#b45309" i],html.jj-glass body.signed-in [style*="; color:#b45309" i]{color:hsl(26,90%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#c2410c" i],html.jj-glass body.signed-in [style*=";color:#c2410c" i],html.jj-glass body.signed-in [style*="; color:#c2410c" i]{color:hsl(17,88%,78%) !important}
+html.jj-glass body.signed-in [style^="color:#dc2626" i],html.jj-glass body.signed-in [style*=";color:#dc2626" i],html.jj-glass body.signed-in [style*="; color:#dc2626" i]{color:hsl(0,72%,78%) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#d9dfdb;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#d9dfdb" i]{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#dbeafe;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#dbeafe" i]{background:hsla(214,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#dcfce7;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#dcfce7" i]{background:hsla(141,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#e0f2f7;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#e0f2f7" i]{background:hsla(193,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#e9ecef;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#e9ecef" i]{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#eaf2ff;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#eaf2ff" i]{background:hsla(217,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#eaf3ff;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#eaf3ff" i]{background:hsla(214,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#ecebfc;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#ecebfc" i]{background:hsla(244,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#ecfdf3;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#ecfdf3" i]{background:hsla(145,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#eef1f0;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#eef1f0" i]{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#eef5e0;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#eef5e0" i]{background:hsla(80,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#f0fdf4;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#f0fdf4" i]{background:hsla(138,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#f1f3f5;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#f1f3f5" i]{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#f1f5f9;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#f1f5f9" i]{background:hsla(210,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#f2f2f2;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#f2f2f2" i]{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#f3f0fb;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#f3f0fb" i]{background:hsla(256,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#f5f5f5;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#f5f5f5" i]{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#f8f9fa;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#f8f9fa" i]{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#f9fbfd;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#f9fbfd" i]{background:hsla(210,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#fdeded;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#fdeded" i]{background:hsla(0,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#fef3c7;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#fef3c7" i]{background:hsla(48,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#fef9e7;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#fef9e7" i]{background:hsla(47,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#fff;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#fff" i]{background:rgba(255,255,255,.07) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#fff2e6;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#fff2e6" i]{background:hsla(29,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#fff7ed;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#fff7ed" i]{background:hsla(33,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#fffbeb;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#fffbeb" i]{background:hsla(48,70%,55%,.16) !important}
+html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#fffdf5;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#fffdf5" i]{background:hsla(48,70%,55%,.16) !important}
