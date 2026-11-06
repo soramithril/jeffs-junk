@@ -84,10 +84,15 @@ function _homeDay(dateStr){ return new Date(dateStr + 'T12:00:00').toLocaleDateS
 // loaded = the dashboard's data load; the lists wait for it.
 async function homeSignedIn(loaded){
   var r = await db.from('user_profiles').select('home_layout').eq('id', currentUser.id).single();
-  if(r.error) throw new Error('Homepage: could not read your layout setting: ' + r.error.message);
+  if(r.error){
+    JJGlass.set(false);   // never leave the sign-in picture up waiting for an E that won't come
+    throw new Error('Homepage: could not read your layout setting: ' + r.error.message);
+  }
   _homePref = r.data.home_layout;
   _homeSwitchMount();
-  if(HOME_LAYOUTS[_homePref]) homeApply(_homeOpen(_homePref));
+  var open = HOME_DESKTOP.matches && HOME_LAYOUTS[_homePref] ? _homeOpen(_homePref) : 'old';
+  if(_homeIsE(open)) homeApply(open);
+  else JJGlass.set(false);   // not E here: this computer gets the normal loading screen next time
   await loaded;
   _homeReady = true;
   homeRefresh();
