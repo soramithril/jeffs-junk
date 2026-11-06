@@ -24,7 +24,7 @@ html.jj-glass:has(> body.signed-in){
   --n5:rgba(255,255,255,.15); --n6:rgba(255,255,255,.16); --n7:rgba(255,255,255,.24); --n8:rgba(255,255,255,.34);
   --n9:#8f9893; --n10:#a1aaa5; --n11:#c3cbc6; --n12:#f4f7f5;
   --bg:transparent;
-  --surface:rgba(18,25,21,.46);
+  --surface:rgba(255,255,255,.09);   /* the mockup's frosted white, same as E's home cards */
   --surface2:rgba(255,255,255,.08);
   --surface-solid:#1b2420;
   --surface-hover:rgba(255,255,255,.11);
@@ -57,15 +57,28 @@ html.jj-glass body.signed-in .main{background:none}
 html.jj-glass.jj-xmas body.signed-in:has(#view-dashboard.active)::before,
 html.jj-glass.jj-xmas body.signed-in:has(#view-dashboard.active)::after{content:none}
 
-/* The blur: the big boxes only. Blur inside blur costs double, so rows, chips and
-   inputs inside these boxes stay plain see-through. */
+/* The frost: every page's big boxes get E's home-card recipe (white tint, blur, bright
+   top edge). Found by walking every page signed in with real data (2026-11-05): the
+   boxes whose own background is the surface colour and sit on nothing else. Some carry
+   their colour inline (client cards, staff, prices), so those are matched by it. Blur
+   inside blur costs double, so a box inside one of these stays plain see-through. */
 html.jj-glass body.signed-in :is(.chart-card,.glass-card,.stat-card,.table-wrap,.pv-table-wrap,.client-card,
-  .veh-card,.week-cal-wrap,.timeline-wrap,.metric-box,.lj-stat,.h-kpi,.notif-panel){
-  background:var(--surface);
+  .veh-card,.week-cal-wrap,.timeline-wrap,.metric-box,.lj-stat,.h-kpi,.ana-hero,.ana-toolbar,.drdc-quote,
+  .etpl-card,.etpl-side,.ffv-feat,.ffv-row,.fleet-bar,.fleet-summary-bars,.op-picker,.pj-card,.pv-rail,.yoy-card),
+html.jj-glass body.signed-in .main [style*="background:var(--surface)"]:not(:is(.chart-card,.glass-card,.stat-card,
+  .table-wrap,.pv-table-wrap,.client-card,.veh-card,.week-cal-wrap,.timeline-wrap,.ana-hero,.etpl-card,.ffv-feat,
+  .pj-card,.yoy-card,[style*="background:var(--surface)"]) *){
+  background:rgba(255,255,255,.09);
   backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);
-  border:1px solid rgba(255,255,255,.14);border-top-color:rgba(255,255,255,.24);
-  box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.12)}
-html.jj-glass body.signed-in :is(.chart-card,.stat-card):hover{background:rgba(24,33,28,.56);border-color:rgba(255,255,255,.2)}
+  border:1px solid rgba(255,255,255,.16);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 10px 30px rgba(0,0,0,.25)}
+html.jj-glass body.signed-in :is(.chart-card,.stat-card,.client-card,.pj-card,.etpl-card,.yoy-card):hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)}
+
+/* Drop-down menus and pop-overs float over other boxes: solid dark glass, or they'd
+   read through to whatever is under them. */
+html.jj-glass body.signed-in :is(.lb-assign-menu,.jdd-menu,.extend-popup,.notif-panel,.tour-tip,#photo-upload-toast){
+  background:rgba(20,27,23,.94);border:1px solid rgba(255,255,255,.16);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 
 /* Pop-ups sit over busy pages, so they are darker glass than the cards. */
 html.jj-glass body.signed-in .modal{
@@ -227,11 +240,11 @@ html.jj-glass body.signed-in .jg-r:hover .jg-tip{opacity:1;transform:none}
 /* The landscaping scheduler has its own two sets of colour settings
    (app-jwg-scheduler.css, then app-jwg-theme.css on top): dark glass versions of both. */
 html.jj-glass body.signed-in #view-jwgscheduler{
-  --bg-base:transparent; --bg-deep:rgba(255,255,255,.05); --bg-elevated:rgba(18,25,21,.46); --bg-raised:rgba(255,255,255,.08);
+  --bg-base:transparent; --bg-deep:rgba(255,255,255,.05); --bg-elevated:rgba(255,255,255,.09); --bg-raised:rgba(255,255,255,.08);
   --surface:rgba(255,255,255,.06); --surface-h:rgba(255,255,255,.1); --surface-sm:rgba(255,255,255,.03);
   --fg:#f4f7f5; --fg-muted:#c3cbc6; --fg-subtle:rgba(255,255,255,.45);
   --accent-text:#86efac; --border:rgba(255,255,255,.14); --border-h:rgba(255,255,255,.22);
-  --jjg-l:rgba(34,197,94,.16); --jjbg:transparent; --jjcard:rgba(18,25,21,.46); --jjc2:rgba(255,255,255,.08);
+  --jjg-l:rgba(34,197,94,.16); --jjbg:transparent; --jjcard:rgba(255,255,255,.09); --jjc2:rgba(255,255,255,.08);
   --jjbd:rgba(255,255,255,.14); --jjbd2:rgba(255,255,255,.22);
   --jjtx:#f4f7f5; --jjtx2:#c3cbc6; --jjmut:#8f9893;
   background:transparent}
