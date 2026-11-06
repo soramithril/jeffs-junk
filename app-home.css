@@ -58,7 +58,7 @@ body.home-on #qf-nudge{display:none!important}
 /* The app's own .btn-primary / .btn-ghost, a little bigger. */
 .home-btn{font-size:15px;padding:12px 18px;white-space:nowrap}
 .home-search:focus-visible,.home-btn:focus-visible,.home-todo:focus-visible,.home-fold:focus-visible,.home-row:focus-visible,
-.home-jrow:focus-visible,.home-daynav button:focus-visible,.home-chip:focus-visible,.home-more:focus-visible,.home-stop:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.home-jrow:focus-visible,.home-daynav button:focus-visible,.home-chip:focus-visible,.home-more:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .home-note{font-size:13px;color:var(--h-muted)}
 
 /* Bins in the yard: the dashboard's own four picture cards, in the mockup's row. */
@@ -72,13 +72,11 @@ body.home-on #qf-nudge{display:none!important}
 #home-slot-bins .jj-bin{border-color:var(--h-line);border-radius:14px}
 #home-slot-bins .jj-bin img{max-width:240px!important}
 
-/* Main column and side column; B's side holds Today's Jobs, so it is wider. */
+/* Main column and side column. */
 .home-cols{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;align-items:start}
-.home-lay-b .home-cols{grid-template-columns:minmax(0,1fr) 460px}
-.home-lay-d .home-cols{grid-template-columns:minmax(0,1fr) 380px}
 /* Laptop width: the side column goes under, and on top. */
 @media(max-width:1280px){
-  .home-cols,.home-lay-b .home-cols,.home-lay-d .home-cols{grid-template-columns:minmax(0,1fr)}
+  .home-cols{grid-template-columns:minmax(0,1fr)}
   #home-side{order:-1}
 }
 
@@ -92,27 +90,6 @@ body.home-on #qf-nudge{display:none!important}
 .home-chip:hover{background:color-mix(in srgb,var(--bad) 20%,var(--surface))}
 .home-chip.home-done{border-color:var(--h-line);background:var(--ok-soft);color:var(--ok-ink);cursor:default}
 
-/* The map: a big card on B, a small box in the trucks panel on C. */
-.home-maph{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--h-line)}
-.home-maph b{font-size:16px}
-.home-maph .home-note{margin-left:auto}
-#home-map-big #home-mapbox{height:620px}
-#home-map-small:empty{display:none}
-#home-map-small{border-radius:12px;overflow:hidden;border:1px solid var(--h-line)}
-#home-map-small #home-mapbox{height:250px}
-.home-legend{display:flex;gap:18px;flex-wrap:wrap;padding:10px 18px;border-top:1px solid var(--h-line);font-size:13.5px;color:var(--h-muted);font-weight:600}
-.home-legend span{display:inline-flex;align-items:center;gap:7px}
-.home-legend i{font-style:normal;transform:scale(.7)}
-/* The pins live in Google's own layers, outside #home, so these are global. */
-.home-mk-town{min-width:28px;height:28px;padding:0 7px;border-radius:99px;background:#15803d;color:#fff;font:800 14px/28px Inter,system-ui,sans-serif;
-  text-align:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);display:inline-block}
-.home-mk-town.home-mk-bad{background:#dc2626}
-.home-mk-trk{padding:3px 9px;border-radius:8px;background:#1a211e;color:#fff;font:800 13px/1.4 Inter,system-ui,sans-serif;white-space:nowrap;
-  box-shadow:0 1px 4px rgba(0,0,0,.35);display:inline-block}
-.home-mk-trk.home-mk-go{background:#0f5f2e}
-.home-legend i.home-mk-trk{width:22px;height:14px;padding:0}
-.home-mk-yard{width:12px;height:12px;border-radius:3px;background:#123f24;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
-
 /* Today's Jobs (drawn by app-home.js). */
 /* The original Today's Jobs header: dark-to-light green, the .card-head title, the see-through date bar. */
 .home-jhead{background:linear-gradient(135deg,var(--green-s3),var(--green-s2));color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -123,10 +100,6 @@ body.home-on #qf-nudge{display:none!important}
 .home-daynav button:hover,.home-daynav button.on{background:rgba(255,255,255,.22)}
 .home-sumline{padding:12px 18px;border-bottom:1px solid var(--h-line);background:var(--h-sunk);font-size:15px;font-weight:600}
 .home-sumline b{color:var(--h-bad-ink)}
-.home-legs{display:grid;grid-template-columns:1fr 1fr}
-.home-leg{min-width:0}
-.home-leg + .home-leg{border-left:1px solid var(--h-line)}
-.home-leg-top{border-top:1px solid var(--h-line);padding-top:14px}
 .home-full{color:var(--h-bad-ink)}
 .home-hnote{text-transform:none;letter-spacing:0;font-weight:600}
 .home-jempty{padding:11px 18px;border-top:1px solid var(--h-line);font-size:14px;color:var(--h-muted)}
@@ -143,25 +116,6 @@ body.home-on #qf-nudge{display:none!important}
 .home-ok{color:var(--h-accent-ink)}
 .home-more{display:block;width:100%;font:inherit;background:var(--surface);border:none;border-top:1px solid var(--h-line);padding:11px;font-size:14px;font-weight:700;color:var(--h-accent-ink);cursor:pointer}
 .home-more:hover{background:var(--h-sunk)}
-
-/* Layout D: one lane per driver. */
-.home-lane{display:grid;grid-template-columns:170px minmax(0,1fr);border-top:1px solid var(--h-line)}
-.home-lane:first-child{border-top:none}
-.home-lane-bad{background:var(--h-bad-soft)}
-.home-lane-who{padding:14px 16px;border-right:1px solid var(--h-line);display:flex;flex-direction:column;gap:2px}
-.home-lane-who b{font-size:16.5px}
-.home-lane-who small{font-size:13px;color:var(--h-muted)}
-.home-lane-bad .home-lane-who b{color:var(--h-bad-ink)}
-.home-lane-stops{display:flex;flex-wrap:wrap;gap:10px;padding:12px 14px;align-content:flex-start}
-.home-stop{font:inherit;color:inherit;text-align:left;width:200px;border:1px solid var(--h-line);border-radius:var(--radius-sm);padding:9px 12px;background:var(--surface);
-  display:flex;flex-direction:column;gap:1px;cursor:pointer}
-.home-stop:hover{border-color:var(--accent)}
-.home-stop.home-flag{border:2px solid var(--h-bad);background:var(--bad-soft)}
-.home-stop-done{opacity:.6}
-.home-stop-k{font-size:13px;font-weight:700;color:var(--h-muted);font-variant-numeric:tabular-nums}
-.home-stop-nm{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.home-stop-sub{font-size:13px;color:var(--h-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.home-stop-who .home-drv{font-size:13px}
 
 /* Overdue bins: its own always-open list. */
 .home-card{overflow:hidden}
@@ -204,15 +158,6 @@ body.home-on #qf-nudge{display:none!important}
 .home-todo.home-done .home-todo-n,.home-todo.home-done .home-todo-go{color:var(--h-accent-ink)}
 .home-allclear{padding:14px 16px;border-radius:var(--radius-sm);background:var(--ok-soft);color:var(--ok-ink);font-weight:700}
 .home-err{padding:12px 14px;border-radius:11px;background:var(--h-bad-soft);color:var(--h-bad-ink);font-weight:700;font-size:14px}
-
-.home-trucks{display:flex;flex-direction:column}
-.home-trk{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--h-line);font-size:14.5px}
-.home-trk:first-child{border-top:none}
-.home-trk-w{font-weight:800;min-width:110px}
-.home-trk-wh{flex:1;color:var(--h-muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.home-trk-st{font-weight:700;font-size:13.5px;white-space:nowrap}
-.home-trk.home-go .home-trk-st{color:var(--h-accent-ink)}
-.home-trk.home-dim{opacity:.6}
 
 /* Confirmation emails: the list down the left of the email screen, only when started
    from the homepage's "Email confirmations" button (body.home-em-on). */
@@ -263,8 +208,6 @@ body.home-em-on #email-modal .modal{padding-left:400px}
 /* Today's Jobs rows in the original's colours (Jake, 2026-11-04): a stripe on the left in the
    kind of stop's colour, the time in its ink, a kind tag, the town chip, the driver's badge. */
 .home-jrow{box-shadow:inset 4px 0 0 var(--tjr-c,transparent)}
-.home-stop{border-left:4px solid var(--tjr-c,var(--h-line))}
-.home-stop.home-flag{border-left-width:4px}
 .home-kind{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;padding:2px 7px;border-radius:5px;margin-right:6px;
   background:color-mix(in srgb,var(--kc) 13%,transparent);vertical-align:1px}
 .home-jsub .djj-city{margin-right:2px;vertical-align:1px}
@@ -272,7 +215,3 @@ body.home-em-on #email-modal .modal{padding-left:400px}
 .home-avs .pa + .pa{margin-left:-7px;box-shadow:0 0 0 2px var(--surface)!important}
 .home-avs:hover{filter:brightness(1.06)}
 .home-assign{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
-.home-leg-kind{display:flex;align-items:center;gap:8px;font-family:'Bebas Neue',sans-serif;font-size:19px;font-weight:400;letter-spacing:1.2px;
-  border-bottom:2px solid var(--tjc,var(--h-line));padding:10px 18px 8px}
-.home-lane-who{flex-direction:row!important;flex-wrap:wrap;align-items:center;gap:6px 8px!important}
-.home-lane-who small{flex-basis:100%}

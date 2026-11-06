@@ -1,27 +1,20 @@
-// ── THE NEW HOMEPAGE: four layouts to try (opt-in) ────────────────────────────
+// ── THE NEW HOMEPAGE: option E (opt-in) ──────────────────────────────────────
 // Built for office staff who never go looking for pages: everything that needs doing
 // comes to them as a red button that opens the exact screen.
 //
-// v711 shipped one new layout and nobody kept it ("it wasn't like our mockup"). Since
-// 2026-11-03 there are four, drawn from the layout options canvas
-// (claude.ai/artifact/SwL3Pvdv6S2HQiyfW2zvH8), and each person picks one with the
-// picker in the dashboard's top-right corner, or "Old" for the dashboard as it was:
-//   A  Today's Jobs in plain rows, your list and the trucks beside it (the Oct 30 mockup)
-//   B  a big map, Today's Jobs down the right, your list as a row of chips
-//   C  A, with a small trucks map in the side column
-//   D  Today's stops in one lane per driver
+// v711 shipped one new layout and nobody kept it. On 2026-11-03 four more (A to D) went
+// behind a picker in the dashboard's top-right corner; on 2026-11-05 Jake kept E and
+// dropped A to D (nobody had kept one). The picker is now Old or E:
 //   E  the Glassy dashboard mockup's home screen (claude.ai/artifact/9YVzWzLUhkCWt1XkFSeAQU),
 //      and every page in its glass look and menus over this season's login picture
 //      (Jake, 2026-11-05). Drawn by app-glass-home.js; the look and menus are
 //      app-glass.css / app-glass.js. To drop it: its HOME_LAYOUTS, HOME_PICKS and
 //      HOME_PIECE lines, the glassHomePaint call in homeRefresh, those three files.
 // Jake will tell people about it himself, so nothing pops up to ask. Every pick is
-// logged to page_views ('home-layout:<id>') so it's plain later which ones get used.
-// To drop a layout: delete its line in HOME_LAYOUTS and in HOME_PICKS (and, for B or
-// D, its renderer below: _homeOneListHtml / _homeLanesHtml).
+// logged to page_views ('home-layout:<id>') so it's plain later who uses it.
 //
 // The choice is per person, on their user_profiles row (home_layout: null = never
-// chosen, 'old', 'a'..'e'; v711's 'new' reads as 'a'), written through the
+// chosen, 'old' or 'e'; older saved picks ('new', 'a'..'d') read as Old), written through the
 // set_home_layout() database function because people can't edit their own profile row
 // directly (it carries their role).
 //
@@ -39,46 +32,30 @@
 // dashboard whatever the setting says.
 
 var HOME_DESKTOP = window.matchMedia('(min-width: 901px)');
-var HOME_TRUCK_POLL_MS = 3 * 60 * 1000;   // Geotab allows 10 calls a minute across everything
-var HOME_TRUCK_STALE_MS = 12 * 60 * 60 * 1000;   // the office TV's line for "not out today"
-var HOME_YARD = { lat:44.4040, lng:-79.6911 }, HOME_YARD_KM = 0.6;   // same as office-tv.html
 var HOME_DAY_FULL_MIN = 8 * 60;   // a junk day is full at 8 hours booked IN TOTAL, however many crews (Jake, 2026-11-03)
 var HOME_ROWS_SHORT = 5, HOME_LIST_SHORT = 12;   // rows shown before "Show N more"
-// The office TV's browser key (office-tv.html says why it is public): locked to
-// soramithril.github.io, Maps JavaScript API only, capped daily. Only a map LOAD is
-// billed, once per page load, and only for people on B or C.
-var HOME_GMAPS_KEY = 'AIzaSyDP9mUAQ0DCWBt8GRQN6649senq4hIDIG8';
+
 
 // Each layout: which pieces go where, how Today's Jobs is drawn, and where the map sits.
 var HOME_LAYOUTS = {
-  a: { top:['strip', 'bins'],  main:['jobs', 'overdue', 'folds'], side:['yours', 'week', 'trucks'], bottom:[], jobs:'legs', map:null },
-  b: { top:['strip', 'chips'], main:['map'], side:['jobs'], bottom:['week', 'bins', 'overdue', 'folds'], jobs:'list', map:'home-map-big' },
-  c: { top:['strip', 'bins'],  main:['jobs', 'overdue', 'folds'], side:['yours', 'week', 'trucks'], bottom:[], jobs:'legs', map:'home-map-small' },
-  d: { top:['strip', 'bins'],  main:['jobs', 'overdue', 'folds'], side:['yours', 'week', 'trucks'], bottom:[], jobs:'lanes', map:null },
-  e: { top:['glass'], main:[], side:[], bottom:[], jobs:'list', map:null }
+  e: { top:['glass'], main:[], side:[], bottom:[] }
 };
 var HOME_PICKS = [
   { id:'old', label:'Old', tip:'The dashboard as it always was' },
-  { id:'a', label:'A', tip:'Today\'s Jobs in plain rows, your list beside it' },
-  { id:'b', label:'B', tip:'A big map, Today\'s Jobs down the right' },
-  { id:'c', label:'C', tip:'Like A, with a small trucks map' },
-  { id:'d', label:'D', tip:'Today\'s stops in one lane per driver' },
   { id:'e', label:'E', tip:'The glass dashboard: the mockup, with the menus across the top' }
 ];
-var HOME_PIECE = { strip:'home-p-strip', chips:'home-p-chips', bins:'home-p-bins', map:'home-p-map', jobs:'home-jobs',
-  overdue:'home-overdue', folds:'home-p-folds', yours:'home-p-yours', trucks:'home-p-trucks', week:'home-p-week', glass:'home-p-glass' };
+var HOME_PIECE = { strip:'home-p-strip', chips:'home-p-chips', bins:'home-p-bins', jobs:'home-jobs',
+  overdue:'home-overdue', folds:'home-p-folds', yours:'home-p-yours', week:'home-p-week', glass:'home-p-glass' };
 
-var _homePref = null;     // this person's saved choice: null, 'old' or 'a'..'e'
+var _homePref = null;     // this person's saved choice: null, 'old' or 'e'
 var _homeLay = 'old';     // the layout on screen right now
 var _homeReady = false;   // the dashboard's data (jobs, crew) has loaded since sign-in
 var _homeMoved = [];      // [{node, mark}] cards moved into the new layout, and where they came from
-var _homeBusy = false, _homeAgain = false, _homeTimer = null, _homeTruckTimer = null;
+var _homeBusy = false, _homeAgain = false, _homeTimer = null;
 var _homeJobsDay = null;  // the day Today's Jobs is showing (null = today)
 var _homeJobsData = null; // {day, d}: the last day list loaded, for redraws that need no new query
-var _homeRows = [];       // the rows Today's Jobs is showing; the map pins the same ones
 var _homeShowAll = {};    // lists opened past their first few rows
 var _homeSeen = {}, _homeSeenDay = '';   // to-dos seen today, so a finished one turns green
-var _homeDevices = null;  // the last truck positions from Geotab
 var _homeCalls = [];      // the pickup-call popup's list, one at a time
 var _homeCallAt = 0;
 var _homeEm = null;       // the confirmation emails being worked through: [job id, ...]
@@ -92,7 +69,7 @@ function _homeDay(dateStr){ return new Date(dateStr + 'T12:00:00').toLocaleDateS
 async function homeSignedIn(loaded){
   var r = await db.from('user_profiles').select('home_layout').eq('id', currentUser.id).single();
   if(r.error) throw new Error('Homepage: could not read your layout setting: ' + r.error.message);
-  _homePref = r.data.home_layout === 'new' ? 'a' : r.data.home_layout;
+  _homePref = r.data.home_layout;
   _homeSwitchMount();
   if(HOME_LAYOUTS[_homePref]) homeApply(_homePref);
   await loaded;
@@ -152,7 +129,6 @@ function homeApply(lay){
     _homeMoved = [];
     view.classList.remove('home-on');
     document.body.classList.remove('home-on');   // brings back the corner quote reminder (see app-home.css)
-    clearInterval(_homeTruckTimer);
   } else {
     _homeBuild();
     if(was === 'old'){
@@ -178,11 +154,6 @@ function homeApply(lay){
   if(lay === 'old') return;
   if(_homeJobsData) _homeJobsPaint(_homeJobsData.day, _homeJobsData.d);   // the new layout's style at once; the refresh follows
   homeRefresh();
-  if(was === 'old'){
-    _homeTrucks();
-    clearInterval(_homeTruckTimer);
-    _homeTruckTimer = setInterval(_homeTrucks, HOME_TRUCK_POLL_MS);
-  }
 }
 // The width can cross the desktop line (a window dragged narrow): follow the setting.
 HOME_DESKTOP.addEventListener('change', function(){
@@ -212,9 +183,6 @@ function _homeBuild(){
       + '<div id="home-p-bins" class="home-binrow"><div class="home-binrow-h"><span>Bins in the yard</span>'
         + '<span class="home-note">Same pictures as before, so you can show customers the sizes</span></div>'
         + '<div id="home-slot-bins"></div></div>'
-      + '<div id="home-p-map" class="home-card"><div class="home-maph"><b>Today on the map</b><span class="home-note">Stops by town · trucks update every 3 minutes</span></div>'
-        + '<div id="home-map-big"></div>'
-        + '<div class="home-legend"><span><i class="home-mk-town"></i>Stops in that town</span><span><i class="home-mk-town home-mk-bad"></i>Something still needed</span><span><i class="home-mk-trk"></i>Truck</span></div></div>'
       + '<div id="home-jobs" class="home-card"></div>'
       + '<div id="home-overdue" class="home-card" hidden></div>'
       + '<div id="home-p-folds" class="home-stack">'
@@ -226,11 +194,8 @@ function _homeBuild(){
         + '<div id="home-slot-booked" class="home-folded" hidden></div>'
       + '</div>'
       + '<div id="home-p-yours" class="home-panel home-yours"><div class="home-ph" id="home-list-title"></div><div id="home-todos"></div></div>'
-      + '<div id="home-p-trucks" class="home-panel"><div class="home-ph">Trucks right now <span class="home-ph-note" id="home-trucks-at"></span></div>'
-        + '<div id="home-map-small"></div><div id="home-trucks" class="home-trucks"></div></div>'
       + '<div id="home-p-week" class="home-panel"><div class="home-ph">Junk hours this week <span class="home-ph-note">8 hours is a full day</span></div>'
         + '<div id="home-week" class="home-week"></div></div>'
-      + '<div id="home-mapbox"></div>'
       + '<div id="home-p-glass" class="jg-home"></div>'
     + '</div>';
   var view = document.getElementById('view-dashboard');
@@ -254,9 +219,6 @@ function _homeArrange(lay){
     L[where].forEach(function(k){ box.appendChild(document.getElementById(HOME_PIECE[k])); });
   });
   document.getElementById('home').className = 'home-lay-' + lay;
-  (L.map ? document.getElementById(L.map) : spare).appendChild(document.getElementById('home-mapbox'));
-  _homeMapFit = '';
-  if(L.map) _homeMapEnsure();
 }
 
 function homeFold(which){
@@ -576,12 +538,10 @@ function _homeJobsPaint(day, d){
   var picks = d.picks.map(function(j){ return _homeJobRow(j, 'pick', kevinId); });
   var other = d.other.map(function(j){ return _homeJobRow(j, 'other', kevinId); });
   var all = drops.concat(picks, other), need = all.filter(function(r){ return r.flag; }).length, ready = all.length - need;
-  _homeRows = all;
   var off = Math.round((new Date(day + 'T12:00:00') - new Date(todayStr() + 'T12:00:00')) / 86400000);
   var title = off === 0 ? 'Today\'s Jobs' : off === 1 ? 'Tomorrow\'s Jobs' : off === -1 ? 'Yesterday\'s Jobs'
     : new Date(day + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-  var style = HOME_LAYOUTS[_homeLay].jobs;
-  var body = style === 'legs' ? _homeLegsHtml(drops, picks, other) : style === 'list' ? _homeOneListHtml(all, other) : _homeLanesHtml(drops, picks, other);
+  var body = _homeOneListHtml(all, other);
   document.getElementById('home-jobs').innerHTML =
     '<div class="home-jhead"><span class="home-jt">' + title + '</span><span class="home-jcnt">' + all.length + '</span>'
       + '<span class="home-daynav"><button type="button" onclick="homeJobsDay(-1)">‹ Back</button>'
@@ -591,55 +551,12 @@ function _homeJobsPaint(day, d){
         ? ready + ' ' + _homeS(ready, 'is', 'are') + ' ready. <b>' + need + ' still ' + _homeS(need, 'needs', 'need') + ' something</b>, shown in red below.'
         : 'All ' + all.length + ' are ready.') + '</div>'
     + body;
-  _homeMapPaint();
 }
 
-// A section heading in its kind's colour, with the original's icon.
-function _homeKindHead(k, text){
-  return '<div class="home-leg-h home-leg-kind" style="color:' + svcInk(k.color) + ';--tjc:' + k.color + '">' + iconTile(k.icon, { size:22 }) + '<span>' + text + '</span></div>';
-}
-function _homeLegsHtml(drops, picks, other){
-  var os = _homeSortRows(other), half = Math.ceil(os.length / 2);
-  return '<div class="home-legs"><div class="home-leg">' + _homeKindHead(HOME_KIND.drop, 'Bin drop-offs · ' + drops.length) + _homeListHtml(drops, 'drop', HOME_ROWS_SHORT, 'No drop-offs.') + '</div>'
-      + '<div class="home-leg">' + _homeKindHead(HOME_KIND.pick, 'Bin pickups · ' + picks.length) + _homeListHtml(picks, 'pick', HOME_ROWS_SHORT, 'No pickups.') + '</div></div>'
-    + (os.length ? '<div class="home-leg-h home-leg-top">Junk, quotes and furniture · ' + os.length + _homeHoursHtml(other) + '</div>'
-      + '<div class="home-legs"><div class="home-leg">' + _homeListHtml(os.slice(0, half), 'o1', 99, '') + '</div><div class="home-leg">' + _homeListHtml(os.slice(half), 'o2', 99, '') + '</div></div>' : '');
-}
-
-// Layout B: everything in one list, time order, each row saying what kind of stop it is.
+// Everything in one list, time order, each row saying what kind of stop it is.
 function _homeOneListHtml(all, other){
   return '<div class="home-leg-h">Every stop · ' + all.length + _homeHoursHtml(other) + '</div>'
     + _homeListHtml(all, 'all', HOME_LIST_SHORT, 'Nothing booked.', true);
-}
-
-// Layout D: a lane per driver for the bins, a red lane on top for stops nobody has yet,
-// and one lane for junk, quotes and furniture (their crews are listed on each stop).
-function _homeLanesHtml(drops, picks, other){
-  var lanes = {}, order = [];
-  function lane(key, who, drv){ if(!lanes[key]){ lanes[key] = { who:who, drv:drv, rows:[] }; order.push(key); } return lanes[key]; }
-  var bins = drops.concat(picks);
-  if(bins.some(function(r){ return !r.drv; })) lane('none', 'No driver yet');
-  bins.filter(function(r){ return r.drv; })
-    .sort(function(a, b){ var x = _homeCrewName(a.drv), y = _homeCrewName(b.drv); return x < y ? -1 : x > y ? 1 : 0; })
-    .forEach(function(r){ lane('d:' + r.drv, _homeCrewName(r.drv), r.drv); });
-  bins.forEach(function(r){ lanes[r.drv ? 'd:' + r.drv : 'none'].rows.push(r); });
-  if(other.length){ var o = lane('other', 'Junk, quotes and furniture'); o.rows = other; o.hours = _homeHoursHtml(other); }
-  if(!order.length) return '<div class="home-jempty">Nothing booked.</div>';
-  return '<div class="home-lanes">' + order.map(function(k){
-    // Only the "No driver yet" lane is pink; elsewhere the stop that needs something is.
-    var L = lanes[k], rows = _homeSortRows(L.rows);
-    return '<div class="home-lane' + (k === 'none' ? ' home-lane-bad' : '') + '">'
-      + '<div class="home-lane-who">' + (L.drv ? teamAvatar(L.who, crewAvatarColor(L.drv), 30, L.who) : '') + '<b>' + escHtml(L.who) + '</b><small>' + rows.length + ' stop' + _homeS(rows.length, '', 's') + (L.hours || '') + '</small></div>'
-      + '<div class="home-lane-stops">' + rows.map(_homeStopHtml).join('') + '</div></div>';
-  }).join('') + '</div>';
-}
-function _homeStopHtml(r){
-  return '<button type="button" class="home-stop' + (r.flag ? ' home-flag' : '') + (r.back ? ' home-stop-done' : '') + '" style="--tjr-c:' + r.kind.color + '" onclick="openDetail(\'' + r.id + '\')">'
-    + '<span class="home-stop-k" style="color:' + svcInk(r.kind.color) + '">' + escHtml([r.time, r.kind.label, r.size ? r.size + ' yd' : ''].filter(Boolean).join(' · ')) + '</span>'
-    + '<span class="home-stop-nm">' + escHtml(r.name || r.id) + '</span>'
-    + '<span class="home-stop-sub">' + r.sub.join(' · ') + '</span>'
-    + (r.flag || r.back || r.leg === 'other' ? '<span class="home-stop-who">' + r.who + '</span>' : '')
-    + '</button>';
 }
 
 // ‹ Back / Today / Next ›: step a day, or come back to today.
@@ -703,158 +620,6 @@ function _homeOverduePaint(rows){
         + '<span class="home-row-sub">' + escHtml([j.city, (out != null ? 'out ' + out + ' day' + _homeS(out, '', 's') + ', ' : '') + 'due back ' + fd(j.bin_pickup)].filter(Boolean).join(' · ')) + '</span></span>'
         + '<span class="home-size">' + (j.bin_size ? parseInt(j.bin_size, 10) : '') + '</span><span class="home-miss">Call them</span></button>';
     }).join('');
-}
-
-// ── Trucks right now: the office TV's feed, as words (and on B and C, on the map) ──
-// Read-only, like every other Geotab reader. No driver names: who drives which truck is
-// only known from the day's GPS stops (no fixed pairings), so the truck is named instead.
-// Geotab's feed carries no "stopped since", so a stopped truck just says Stopped.
-async function _homeTrucks(){
-  if(_homeLay === 'old' || document.hidden) return;
-  var el = document.getElementById('home-trucks');
-  var d;
-  try {
-    var r = await fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
-      method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ action:'device-status' })
-    });
-    d = await r.json();
-    if(!d.ok) throw new Error(d.error || 'device-status failed');
-  } catch(e){
-    el.innerHTML = '<div class="home-err">Couldn\'t reach the trucks: ' + escHtml(e.message) + '</div>';
-    throw e;
-  }
-  _homeDevices = d.devices;
-  var rows = d.devices.slice().sort(function(a, b){ return a.name < b.name ? -1 : 1; }).map(function(t){
-    var s = _homeTruckState(t);
-    return '<div class="home-trk' + s.cls + '"><span class="home-trk-w">' + escHtml(t.name) + '</span><span class="home-trk-wh">' + escHtml(s.where) + '</span><span class="home-trk-st">' + s.st + '</span></div>';
-  });
-  el.innerHTML = rows.join('') || '<div class="home-row-sub">No trucks reporting.</div>';
-  document.getElementById('home-trucks-at').textContent = new Date().toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
-  _homeMapPaint();
-}
-function _homeTruckState(t){
-  if(!t.lastUpdate || Date.now() - new Date(t.lastUpdate).getTime() > HOME_TRUCK_STALE_MS) return { where:'not out today', st:'Parked', cls:' home-dim', out:false };
-  if(_homeKm(t.lat, t.lng, HOME_YARD.lat, HOME_YARD.lng) <= HOME_YARD_KM) return { where:'in the yard', st:'In the yard', cls:' home-dim', out:true };
-  var moving = Math.round(t.speed || 0) > 0;
-  return { where:_homeTown(t.lat, t.lng), st: moving ? 'Driving' : 'Stopped', cls: moving ? ' home-go' : '', out:true, moving:moving };
-}
-function _homeKm(aLat, aLng, bLat, bLng){
-  var R = 6371, k = Math.PI / 180, dLat = (bLat - aLat) * k, dLng = (bLng - aLng) * k;
-  var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(aLat * k) * Math.cos(bLat * k) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-// Nearest town from the coverage list in app.js (its rows become {area, lat, lng} at start-up).
-function _homeTown(lat, lng){
-  var best = '', bestKm = Infinity;
-  RC_CITIES.forEach(function(c){ var km = _homeKm(lat, lng, c.lat, c.lng); if(km < bestKm){ bestKm = km; best = c.area; } });
-  if(!best) throw new Error('Homepage: no town found for ' + lat + ',' + lng);
-  return best;
-}
-// A job's town on the coverage list. "Barrie, ON" and "barrie " both find Barrie.
-var _homeTownMissed = {};
-function _homeTownOf(city){
-  var key = String(city || '').toLowerCase().replace(/,.*$/, '').trim();
-  if(!key) return null;
-  var c = RC_CITIES.find(function(x){ return x.area.toLowerCase() === key; });
-  if(!c && !_homeTownMissed[key]){ _homeTownMissed[key] = 1; console.warn('Homepage map: no town match for', city); }
-  return c || null;
-}
-
-// ── The map (layouts B and C) ──
-// Google's map, the same key and the same idea as the office TV: jobs carry a town, not
-// coordinates, so each town with stops gets one pin with how many, red if any of them
-// still needs something; trucks sit where Geotab last saw them.
-var _homeMap = null, _homeMapFit = '', _homeMk = { towns:{}, trucks:{} };
-function _homeMapEnsure(){
-  if(_homeMap) return;
-  if(window.google && google.maps){ _homeMapMake(); return; }
-  if(document.getElementById('home-gmaps')) return;   // already loading; its callback makes the map
-  window.__homeGmapsReady = _homeMapMake;
-  var s = document.createElement('script');
-  s.id = 'home-gmaps';
-  s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(HOME_GMAPS_KEY) + '&v=weekly&loading=async&callback=__homeGmapsReady';
-  s.async = true;
-  document.head.appendChild(s);
-}
-function _homeMapMake(){
-  if(_homeMap) return;
-  _homeMap = new google.maps.Map(document.getElementById('home-mapbox'), {
-    center:{ lat:HOME_YARD.lat, lng:HOME_YARD.lng }, zoom:10,
-    disableDefaultUI:true, zoomControl:true, gestureHandling:'cooperative', clickableIcons:false, isFractionalZoomEnabled:true,
-    styles:[{ featureType:'poi', stylers:[{ visibility:'off' }] }, { featureType:'transit', stylers:[{ visibility:'off' }] }]
-  });
-  // The map load is the one thing Google bills; counted on the same Usage line as the TV's.
-  db.rpc('bump_google_api', { p_api:'maps_dynamic' }).then(function(r){ if(r.error) console.warn('map load not counted', r.error.message); });
-  _homeMarker(new google.maps.LatLng(HOME_YARD.lat, HOME_YARD.lng), '<div class="home-mk-yard" title="The yard"></div>', false);
-  _homeMapPaint();
-}
-// Our pins are HTML on an overlay that turns a lat/lng into a pixel spot as the map moves
-// (office-tv.html's htmlMarker). above = sit over the point (a truck tag) rather than on it.
-function _homeMarker(latLng, html, above){
-  var o = new google.maps.OverlayView();
-  o.__ll = latLng; o.__html = html;
-  o.onAdd = function(){
-    var d = document.createElement('div');
-    d.style.position = 'absolute';
-    d.innerHTML = o.__html;
-    o.__div = d;
-    o.getPanes().floatPane.appendChild(d);
-  };
-  o.draw = function(){
-    var proj = o.getProjection();
-    if(!proj || !o.__div) return;
-    var p = proj.fromLatLngToDivPixel(o.__ll);
-    if(!p) return;
-    o.__div.style.left = (p.x - o.__div.offsetWidth / 2) + 'px';
-    o.__div.style.top = (p.y - (above ? o.__div.offsetHeight + 6 : o.__div.offsetHeight / 2)) + 'px';
-  };
-  o.onRemove = function(){ if(o.__div) o.__div.remove(); o.__div = null; };
-  o.setContent = function(h){ o.__html = h; if(o.__div){ o.__div.innerHTML = h; o.draw(); } };
-  o.setPosition = function(ll){ o.__ll = ll; o.draw(); };
-  o.setMap(_homeMap);
-  return o;
-}
-function _homeMapPaint(){
-  if(!_homeMap || _homeLay === 'old' || !HOME_LAYOUTS[_homeLay].map) return;
-  var bounds = new google.maps.LatLngBounds(), any = false;
-  bounds.extend({ lat:HOME_YARD.lat, lng:HOME_YARD.lng });
-  var by = {};
-  _homeRows.forEach(function(r){
-    var t = _homeTownOf(r.city);
-    if(!t) return;
-    var g = by[t.area] || (by[t.area] = { t:t, n:0, bad:0, names:[] });
-    g.n++;
-    if(r.flag) g.bad++;
-    g.names.push(r.name || r.id);
-  });
-  Object.keys(by).forEach(function(area){
-    var g = by[area];
-    var html = '<div class="home-mk-town' + (g.bad ? ' home-mk-bad' : '') + '" title="' + escHtml(area + ': ' + g.names.join(', ')) + '">' + g.n + '</div>';
-    if(_homeMk.towns[area]) _homeMk.towns[area].setContent(html);
-    else _homeMk.towns[area] = _homeMarker(new google.maps.LatLng(g.t.lat, g.t.lng), html, false);
-    bounds.extend({ lat:g.t.lat, lng:g.t.lng });
-    any = true;
-  });
-  Object.keys(_homeMk.towns).forEach(function(area){ if(!by[area]){ _homeMk.towns[area].setMap(null); delete _homeMk.towns[area]; } });
-  var seen = {};
-  (_homeDevices || []).forEach(function(t){
-    var s = _homeTruckState(t);
-    if(!s.out) return;
-    seen[t.name] = 1;
-    var ll = new google.maps.LatLng(t.lat, t.lng);
-    var html = '<div class="home-mk-trk' + (s.moving ? ' home-mk-go' : '') + '" title="' + escHtml(t.name + ' · ' + s.st + ', ' + s.where) + '">' + escHtml(t.name) + '</div>';
-    if(_homeMk.trucks[t.name]){ _homeMk.trucks[t.name].setPosition(ll); _homeMk.trucks[t.name].setContent(html); }
-    else _homeMk.trucks[t.name] = _homeMarker(ll, html, true);
-    bounds.extend(ll);
-    any = true;
-  });
-  Object.keys(_homeMk.trucks).forEach(function(n){ if(!seen[n]){ _homeMk.trucks[n].setMap(null); delete _homeMk.trucks[n]; } });
-  // Framed once per layout and day, so a pan or zoom someone made isn't undone every 3 minutes.
-  var key = _homeLay + '|' + (_homeJobsData ? _homeJobsData.day : '');
-  if(_homeMapFit === key) return;
-  _homeMapFit = key;
-  if(any) _homeMap.fitBounds(bounds, 40);
-  else { _homeMap.setCenter({ lat:HOME_YARD.lat, lng:HOME_YARD.lng }); _homeMap.setZoom(11); }
 }
 
 // ── Confirmation emails: the list beside the email screen ──
