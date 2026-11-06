@@ -101,7 +101,9 @@
     tr: 'radial-gradient(ellipse 55% 60% at 100% 0%, rgba(0,0,0,.4), transparent 70%)'
   };
   var AUTUMN = ['217,119,43', '184,68,31', '233,162,59', '140,58,26'];
-  var SNOW = { fx: 'fall', kind: 'snow', count: 120, box: [0, -500, IW, IH], travel: [40, 520], period: 12, size: 2.2, colours: ['255,255,255'] };
+  // The snowy sheets' snow is Pixel Snow (pixel-snow.js, from React Bits; Jake, 2026-11-06):
+  // pixel snowflakes over the whole screen that pile up along the bottom. density 0 to 1.
+  var SNOW = { fx: 'pixelsnow', density: .5 };
 
   // ── THE SHEETS ──
   // season: 'always' | 'springfall' | a key from THE CALENDAR.
@@ -208,7 +210,7 @@
         { fx: 'glow', at: [130, 511], r: 22, colour: '255,240,210', period: 5 },
         { fx: 'glow', at: [380, 524], r: 18, colour: '255,240,210', period: 5 },
         { fx: 'glints', box: [700, 380, 1150, 560], pick: 'warm', count: 14, size: 2.2, colour: '255,220,150' },
-        Object.assign({}, SNOW, { count: 130, size: 2.4 })
+        Object.assign({}, SNOW, { density: .55 })
       ]
     },
     {
@@ -217,7 +219,7 @@
       effects: [
         { fx: 'glints', box: [560, 0, IW, 290], pick: 'pink', count: 24, size: 3, colour: '255,150,170' },
         { fx: 'glints', box: [0, 0, 700, 360], pick: 'warm', count: 24, size: 2.2, colour: '255,220,150' },
-        Object.assign({}, SNOW, { count: 70, size: 2 }),
+        Object.assign({}, SNOW, { density: .3 }),
         { fx: 'fall', kind: 'petal', count: 18, box: [0, -200, IW, 700], travel: [220, 520], period: 13, size: 4.5, colours: ['200,30,50', '230,70,90', '170,20,40'] }
       ]
     },
@@ -439,7 +441,7 @@
         { fx: 'glow', at: [1007, 383], r: 14, colour: '255,210,130', flicker: true },
         { fx: 'glow', at: [1462, 383], r: 14, colour: '255,210,130', flicker: true },
         { fx: 'glints', box: [640, 260, IW, 620], pick: 'warm', count: 40, size: 2.4, colour: '255,220,150' },
-        Object.assign({}, SNOW, { count: 150, size: 2.4 })
+        Object.assign({}, SNOW, { density: .6 })
       ]
     },
     {
@@ -850,7 +852,9 @@
   // for effects that place themselves on the artwork, init(px), where px(x, y) reads the
   // poster's colour at a point. Nothing here ever moves the picture itself.
   function runEffects(sh) {
-    var parts = sh.effects.map(function (o) { return FX[o.fx](o); });
+    var snow = sh.effects.filter(function (o) { return o.fx === 'pixelsnow'; })[0];
+    if (snow) pixelSnow(snow);
+    var parts = sh.effects.filter(function (o) { return o.fx !== 'pixelsnow'; }).map(function (o) { return FX[o.fx](o); });
     var layer = motionLayer(IW, IH, function (ctx, w, h, t, still) {
       var s = w / IW;
       parts.forEach(function (p) { p.draw(ctx, s, t, still); });
@@ -862,6 +866,17 @@
       layer.repaint();
     }, { once: true });
     img.src = artUrl(sh);
+  }
+
+  // Pixel Snow covers the whole screen, not the poster's rectangle: snow falls in front of
+  // the picture and behind the sign-in card. It stops drawing once the sign-in screen is
+  // hidden (pixel-snow.js watches whether its box is on screen).
+  function pixelSnow(o) {
+    var box = document.createElement('div');
+    box.className = 'jjl-snow';
+    box.setAttribute('aria-hidden', 'true');
+    shell.querySelector('.jjl-scene').appendChild(box);
+    JJPixelSnow(box, { variant: 'snowflake', density: o.density, accumulate: true, glow: .6, wind: .2, twinkle: .35 });
   }
 
   function pixels(img) {
