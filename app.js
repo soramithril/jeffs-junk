@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '718';
+var APP_VERSION = '726';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -6495,7 +6495,9 @@ function closePalette(){
 // people actually open. Same rows, same keys, just no query yet.
 function _palIdleHtml(){
   var top=['dashboard','clients','jobs','bininventory','livejobs'];
-  return '<div class="pal-group">Go to</div>'+top.map(function(p){
+  return '<div class="pal-tip"><b>Customer calling?</b> Type their name, phone number or address. '
+    + 'Bin rentals show the bin, drop-off and pickup days right in the list.</div>'
+    + '<div class="pal-group">Go to</div>'+top.map(function(p){
     var pg=null; PALETTE_PAGES.forEach(function(x){ if(x.p===p) pg=x; });
     if(!pg || !_paletteCanOpen(pg.p)) return '';
     return _palRow('_paletteOpen(\''+pg.p+'\')','page',escHtml(pg.n),escHtml(pg.h),'');
@@ -6622,10 +6624,10 @@ var PAL_ICO = {
 function _palIco(k){
   return '<span class="ico"><svg viewBox="0 0 24 24">'+(PAL_ICO[k]||PAL_ICO.page)+'</svg></span>';
 }
-function _palRow(onclick, ico, main, sub, keys){
+function _palRow(onclick, ico, main, sub, keys, below){
   return '<div class="pal-row" onclick="'+onclick+'">'
     + _palIco(ico)
-    + '<span class="pal-txt">'+main+(sub?' <span class="sub">· '+sub+'</span>':'')+'</span>'
+    + '<span class="pal-txt">'+main+(sub?' <span class="sub">· '+sub+'</span>':'')+(below||'')+'</span>'
     + (keys?'<span class="keys">'+keys+'</span>':'')
     + '</div>';
 }
@@ -6697,6 +6699,36 @@ function _gsActionsHtml(q){
     + _palRow('globalSearchBookBin()','plus','Book a bin for <b>'+escHtml(q)+'</b>','','<span class="kbd">N</span>')
     + _palRow('globalSearchAskAi()','ai','Ask the AI about <b>'+escHtml(q)+'</b>','','');
 }
+// A Bin Rental row answers the caller without opening the job (Jake, 2026-11-06):
+// where the bin is now, which bin, and the drop-off and pickup days. Kelly used to
+// step the dashboard date back day by day to find this.
+function _gsDay(d){
+  var dt=new Date(d+'T12:00:00');
+  var o={weekday:'short',month:'short',day:'numeric'};
+  if(dt.getFullYear()!==new Date().getFullYear()) o.year='numeric';
+  return dt.toLocaleDateString('en-US',o);
+}
+function _gsBinStatus(j){
+  if(j.status==='Cancelled') return {t:'Cancelled',c:'bad'};
+  if(j.bin_instatus==='pickedup') return {t:'Back in the yard',c:'done'};
+  if(j.bin_instatus==='dropped'){
+    var n=binDaysOut(j.bin_dropoff||j.date);
+    return {t:n===0?'Dropped today':'Out '+n+' '+(n===1?'day':'days'),c:'out'};
+  }
+  return {t:'Not dropped yet',c:'wait'};
+}
+function _gsBinLine(j){
+  var st=_gsBinStatus(j);
+  var drop=j.bin_dropoff||j.date;
+  var pick=j.bin_will_call?'Will call':(j.bin_pickup?_gsDay(j.bin_pickup):'not booked');
+  return '<span class="pal-bin">'
+    + '<span class="pal-bst '+st.c+'">'+st.t+'</span>'
+    + '<span>'+(j.bin_bid?'Bin <b>'+escHtml(binLabel(j.bin_bid))+'</b>':'No bin picked yet')
+      +(j.bin_size?' · '+escHtml(j.bin_size):'')+'</span>'
+    + '<span>Drop-off <b>'+(drop?_gsDay(drop):'no date')+'</b></span>'
+    + '<span>Pickup <b>'+pick+'</b></span>'
+    + '</span>';
+}
 async function globalSearchLive(q){
   var box = document.getElementById('pal-list');
   if(!box) return;
@@ -6712,7 +6744,7 @@ async function globalSearchLive(q){
     var clientsP = db.from('clients').select('cid,name,business_name,phone,address,city')
       .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone')+nameEmailSearchOr(q))
       .order('name').limit(6);
-    var jobsP = db.from('jobs').select('job_id,name,service,date,business_name,client_cid,address,city')
+    var jobsP = db.from('jobs').select('job_id,name,service,status,date,business_name,client_cid,address,city,bin_dropoff,bin_pickup,bin_bid,bin_size,bin_instatus,bin_will_call')
       .or('job_id.ilike.%'+_orSafe(q)+'%,name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone'))
       .order('date',{ascending:false}).limit(6);
     var results = await Promise.all([clientsP, jobsP]);
@@ -6724,13 +6756,14 @@ async function globalSearchLive(q){
     if(js.length){
       html += '<div class="pal-group">Jobs</div>';
       html += js.map(function(j){
-        var bits=[j.service||'', j.date?fd(j.date):'',
-                  [j.address?(j.address.split(',')[0]):'', j.city].filter(Boolean).join(' ')]
-                 .filter(Boolean).join(' · ');
-        return _palRow('_openJobFromGlobalSearch(\''+j.job_id+'\')','job',
+        var isBin=j.service==='Bin Rental';
+        var where=[j.address?(j.address.split(',')[0]):'', j.city].filter(Boolean).join(' ');
+        // A bin row's second line carries its dates, so the top line only needs the address.
+        var bits=(isBin?[where]:[j.service||'', j.date?fd(j.date):'', where]).filter(Boolean).join(' · ');
+        return _palRow('_openJobFromGlobalSearch(\''+j.job_id+'\')',isBin?'bin':'job',
           jid(j.job_id, j.service)+' <b>'+escHtml(j.name||'—')+'</b>'
             +(j.business_name?' <span style="color:var(--accent)">🏢 '+escHtml(j.business_name)+'</span>':''),
-          escHtml(bits), '');
+          escHtml(bits), '', isBin?_gsBinLine(j):'');
       }).join('');
     }
     if(cs.length){
