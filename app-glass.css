@@ -16,8 +16,10 @@
 
 /* The colour settings. Same step = same job as in style.css: 1-5 fills and states,
    6-8 borders, 9-10 icons, 11-12 text. Fills are see-through white over the dark
-   picture; text is solid so it stays crisp on the blur. */
-html.jj-glass body.signed-in{
+   picture; text is solid so it stays crisp on the blur. They go on <html>, where
+   style.css sets them: a setting built from another one (--text is var(--n12)) is
+   worked out where it is set, so changing --n12 lower down would change nothing. */
+html.jj-glass:has(> body.signed-in){
   --n1:rgba(255,255,255,.04); --n2:rgba(255,255,255,.06); --n3:rgba(255,255,255,.09); --n4:rgba(255,255,255,.12);
   --n5:rgba(255,255,255,.15); --n6:rgba(255,255,255,.16); --n7:rgba(255,255,255,.24); --n8:rgba(255,255,255,.34);
   --n9:#8f9893; --n10:#a1aaa5; --n11:#c3cbc6; --n12:#f4f7f5;
@@ -35,9 +37,9 @@ html.jj-glass body.signed-in{
   --shadow-md:0 10px 30px rgba(0,0,0,.28);
   --shadow-lg:0 18px 50px rgba(0,0,0,.4);
   color-scheme:dark;   /* date pickers, scrollbars and dropdown lists go dark too */
-  background:transparent;
+  background:#0d1310;
 }
-html.jj-glass{background:#0d1310}
+html.jj-glass body.signed-in{background:transparent}
 
 /* The picture. app-glass.js puts the poster on #jj-glass-bg; the dark wash over it is
    what keeps white text readable on a bright picture. Nothing here moves. */

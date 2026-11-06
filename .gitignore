@@ -29,3 +29,6 @@ __pycache__/
 !.claude/settings.json
 !.claude/skills/
 strikes-local.html
+colors-local.html
+pins-local.html
+jobrows-local.html
