@@ -93,6 +93,18 @@ html.jj-glass body.signed-in .main [style*="background:var(--surface)"]:not(:is(
   box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 10px 30px rgba(0,0,0,.25)}
 html.jj-glass body.signed-in :is(.chart-card,.stat-card,.client-card,.pj-card,.etpl-card,.yoy-card):hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)}
 
+/* The sheet (Jake, 2026-11-06: "I cannot see the schedules page at all"). Every page but
+   E's home sits on one darker frosted sheet, so text never lands straight on the busy
+   picture, whatever box it is in. The picture still shows round the sheet's edges. One
+   blur for the whole page: the boxes inside it don't blur again (blur on blur is what
+   lags), they are just lighter glass on the sheet. */
+html.jj-glass body.signed-in .view.active:not(#view-dashboard){
+  background:rgba(12,18,15,.66);border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:24px 28px;
+  box-shadow:0 20px 60px rgba(0,0,0,.35);
+  backdrop-filter:blur(22px) saturate(130%);-webkit-backdrop-filter:blur(22px) saturate(130%)}
+html.jj-glass body.signed-in .view.active:not(#view-dashboard) *{backdrop-filter:none;-webkit-backdrop-filter:none}
+html.jj-glass body.signed-in #view-jwgscheduler.active{margin:0!important;padding:18px 20px 22px!important}
+
 /* Drop-down menus and pop-overs float over other boxes: solid dark glass, or they'd
    read through to whatever is under them. */
 html.jj-glass body.signed-in :is(.lb-assign-menu,.jdd-menu,.extend-popup,.notif-panel,.tour-tip,#photo-upload-toast){
