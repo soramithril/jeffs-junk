@@ -178,6 +178,26 @@ html.jj-glass body.signed-in .jg-r:hover .jg-tip{opacity:1;transform:none}
 /* E's home screen (app-glass-home.js), straight from the mockup. The other layouts'
    empty columns stay out of the way. */
 .jj-glass #home.home-lay-e .home-cols,.jj-glass #home.home-lay-e #home-bottom{display:none}
+
+/* Jake's switch (app-home.js HOME_EVIEWS): Mockup / Day first / Booking desk. */
+.home-ev[hidden]{display:none!important}
+.jj-glass #home-switch .home-sw-seg{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.18)}
+.jj-glass #home-switch .home-sw-seg button[aria-pressed="true"]{background:#22c55e;color:#06210f}
+/* Day first: your list | today's jobs | bins and junk hours; the E extras underneath. */
+.jj-glass #home.home-lay-e1 .home-cols{grid-template-columns:minmax(0,2.4fr) minmax(0,1fr)}
+.jj-glass #home.home-lay-e1 #home-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:14px;align-items:start}
+/* Booking desk: bins and junk hours on top; today's jobs | your list; the E extras. */
+.jj-glass #home.home-lay-e2 .home-cols{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+.jj-glass #home.home-lay-e2 #home-bottom{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;align-items:start}
+.jj-glass #home.home-lay-e2 #home-bottom > :is(#home-overdue,#home-p-gextra,#home-p-folds){grid-column:1/-1}
+.jj-glass #home-p-gextra .jg-extra-row{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px}
+.jj-glass #home-p-gextra .jg-stats{margin-bottom:14px}
+/* The homepage's own panels in E's frosted glass. */
+html.jj-glass body.signed-in #home :is(.home-panel,.home-card,.home-binrow,.home-strip){
+  background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:20px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 10px 30px rgba(0,0,0,.25);
+  backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%)}
+html.jj-glass body.signed-in #home .home-strip{padding:14px 18px}
 .jj-glass #view-dashboard.home-on > #home.home-lay-e{padding-top:8px}
 .jj-glass .jg-home{font-family:Poppins,Inter,system-ui,sans-serif;font-size:13px;color:#fff;letter-spacing:0}
 .jj-glass .jg-home button{font-family:inherit;color:inherit;text-align:left;cursor:pointer}

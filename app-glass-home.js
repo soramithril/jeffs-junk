@@ -235,6 +235,17 @@ async function glassHomePaint(gather, dayList){
     + '<div><div class="jg-big">' + pct + '%</div><p>' + _ghHours(td.junkMin).replace('h', '') + ' of 8 hours</p><p>' + (full ? 'Today is full' : 'Room for ' + _ghHours(HOME_DAY_FULL_MIN - td.junkMin) + ' more') + '</p></div></div>'
     + '<div class="jg-mini">' + next.map(function(x, j){ return '<div>' + (j === 0 && x === _jjbPlus(today, 1) ? 'Tomorrow' : _ghLabel(x, { weekday:'long' })) + '<b>' + _ghHours(_ghDay(L, x).junkMin) + '</b></div>'; }).join('') + '</div>';
 
+  var chartCard = '<div class="jg-card" id="jg-chartcard" style="--i:4">' + _ghChartHtml(_ghBars(L, today, rows)) + '</div>';
+  var actCard = '<div class="jg-card" style="--i:6"><div class="jg-ttl"><h3>Recent activity</h3></div>' + acts + '</div>';
+  // Day first / Booking desk (Jake's switch, app-home.js): the working pieces are the
+  // homepage's own; this adds the number cards, the chart and recent activity under them.
+  if(_homeLay !== 'e'){
+    var x = document.getElementById('home-p-gextra');
+    x.classList.toggle('jg-in', !_ghShown);
+    _ghShown = true;
+    x.innerHTML = '<div class="jg-stats">' + stats + '</div><div class="jg-extra-row">' + chartCard + actCard + '</div>';
+    return;
+  }
   var el = document.getElementById('home-p-glass');
   el.classList.toggle('jg-in', !_ghShown);
   _ghShown = true;
