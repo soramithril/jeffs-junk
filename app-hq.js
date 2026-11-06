@@ -501,6 +501,13 @@ function drawBG(){
   rect(g,'#7a5530',110,146,28,25);rect(g,'#c49a5a',111,147,26,23);
   rect(g,'#8b6b4a',87,164,13,2);rect(g,'#6b4f36',88,166,2,6);rect(g,'#6b4f36',97,166,2,6);
   sign(g,'BOOKINGS',118,139);
+  /* Barb's office (Jake, 2026-11-06: "give Barb an office like Jeff"): her corner of the
+     floor walled off, with a door onto the floor lane so the walks still pass through. A
+     purple rug (her colour), a plant and a picture, like Jeff's room; her desk carries her name. */
+  rect(g,'#6d4bb3',13,101,38,19);rect(g,'#7c5cc4',14,102,36,17);for(x=16;x<48;x+=4)rect(g,'#9a80d8',x,110,2,1);
+  rect(g,'#b86b45',46,104,5,5);rect(g,'#4f8f3a',45,98,7,7);rect(g,'#6aa84f',46,97,5,3);
+  rect(g,'#6b4a32',9,101,7,6);rect(g,'#f4b6c8',10,102,5,4);rect(g,C.white,11,103,2,1);
+  rect(g,C.brick,7,97,49,2);rect(g,C.brick,54,97,2,AISLE+30-97);rect(g,C.brick,54,FLOOR+8,2,173-FLOOR-8);
   rect(g,'#8c3f2e',60,161,22,9);rect(g,'#a8503c',62,163,18,5);
   if(SE.lights){for(i=0;i<10;i++){var w2=1+Math.floor(i*.7);rect(g,'#2f6a3a',70-Math.floor(w2/2),140+i*2,w2+1,2);}
     rect(g,C.wood,69,160,2,3);rect(g,C.gold,69,138,2,2);}
