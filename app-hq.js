@@ -205,7 +205,7 @@ var SEASONS={
   winter:{snow:true,park:'snowman'},
   christmas:{snow:true,park:'snowman',lights:true}};
 function seasonFor(d){var m=d.getMonth()+1,day=d.getDate();
-  if(m===10)return'halloween';if(m===12||(m===11&&day>=15))return'christmas';if(m===11||m===9)return'fall';
+  if(m===10)return'halloween';if(m===11||m===12)return'christmas';if(m===9)return'fall';   /* snow from Nov 1, like the dashboard's Christmas season (Jake, 2026-11-06) */
   if(m<=2||(m===3&&day<15))return'winter';if(m<=5)return'spring';return'summer';}
 /* Open-Meteo WMO codes, the same feed the board's weather box reads */
 function wxKind(code){
