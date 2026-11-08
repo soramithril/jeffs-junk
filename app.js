@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '728';
+var APP_VERSION = '731';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3024,6 +3024,29 @@ function updateDashDateLabel(){
   var val=dp.value||todayStr();
   var d=new Date(val+'T12:00:00');
   lbl.textContent=d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  dashSearchHintCheck(val);
+}
+// One gentle nudge per person: stepping the dashboard back more than a few days is
+// usually hunting for a caller's booking, which the search finds in one go (Jake,
+// 2026-11-07). Shown once, then never again for that person on that computer.
+var DASH_HINT_DAYS_BACK = 4;
+function dashSearchHintCheck(dateStr){
+  if(!currentUser) return;
+  var back=Math.round((new Date(todayStr()+'T12:00:00')-new Date(dateStr+'T12:00:00'))/86400000);
+  if(back<DASH_HINT_DAYS_BACK) return;
+  var key='jjSearchHint:'+currentUser.id;
+  try{ if(localStorage.getItem(key)) return; localStorage.setItem(key,'1'); }catch(e){ return; }
+  var el=document.createElement('div');
+  el.id='dash-search-hint'; el.className='dash-search-hint'; el.setAttribute('role','status');
+  el.innerHTML='<b>Looking for a customer\'s booking?</b>'
+    +'<span>The search box at the top of the dashboard finds it by name or phone number. No need to go back day by day.</span>'
+    +'<div class="dsh-btns"><button type="button" class="btn btn-primary btn-sm" onclick="dashSearchHintClose(true)">Search now</button>'
+    +'<button type="button" class="btn btn-ghost btn-sm" onclick="dashSearchHintClose(false)">Got it</button></div>';
+  document.body.appendChild(el);
+}
+function dashSearchHintClose(search){
+  document.getElementById('dash-search-hint').remove();
+  if(search) openPalette();
 }
 
 // Dashboard bin stats — loads all bin jobs into jobs[] exactly like loadBinJobsThenRender,

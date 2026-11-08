@@ -2805,6 +2805,18 @@ input[type=date],input[type=time]{position:relative;}
 .pal-bst.wait{background:#ffedd5;color:#9a3412;}
 .pal-bst.done{background:#e5e7eb;color:#374151;}
 .pal-bst.bad{background:#fee2e2;color:#991b1b;}
+/* The one-time nudge toward the search when someone steps the dashboard date back a
+   few days (dashSearchHintCheck). Solid white with dark text so it reads on the plain
+   and the glass look alike. */
+.dash-search-hint{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:1500;
+  width:min(440px,calc(100vw - 24px));box-sizing:border-box;padding:14px 16px;border-radius:14px;
+  display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.45;
+  background:#fff;color:#1a211e;border:2px solid var(--accent);box-shadow:0 18px 50px rgba(0,0,0,.22);
+  animation:dshIn .25s cubic-bezier(.22,1,.36,1);}
+.dash-search-hint b{font-size:15px;}
+.dsh-btns{display:flex;gap:8px;margin-top:6px;}
+@keyframes dshIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+@media (prefers-reduced-motion: reduce){.dash-search-hint{animation:none;}}
 .kbd{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   font-size:11px;line-height:1.5;padding:1px 6px;border-radius:var(--radius-xs);color:var(--n11);
   background:linear-gradient(var(--n1),var(--n3));
