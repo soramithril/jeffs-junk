@@ -904,7 +904,8 @@ function placeTags(list){
 }
 
 /* ======================= camera: holds on HQ, then glides over to the towns (Jake, 2026-11-09) ======================= */
-const VIEWS = {hq: {x: 29, z: -4.5, dist: 122, pitch: 0.85, yaw: 0.45}, towns: {x: 120, z: -20, dist: 150, pitch: 0.9, yaw: 0.25}};
+// HQ zoomed in on the office and the bin yard (Jake, 2026-11-09); the shop sits at the right edge
+const VIEWS = {hq: {x: 22, z: -6.5, dist: 86, pitch: 0.88, yaw: 0.42}, towns: {x: 120, z: -20, dist: 150, pitch: 0.9, yaw: 0.25}};
 const AUTO = [['hq', 58000], ['towns', 26000]];
 const cam = Object.assign({}, VIEWS.hq); let camTo = VIEWS.hq, autoAt = 0, autoIx = 0;
 function placeCamera(){ const cp = Math.cos(cam.pitch); camera.position.set(cam.x + Math.sin(cam.yaw) * cp * cam.dist, Math.sin(cam.pitch) * cam.dist, cam.z + Math.cos(cam.yaw) * cp * cam.dist); camera.lookAt(cam.x, 0, cam.z); }
