@@ -1260,6 +1260,12 @@ async function renderDispatch(){
   var swapPairs = Object.keys(swapPartner).length / 2;
   var stackPairs = Object.keys(stackPartner).length / 2;
   var _vm = dispatchGetViewMode();
+  if(_vm === 'map'){
+    // Kelly's map board lives in app-dispatch-map.js; it writes through dispatchAssignJob like every view.
+    DispatchMap.render(host, {date: _dispatchDate, jobs: todayJobs, laneIds: laneIds, byLane: byLane, unassigned: unassigned});
+    dispatchFillMissingCoords();
+    return;
+  }
   if(_vm === 'canvas'){
     // Full-page canvas: all controls live inside the board (dcvMount builds them)
     host.innerHTML = '<div id="dcv-host"></div>';
@@ -1281,6 +1287,7 @@ async function renderDispatch(){
   html += '<button onclick="_dispatchDate=null;renderDispatch()" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Today</button>';
   // Canvas / List view toggle
   html += '<div style="display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">';
+  html += '<button onclick="dispatchSetViewMode(\'map\')" style="border:0;border-right:1px solid var(--border);padding:8px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text)">Map</button>';
   html += '<button onclick="dispatchSetViewMode(\'canvas\')" style="border:0;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;background:'+(_vm==='canvas'?'#1a1a2e':'transparent')+';color:'+(_vm==='canvas'?'#fff':'var(--text)')+'">Canvas</button>';
   html += '<button onclick="dispatchSetViewMode(\'list\')" style="border:0;border-left:1px solid var(--border);padding:8px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;background:'+(_vm==='list'?'#1a1a2e':'transparent')+';color:'+(_vm==='list'?'#fff':'var(--text)')+'">List</button>';
   html += '</div>';
@@ -1412,10 +1419,11 @@ async function renderDispatch(){
 
 function dispatchGetViewMode(){
   var saved = localStorage.getItem('dispatch_view');
-  if(saved === 'list' || saved === 'canvas') return saved;
-  // Nothing chosen yet: a drag-and-pan canvas is not a phone board, so a phone
-  // opens on the List view. Once someone picks a view it is theirs either way.
-  return isMobileView() ? 'list' : 'canvas';
+  if(saved === 'list' || saved === 'canvas' || saved === 'map') return saved;
+  // Nothing chosen yet: a computer opens on the Map (Jake, 2026-11-09: the board is
+  // for Kelly, who plans by looking). A phone opens on the List view. Once someone
+  // picks a view it is theirs either way.
+  return isMobileView() ? 'list' : 'map';
 }
 function dispatchSetViewMode(m){
   localStorage.setItem('dispatch_view', m);
@@ -1754,6 +1762,7 @@ function dcvMount(){
   h += '</div>';
   h += '<button onclick="_dispatchDate=null;renderDispatch()" style="background:transparent;border:1px solid '+T.border+';color:'+T.ink+';padding:7px 13px;border-radius:10px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer">Today</button>';
   h += '<div style="display:inline-flex;border:1px solid '+T.border+';border-radius:10px;overflow:hidden">';
+  h += '<button onclick="dispatchSetViewMode(\'map\')" style="border:0;border-right:1px solid '+T.border+';padding:7px 13px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;background:transparent;color:'+T.ink+'">Map</button>';
   h += '<button onclick="dispatchSetViewMode(\'canvas\')" style="border:0;padding:7px 13px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;background:'+T.accent+';color:#04160c">Canvas</button>';
   h += '<button onclick="dispatchSetViewMode(\'list\')" style="border:0;border-left:1px solid '+T.border+';padding:7px 13px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;background:transparent;color:'+T.ink+'">List</button>';
   h += '</div>';
