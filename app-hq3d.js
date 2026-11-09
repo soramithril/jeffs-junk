@@ -34,7 +34,9 @@ renderer = new THREE.WebGLRenderer({canvas, antialias: true, powerPreference: 'h
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x1d2421, 170, 330);
-camera = new THREE.PerspectiveCamera(30, 16 / 9, 1, 1400);
+// near plane far out on purpose: the camera never comes within ~70 m of anything, and the TV's depth buffer
+// is coarse - with near at 1 m the yard's snow cover and the asphalt under it flickered white (Jake, 2026-11-09)
+camera = new THREE.PerspectiveCamera(30, 16 / 9, 50, 1400);
 hemi = new THREE.HemisphereLight(0xfbf7ee, 0x5d6660, 0.78); scene.add(hemi);
 sun = new THREE.DirectionalLight(0xfff3df, 0.62); scene.add(sun, sun.target);
 sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
@@ -360,7 +362,7 @@ function buildStatic(){
   function rug(x0, z0, x1, z1, c){ const i = 0.45; floors.box(VC, x1 - x0 - 2 * i, 0.012, z1 - z0 - 2 * i, (x0 + x1) / 2, FL + 0.006, (z0 + z1) / 2, {c}); }
   // the office: x 0-28, z 0-18 (front row faces the camera)
   floors.box(VC, 28.3, FL - 0.02, 18.3, 14, (FL - 0.02) / 2, 9, {c: COL.skirt}).box(VC, 28, 0.04, 18, 14, FL - 0.02, 9, {c: COL.floor});
-  floors.box(VC, 28, 0.004, 3, 14, FL + 0.003, 8.5, {c: 0xe3d3b4});
+  floors.box(VC, 28, 0.004, 3, 14, FL + 0.012, 8.5, {c: 0xe3d3b4});
   rug(0, 10, 9, 18, COL.reception); rug(9, 10, 21, 18, COL.bookings); rug(21, 10, 28, 18, COL.barb);
   rug(0, 0, 10, 7, COL.jeff); rug(10, 0, 19, 7, COL.brk); rug(19, 0, 28, 7, COL.meet);
   wall('x', 0, 0, 28, [[13.6, 14.9, 'door']]);
@@ -372,7 +374,7 @@ function buildStatic(){
   wall('z', 9, 10, 18, [[12.6, 15.6, 'door']]); wall('z', 21, 10, 18, [[12, 16, 'glass']]);
   // Darrin's shop: x 34-56, z 0-18, two bays open to the front
   floors.box(VC, 22.3, FL - 0.02, 18.3, 45, (FL - 0.02) / 2, 9, {c: COL.skirt}).box(VC, 22, 0.04, 18, 45, FL - 0.02, 9, {c: COL.shopFloor});
-  for (const x of [35.6, 44.4, 53.2]) floors.box(VC, 0.16, 0.01, 15.5, x, FL + 0.005, 10, {c: 0xf2c14e});
+  for (const x of [35.6, 44.4, 53.2]) floors.box(VC, 0.16, 0.01, 15.5, x, FL + 0.012, 10, {c: 0xf2c14e});
   wall('x', 0, 34, 56, [[51.8, 53.8, 'door']]); wall('x', 18, 34, 56, [[36.2, 43.8, 'door'], [45, 52.6, 'door']]);
   wall('z', 34, 0, 18, [[7.6, 9.4, 'door']]); wall('z', 56, 0, 18);
   for (const x of [36.2, 43.8, 45, 52.6]) for (let i = 0; i < 4; i++) walls.box(VC, WT + 0.06, 0.3, WT + 0.06, x, FL + 0.15 + i * 0.36, 18, {c: i % 2 ? 0x1f2125 : 0xf2c14e});
@@ -509,8 +511,8 @@ function buildSeasons(){
   for (const k of ['kelly', 'sam', 'jake']) hk.m('pumpkinC', SEATS[k].x - 0.55, FL + 0.775, SEATS[k].z + 0.6, {s: [0.5, 0.5, 0.5], ry: 0.4});
   addKit(hk, true, true, SEAS.halloween);
   ghost = new THREE.Mesh(libGeo('ghost'), lam(0xffffff, {vertexColors: true, transparent: true, opacity: 0.85})); ghost.scale.setScalar(0.8); ghost.position.set(40, 4, -24); SEAS.halloween.add(ghost);
-  const snowYard = shadowy(new THREE.Mesh(new THREE.PlaneGeometry(56, 29), lam(0xe6ecf1, {transparent: true, opacity: 0.86, depthWrite: false})), false, true);
-  snowYard.rotation.x = -PI / 2; snowYard.position.set(28, 0.075, -18.5); SEAS.snow.add(snowYard);
+  const snowYard = shadowy(new THREE.Mesh(new THREE.PlaneGeometry(56, 29), lam(0xe6ecf1, {transparent: true, opacity: 0.86, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2})), false, true);
+  snowYard.rotation.x = -PI / 2; snowYard.position.set(28, 0.1, -18.5); SEAS.snow.add(snowYard);
   const FLAKES = 1600; flakeGeo = new THREE.BufferGeometry(); const fp = new Float32Array(FLAKES * 3);
   for (let i = 0; i < FLAKES; i++){ fp[i * 3] = -14 + rnd() * 84; fp[i * 3 + 1] = rnd() * 26; fp[i * 3 + 2] = -40 + rnd() * 66; }
   flakeGeo.setAttribute('position', new THREE.BufferAttribute(fp, 3));
@@ -721,12 +723,12 @@ function buildDay(m){
   // bays for the hook-lifts across the back of the yard; pickups and vans park beside them
   const hooks = m.trucks.filter(T => T.kind === 'truck').slice(0, 5), others = m.trucks.filter(T => T.kind !== 'truck').slice(0, 6);
   hooks.forEach((T, i) => { const x = 3.7 + BAY_W / 2 + i * BAY_W; T.park = {x, z: BAY_Z, bay: true};
-    for (const s of [-1, 1]) paint.box(VC, 0.12, 0.012, 10, x + s * (BAY_W / 2), 0.066, -27.5, {c: 0xe9e6dd});
-    paint.box(VC, BAY_W, 0.014, 0.6, x, 0.067, -32.4, {c: new THREE.Color(T.color).getHex()});
+    for (const s of [-1, 1]) paint.box(VC, 0.12, 0.012, 10, x + s * (BAY_W / 2), 0.08, -27.5, {c: 0xe9e6dd});
+    paint.box(VC, BAY_W, 0.014, 0.6, x, 0.082, -32.4, {c: new THREE.Color(T.color).getHex()});
     const lab = textPlane(5.2, 1.1, 512, (g, W, H) => { g.fillStyle = 'rgba(240,236,226,.85)'; g.font = '800 ' + Math.round(H * 0.7) + 'px ' + FONT_D; g.textAlign = 'center'; g.fillText(T.label.toUpperCase(), W / 2, H * 0.78); });
-    lab.rotation.x = -PI / 2; lab.position.set(x, 0.08, -31.2); group.add(lab); });
+    lab.rotation.x = -PI / 2; lab.position.set(x, 0.1, -31.2); group.add(lab); });
   const lot0 = 3.7 + hooks.length * BAY_W + 1.6;
-  others.forEach((T, i) => { T.park = {x: lot0 + 1.5 + i * 3.1, z: -27.4}; paint.box(VC, 0.1, 0.012, 6, lot0 + i * 3.1, 0.066, -27.4, {c: 0xe9e6dd}); });
+  others.forEach((T, i) => { T.park = {x: lot0 + 1.5 + i * 3.1, z: -27.4}; paint.box(VC, 0.1, 0.012, 6, lot0 + i * 3.1, 0.08, -27.4, {c: 0xe9e6dd}); });
   // bins ready in the yard, by size, in two rows with a walkway in the middle
   const ready = [];
   for (const sz of [20, 14, 7, 4]) for (let i = 0; i < ((m.bins.readyBySize || {})[sz] || 0); i++) ready.push(sz);
@@ -751,7 +753,7 @@ function buildDay(m){
   }
   roadEnd = colX + 4;
   k.box(VC, roadEnd - 56, 0.06, ROAD_W, (56 + roadEnd) / 2, 0.03, ROAD_Z, {c: STREET});
-  for (let x = 60; x < roadEnd - 2; x += 4) k.box(VC, 2, 0.01, 0.16, x, 0.065, ROAD_Z, {c: 0xe8c55a});
+  for (let x = 60; x < roadEnd - 2; x += 4) k.box(VC, 2, 0.01, 0.16, x, 0.08, ROAD_Z, {c: 0xe8c55a});
   const HT = 'acghikpq'.split('').map(c => 'house_' + c);
   const rc = ['#8a6f62', '#5f6f7a', '#7d5a4f', '#6b7d63', '#9a7b5c'], wc = ['#f4efe3', '#efe6d2', '#e3eaee', '#f3e6dd', '#e9efe2'];
   const glass = (r, g, b) => b > 0.85 && b - r > 0.25;
@@ -766,7 +768,7 @@ function buildDay(m){
     const stX = s => b.oneSide ? b.x0 + LOT_D + ST_W / 2 : b.x0 + BLOCK_W / 2 + s * BLOCK_W;
     for (let s = 0; s < b.streets; s++){
       const cx = stX(s);
-      k.box(VC, ST_W, 0.05, Math.abs(z1 - edge), cx, 0.11, (edge + z1) / 2, {c: STREET});
+      k.box(VC, ST_W, 0.06, Math.abs(z1 - edge), cx, 0.13, (edge + z1) / 2, {c: STREET});
     }
     order.forEach((it, j) => {
       const s = Math.floor(j / (ROWS_PER_ST * 2)), jj = j % (ROWS_PER_ST * 2), side = b.oneSide ? -1 : jj % 2 ? 1 : -1, r = b.oneSide ? 0 : jj >> 1;
@@ -778,14 +780,14 @@ function buildDay(m){
       hk.p(VC, walls, hx, 0.12, z, {ry, s: sc}).p(M.win, wins, hx, 0.12, z, {ry, s: sc});
       if (j % 3 === 1) pk.m(j % 2 ? 'pumpkinC' : 'pumpkin', hx - side * (hd / 2 + 0.5), 0.12, z + 1.4, {s: [1.2, 1.2, 1.2], ry: side * 1.2});
       const st = it.st, isBin = !st || st.kind === 'drop' || st.kind === 'pick';
-      if (isBin) k.box(VC, 5.6, 0.02, 3.2, cx + side * (ST_W / 2 + 2.8), 0.13, z, {c: PAD});
+      if (isBin) k.box(VC, 5.6, 0.04, 3.2, cx + side * (ST_W / 2 + 2.8), 0.16, z, {c: PAD});
       const size = st ? (st.size || 14) : it.size, inf = binGeos(size, false);
       const bx2 = side < 0 ? cx - ST_W / 2 - 0.5 - inf.L : cx + ST_W / 2 + 0.5 + inf.L, bry = side < 0 ? 0 : PI;
       if (st){
         st.lot = {cx, dir, z, edge, px: cx + side * 1.4, binX: bx2 + (side < 0 ? inf.L / 2 : -inf.L / 2)};
-        if (isBin){ const g = buildBin(size, st.kind === 'pick'); g.position.set(bx2, 0.14, z); g.rotation.y = bry; g.traverse(o => { if (o.isMesh) shadowy(o, true, true); }); group.add(g); st.bin = g; }
+        if (isBin){ const g = buildBin(size, st.kind === 'pick'); g.position.set(bx2, 0.18, z); g.rotation.y = bry; g.traverse(o => { if (o.isMesh) shadowy(o, true, true); }); group.add(g); st.bin = g; }
         pins.push({st, x: cx + side * (ST_W / 2 + 5.4), z: z - dir * 1.2});
-      } else for (const [mat, geo] of binGeos(size, j % 2 === 0).geos) staticBins.p(mat, geo, bx2, 0.14, z, {ry: bry});
+      } else for (const [mat, geo] of binGeos(size, j % 2 === 0).geos) staticBins.p(mat, geo, bx2, 0.18, z, {ry: bry});
     });
   });
   // stop pins: one mesh each so its colour can change (white still to do, gold now, red needs a driver)
@@ -1011,7 +1013,7 @@ function frame(nowMs){
   const tagPlaces = [];
   M_.trucks.forEach((T, idx) => {
     const V = vehicles[T.id], q = poseOf(T, idx, t, now), st = statusOf(T, q.s, t);
-    V.holder.position.set(q.x, q.yard ? 0.06 : 0.1, q.z);
+    V.holder.position.set(q.x, q.yard ? 0.06 : 0.16, q.z);
     let dr = (q.h - PI / 2) - V.holder.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); V.holder.rotation.y += Math.abs(dr) > 2.4 ? dr : dr * 0.3;
     if (V.slot) setCargo(V, q.carry == null ? null : q.carry);
     const parked = q.yard && T.park.bay;
