@@ -240,15 +240,15 @@
   .p-head{display:none}
   .p-body{flex:1 1 auto; min-height:0}
 
-  /* ── Today at HQ (screen 4): the pixel scene from app-hq.js IS the screen (Jake,
-     2026-11-02). While it is up #board carries .hq-full: the stage covers all
-     1920x1080 and the header and footer step aside - the clock, the weather and the
-     bins-out count are all inside the picture. The canvas is 640x360, exactly a third
-     of the board each way, so every pixel lands as a clean 3x3 block. ── */
+  /* ── Today at HQ (screen 4): the 3D dollhouse from app-hq3d.js IS the screen (Jake,
+     2026-11-09; the pixel scene app-hq.js before it). While it is up #board carries
+     .hq-full: the stage covers all 1920x1080 and the header and footer step aside -
+     the clock and the counts are all inside the picture. app-hq3d.js sizes the
+     canvas's drawing buffer itself and lays its tags over it. ── */
   #board.hq-full #stage{position:absolute; inset:0; margin:0; z-index:0}
   #board.hq-full #topbar, #board.hq-full #botbar{visibility:hidden}
   .panel[data-panel="hq"] .p-body{padding:0}
-  #hqCanvas{display:block; width:100%; height:100%; image-rendering:crisp-edges; image-rendering:pixelated}
+  #hqCanvas{display:block; width:100%; height:100%}
 
   /* ── Trucks: the map is the whole board ──────────────────────────────────
      The stage leaves the flow so it can cover all 1920x1080, and the header and
@@ -863,12 +863,12 @@
           </div></div>
         </section>
 
-        <!-- Screen 4 · Today at HQ: the pixel scene (app-hq.js) -->
+        <!-- Screen 4 · Today at HQ: the 3D dollhouse (app-hq3d.js) -->
         <section class="panel" data-panel="hq">
           <div class="p-head"><span class="bar"></span><h2>Today at HQ</h2>
             <span class="tag" id="hqTag"></span></div>
           <div class="p-body">
-            <canvas id="hqCanvas" width="640" height="360"></canvas>
+            <canvas id="hqCanvas" width="1920" height="1080"></canvas>
           </div>
         </section>
 
@@ -895,7 +895,9 @@
   <div id="netdot"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app-hq.js?v=729"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="hq3d-models.js?v=733"></script>
+  <script src="app-hq3d.js?v=733"></script>
   <script src="tv-looks.js?v=730"></script>
   <script>
   (function(){
@@ -1111,7 +1113,7 @@
         if(j.service==='Junk Quote' || j.service==='Extra Jobs') return;
         function mk(label, time, crewIds, kind, done){
           out.push({ job_id:j.job_id, service:label, time:time||'', name:j.name, business_name:j.business_name,
-                     address:j.address, city:j.city, crewIds:(crewIds||[]).filter(Boolean),
+                     address:j.address, city:j.city, crewIds:(crewIds||[]).filter(Boolean), size:parseInt(j.bin_size, 10) || null,
                      kind:kind||null, completed: !!done });
         }
         if(j.service==='Bin Rental'){
@@ -1372,7 +1374,7 @@
     // the HQ screen drops out of the lap (DATA.hq goes null and nextPanel skips it).
     // The three screens above never depend on it. Counts are count-only queries;
     // the rest is today's rows, which are small (Supabase egress).
-    var _hqMounted = false;
+    var _hqMounted = false, _hqWasUp = false, _hqPerfLogs = 0;
     async function loadHQ(){
       var today = todayStr(), monday = mondayStr();
       var tomorrow = ymd(new Date(parseLocal(today).getTime()+864e5));
@@ -1393,22 +1395,22 @@
         // when each zone saw a truck arrive and leave today, and which truck it was
         db.from('geofence_notifications').select('job_id,status,created_at').gte('created_at',dayStartIso),
         db.from('geofence_visits').select('device_id,job_id,entered_at,exited_at,inside').gte('entered_at',dayStartIso),
-        db.from('bin_items').select('status,rotation'),
-        // where every bin out on rental is, by town - the same rows the "Bins out" count reads
-        db.from('jobs').select('city').eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled')
+        db.from('bin_items').select('status,rotation,size'),
+        // where every bin out on rental is, by town and size - the same rows the "Bins out" count reads
+        db.from('jobs').select('city,bin_size').eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled')
       ]);
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error('HQ: '+res[i].error.message); }
-      // total: every bin we have, for the yard sign's "in the yard / total"
-      var bins = {ready:0, prep:0, off:0, total:(res[6].data||[]).length};
+      // total: every bin we have, for the yard sign's "in the yard / total"; the ready ones by size for the yard rows
+      var bins = {ready:0, prep:0, off:0, total:(res[6].data||[]).length, readyBySize:{}};
       (res[6].data||[]).forEach(function(b){
-        if(b.status==='in' && b.rotation==='active') bins.ready++;
+        if(b.status==='in' && b.rotation==='active'){ bins.ready++; var sz = parseInt(b.size, 10) || 14; bins.readyBySize[sz] = (bins.readyBySize[sz]||0) + 1; }
         if(b.rotation==='prep') bins.prep++;
         if(b.rotation==='oor') bins.off++;
       });
       DATA.hq = { entered:res[0].data||[], tomorrow:res[1].count||0, quotesWeek:res[2].count||0,
                   quotesDue:(res[3].data||[]).filter(function(q){ return qfDue(q, today, qfSince); }).length,
                   notifs:res[4].data||[], visits:res[5].data||[], bins:bins,
-                  outTowns:(res[7].data||[]).map(function(j){ return j.city; }) };
+                  outBins:(res[7].data||[]).map(function(j){ return { city:j.city, size:parseInt(j.bin_size, 10) || null }; }) };
     }
     // The dashboard's "due a call" rule (app-quote-followup.js _qfOpen/_qfDue: visited,
     // no outcome, never chased or chased 3+ days ago, inside the 14-day window) -
@@ -1431,12 +1433,12 @@
       Object.keys(DATA.crewAll).forEach(function(id){ if(DATA.crewColor[id]) colorByName[DATA.crewAll[id]] = DATA.crewColor[id]; });
       return {
         now: Date.now(), dayStart: parseLocal(todayStr()).getTime(),
-        stops: DATA.jobs.map(function(e){ return { jobId:e.job_id, kind:e.kind, service:e.service, town:e.city, time:e.time,
+        stops: DATA.jobs.map(function(e){ return { jobId:e.job_id, kind:e.kind, service:e.service, town:e.city, time:e.time, size:e.size,
                                                    hasDriver:e.crewIds.length>0, done:e.completed }; }),
         // yesterday's last ping is not today's news - same cut as the trucks rail
         trucks: (DATA.trucks||[]).filter(function(t){ return !t.lastUpdate || Date.now()-Date.parse(t.lastUpdate) <= RAIL_STALE_MS; })
                   .map(function(t){ return { id:t.id, name:t.name, driver:driverFor(t), state:truckState(t) }; }),
-        crewColor: colorByName, entered:h.entered, notifs:h.notifs, visits:h.visits, bins:h.bins, outTowns:h.outTowns,
+        crewColor: colorByName, entered:h.entered, notifs:h.notifs, visits:h.visits, bins:h.bins, outBins:h.outBins,
         counts: { tomorrow:h.tomorrow, week:(DATA.kpi||{}).weekJobs||0, quotesWeek:h.quotesWeek,
                   quotesDue:h.quotesDue, binsOut:(DATA.kpi||{}).binsOut||0 },
         wx: DATA.wxCode
@@ -2719,7 +2721,12 @@
       var name = PANELS[panelIdx];
       // Today at HQ animates only while it is the screen up
       if(name === 'hq') JJHQ.show(hqSnapshot());
-      else if(_hqMounted) JJHQ.hide();
+      else if(_hqMounted){
+        // the first few times the 3D screen goes off, log how the TV coped (fps, resolution, shadows)
+        if(_hqWasUp && _hqPerfLogs < 4){ _hqPerfLogs++; tvLog('hq3d-perf', JSON.stringify(JJHQ.perf())); }
+        JJHQ.hide();
+      }
+      _hqWasUp = name === 'hq';
       renderCurrent();
       syncFooter();
       // the trucks screen runs the map full bleed; the other two do not
@@ -2829,7 +2836,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-03-hq9';
+    var TV_BUILD = '2026-11-09-hq3d';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
