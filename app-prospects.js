@@ -662,7 +662,8 @@
                 + 'Hold at list</div></div>')
         + '</div>'
         + '<div style="font-size:12.5px;color:var(--jjp-faint);line-height:1.45;margin-top:9px;padding:0 4px">'
-        + (pr.tonne ? 'Dump is $' + pr.tonne + ' a tonne on top \u2014 that is our cost, it never moves.'
+        + (pr.tonne ? 'Dump is $' + pr.tonne + ' a tonne plus the ' + (DUMP_TARIFF_RATE*100) + '% dump tariff ($'
+                      + dumpTariff(pr.tonne).toFixed(2) + ') on top \u2014 that is our cost, it never moves.'
                     : 'The dump fee is our cost. It never moves.') + '</div></div>'
       : '<div class="jjp-fr" style="border-radius:22px;padding:15px 17px">'
         + '<div class="jjp-lab" style="margin-bottom:6px;color:#fbbf24">No price for this town</div>'
