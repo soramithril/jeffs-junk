@@ -19,6 +19,9 @@
   .home-fb{font:inherit;font-size:13.5px;font-weight:700;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 6px}
   .home-fb[hidden]{display:none}
   .home-sw-seg button:focus-visible,.home-fb:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+  /* It sits above the page on purpose, which also put it above pop-ups, right on the
+     job sheet's close button (Jake, 2026-11-09). Gone while any pop-up is open. */
+  body:has(.modal-overlay.open) .home-switch{display:none}
 }
 
 /* With a layout on, the old dashboard's other sections are hidden, not removed. */

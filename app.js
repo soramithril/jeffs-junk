@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '732';
+var APP_VERSION = '733';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2799,6 +2799,7 @@ function closeMoreFlyout(){
   var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(-90deg)';
 }
 function go(name){
+  var asked=name;   // before the tab-merge renames below, so Back reopens the same tab
   var restricted=RESTRICTED_PAGES;
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
@@ -2846,9 +2847,33 @@ function go(name){
   document.body.classList.toggle('pv-full', ['pricing','ourprices'].indexOf(name)!==-1);
   if(typeof mSyncTab==='function') mSyncTab(name);
   _rememberScreen(name);
+  _historyNote(asked);
   // Tab-merged host pages log from their tab switchers (per-tab usage counts)
   if(['vehicles','bininventory','analytics','ourprices'].indexOf(name)===-1) trackPageView(name);
 }
+// ── BROWSER BACK BETWEEN PAGES (Jake, 2026-11-09) ──
+// Page switches never touched the browser's history, so Back left the site, the page
+// reloaded and everyone landed on sign-in. Each switch now leaves a history step and Back
+// walks to the page before. The first page after sign-in replaces the entry rather than
+// adding one, so Back from there still leaves the site. Pop-ups keep their own Back step
+// (armModalBack, further down): a Back that lands while one is open is theirs.
+var _goFromBack=false;
+function _historyNote(name){
+  if(_goFromBack) return;
+  var st=history.state;
+  if(st && st.jjView===name) return;
+  if(st && (st.jjView || st.jjModal)) history.pushState({jjView:name},'');
+  else history.replaceState({jjView:name},'');
+}
+window.addEventListener('popstate', function(e){
+  var name=e.state && e.state.jjView;
+  if(!name || !currentUser) return;
+  if(document.querySelector('.modal-overlay.open')) return;
+  var cur=document.querySelector('.view.active');
+  if(cur && cur.id==='view-'+name) return;
+  _goFromBack=true;
+  try{ go(name); } finally{ _goFromBack=false; }
+});
 // ── BACK TO THE SAME SCREEN ──
 // Every refresh ends at the sign-in screen (an update, the session lock, F5), and sign-in
 // used to always open the dashboard. The screen you were on is kept for this browser tab and
