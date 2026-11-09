@@ -7,6 +7,11 @@
 // Ontario HST, used for every price shown with tax.
 var HST_RATE = 0.13;
 
+// Tariff on the dump fee (Jake, 2026-11-09): 15% on top of the dump fee wherever the
+// dump fee is charged, shown as its own line. On the $135 fee that is $20.25.
+var DUMP_TARIFF_RATE = 0.15;
+function dumpTariff(tonne){ return parseFloat(tonne) * DUMP_TARIFF_RATE; }
+
 // Price-sheet areas from the our_prices table, keyed by area name.
 var ourPricesV2 = {};
 function applyOurPrices(rows){

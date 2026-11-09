@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '731';
+var APP_VERSION = '732';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -19102,11 +19102,11 @@ function pvFmtC(v){ return v==null?'—':'$'+Number(v).toFixed(2); }
 // Every household 14/20 yd price (3-day, weekly, monthly) includes the dump fee;
 // dirt & concrete bins are flat rate — same math as the pricing doc's "+Tax" columns.
 function _pvHasDump(sz){ return sz.indexOf('dirt')<0 && sz.indexOf('concrete')<0; }
-// All-in = (base + dump fee where it applies) + 13% HST.
+// All-in = (base + dump fee + 15% dump tariff where it applies) + 13% HST.
 function pvCalcAllIn(base, sz, tonne){
   if(!base) return null;
   var v = parseFloat(base);
-  if(_pvHasDump(sz) && tonne) v += parseFloat(tonne);
+  if(_pvHasDump(sz) && tonne) v += parseFloat(tonne) + dumpTariff(tonne);
   return v * 1.13;
 }
 function pvAllAreas(){
@@ -19307,10 +19307,10 @@ function renderPricingAreas(){
   var tk = Object.keys(tonnes);
   var note = 'Prices are all-in: HST included';
   if(allTonned){
-    note += ', and every 14 & 20 yd price (3-day, weekly, monthly) includes the dump fee (first tonne)'
-         + (tk.length===1 ? ' — overage $'+tk[0]+'/tonne.' : '.');
+    note += ', and every 14 & 20 yd price (3-day, weekly, monthly) includes the dump fee (first tonne) plus the '+(DUMP_TARIFF_RATE*100)+'% dump tariff'
+         + (tk.length===1 ? ' ($'+dumpTariff(tk[0]).toFixed(2)+') — overage $'+tk[0]+'/tonne.' : '.');
   } else {
-    note += '. Where a dump fee is set, 14 & 20 yd prices include the first tonne.';
+    note += '. Where a dump fee is set, 14 & 20 yd prices include the first tonne plus the '+(DUMP_TARIFF_RATE*100)+'% dump tariff.';
   }
   note += ' Dirt & concrete bins are flat rate. *Monthly rentals are for contractors only.';
   html += '<div class="pv-table-note">'+note+'</div>';
@@ -19332,14 +19332,15 @@ function renderPricingRail(){
   }
   var hasDump = _pvHasDump(sz) && r.tonne>0;
   var dump = hasDump?r.tonne:0;
-  var hst = (base+dump)*0.13;
-  var total = base+dump+hst;
+  var tariff = hasDump?dumpTariff(r.tonne):0;
+  var hst = (base+dump+tariff)*0.13;
+  var total = base+dump+tariff+hst;
   var town = r.town;
   var spoken = _pvSpoken(sz);
   var monthly = _pvIsMonthly(sz);
   var script = hasDump
     ? '"That\'ll be <b>$'+total.toFixed(2)+'</b> all-in for the '+_pvEsc(spoken)+' bin in '+_pvEsc(town)
-      +'. That includes the bin rental, dump fee up to one tonne, and tax. Anything over one tonne is prorated at $'+r.tonne+' per tonne.'
+      +'. That includes the bin rental, dump fee up to one tonne, the '+(DUMP_TARIFF_RATE*100)+'% tariff on the dump fee, and tax. Anything over one tonne is prorated at $'+r.tonne+' per tonne.'
       +(monthly?' Just so you know, monthly rentals are for contractor accounts only.':'')+'"'
     : '"That\'ll be <b>$'+total.toFixed(2)+'</b> all-in for the '+_pvEsc(spoken)+' bin in '+_pvEsc(town)
       +'. That includes the bin rental and tax.'
@@ -19350,7 +19351,8 @@ function renderPricingRail(){
        + (monthly?' <span style="display:inline-block;vertical-align:2px;margin-left:6px;padding:2px 9px;border-radius:999px;background:#ecebfc;color:#4f46e5;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase">Contractor only</span>':'')
        + '</div>';
   html += '<div class="pv-rail-line"><span class="lbl">Bin price</span><span class="val">$'+base.toFixed(2)+'</span></div>';
-  if(hasDump) html += '<div class="pv-rail-line"><span class="lbl">+ Dump fee (1 tonne included)</span><span class="val">$'+dump.toFixed(2)+'</span></div>';
+  if(hasDump) html += '<div class="pv-rail-line"><span class="lbl">+ Dump fee (1 tonne included)</span><span class="val">$'+dump.toFixed(2)+'</span></div>'
+                   +  '<div class="pv-rail-line"><span class="lbl">+ Dump tariff ('+(DUMP_TARIFF_RATE*100)+'% of dump fee)</span><span class="val">$'+tariff.toFixed(2)+'</span></div>';
   html += '<div class="pv-rail-line"><span class="lbl">+ HST (13%)</span><span class="val">$'+hst.toFixed(2)+'</span></div>';
   html += '<div class="pv-rail-total"><div class="lbl">All-in price</div><div class="val">$'+total.toFixed(2)+'</div></div>';
   // The deposit, off the same rules the booking form uses — binDepositFor() is the one
@@ -19763,7 +19765,7 @@ function _rcDotZone(c){ return _rc.mapMode==='radius' ? _rcRingOf(c) : _rcZoneFo
 // line can never be mistaken for a zone territory border.
 function _rcMapZoneColor(z){ return ['','#17c653','#1e90ff','#a855f7','#ff7a00','#ff2d55'][z]; }
 var RC_RING_COL='#00e5ff';
-function _rcAllIn(p){ return Math.round((p+135)*1.13); }
+function _rcAllIn(p){ return Math.round((p+135+dumpTariff(135))*1.13); }
 
 function _rcRenderMap(){
   _rcBuildMap();
@@ -19866,7 +19868,7 @@ function _rcPopupHtml(c){
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="width:11px;height:11px;border-radius:50%;background:'+col+';flex:none"></span><span style="font-size:15px;font-weight:800;color:#1a1a2e">'+_pvEsc(_rcClean(c.name))+'</span></div>'
     +'<div style="font-size:11px;color:#868e96;margin-bottom:11px">'+RC_ZEMOJI[z]+' Zone '+z+' · '+_rcKmStr(c)+' km · '+_rcDriveStr(c)+' drive</div>'
     +'<div style="display:flex;align-items:baseline;gap:8px"><span style="font-family:ui-monospace,\'JetBrains Mono\',monospace;font-size:28px;font-weight:700;color:'+col+';line-height:.9">'+(cur!=null?'$'+cur:'—')+'</span><span style="font-size:11px;color:#868e96;font-weight:600">14 yd · pre-tax</span></div>'
-    +(cur!=null?'<div style="font-size:11px;color:#495057;margin-top:8px;border-top:1px solid #e9ecef;padding-top:8px">All-in ≈ <b style="color:#1a1a2e">$'+_rcAllIn(cur)+'</b> <span style="color:#868e96">(+ $135 dump + 13% HST)</span></div>':'')
+    +(cur!=null?'<div style="font-size:11px;color:#495057;margin-top:8px;border-top:1px solid #e9ecef;padding-top:8px">All-in ≈ <b style="color:#1a1a2e">$'+_rcAllIn(cur)+'</b> <span style="color:#868e96">(+ $135 dump + '+(DUMP_TARIFF_RATE*100)+'% dump tariff + 13% HST)</span></div>':'')
     +'</div>';
 }
 function rcMapMode(m){
@@ -20071,8 +20073,9 @@ function binSheetQuote(){
   // quote was going out about $153 high.
   var perTonne=BIN_FLAT_RATE_SIZES.indexOf(size)!==-1
     ? 0 : parseFloat(ap.binTonne||bins._tonne||0);
-  var subtotal=rental+perTonne;
-  return {area:area, key:key, size:size, days:days, rental:rental, perTonne:perTonne,
+  var tariff=perTonne>0 ? dumpTariff(perTonne) : 0;
+  var subtotal=rental+perTonne+tariff;
+  return {area:area, key:key, size:size, days:days, rental:rental, perTonne:perTonne, tariff:tariff,
           subtotal:subtotal, total:subtotal*(1+HST_RATE),
           flatRate:BIN_FLAT_RATE_SIZES.indexOf(size)!==-1,
           monthly:/^monthly /i.test(key)};
@@ -20187,7 +20190,7 @@ function renderBinPriceScript(){
   var subtotal=q.subtotal, total=q.total;
   // What another 0.1 tonne actually costs, with the tax on it, because that is the
   // question the customer is really asking when they ask about weight.
-  var overT=perTonne*0.1, overTotal=(rental+perTonne*1.1)*(1+HST_RATE);
+  var overT=perTonne*0.1, overTotal=(subtotal+overT)*(1+HST_RATE);
   var per100=perLb*100;
 
   el.innerHTML='<div class="bps">'
@@ -20196,6 +20199,7 @@ function renderBinPriceScript(){
     +'<div class="bps-row"><span>Bin rental</span><b>'+_bpsMoney(rental)+'</b></div>'
     +(perTonne>0
       ? '<div class="bps-row"><span>Dump fee &mdash; 1 tonne</span><b>'+_bpsMoney(perTonne)+'</b></div>'
+        +'<div class="bps-row"><span>Dump tariff &mdash; '+(DUMP_TARIFF_RATE*100)+'% of dump fee</span><b>'+_bpsMoney(q.tariff)+'</b></div>'
       : q.flatRate
         ? '<div class="bps-row"><span>Dump fee</span><b>none &mdash; flat rate</b></div>'
         : '<div class="bps-note">No per-tonne rate on the sheet for '+escHtml(area)+'.</div>')

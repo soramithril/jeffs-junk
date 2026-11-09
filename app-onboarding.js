@@ -83,7 +83,7 @@ var PAGE_TOURS = [
   ]},
   { view:'pricing', label:'Pricing', icon:'💲', section:'Quotes & Pricing', summary:'Set your prices and quote customers.', steps:[
     { sel:'#view-pricing .page-header button.btn-ghost', title:'Set your prices', body:'Open Edit Our Prices to set your own rates — bin and junk prices and the dump fee per area. Everything on this page is calculated from these.' },
-    { sel:'#pv-rail-host', title:'Quote a customer', body:'Click any bin price on the left to build the quote: the all-in price (bin + $135/tonne dump fee + HST), competitor prices for that size, and a script you can read out on the phone.' }
+    { sel:'#pv-rail-host', title:'Quote a customer', body:'Click any bin price on the left to build the quote: the all-in price (bin + $135/tonne dump fee + 15% dump tariff + HST), competitor prices for that size, and a script you can read out on the phone.' }
   ]},
   { view:'analytics', label:'Analytics', icon:'📈', section:'Admin', restricted:true, summary:'Business insights across all your jobs.', steps:[
     { sel:'#report-month', title:'Monthly Reports', body:'Pick a month and generate a polished business report with month-over-month and year-over-year comparisons, or email it straight out.' },
