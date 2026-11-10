@@ -14956,10 +14956,11 @@ function handleAdminBtn() {
 // them inside a booking call (Rachel, 2026-08-28).
 //
 // The handover happens at a known time, so one clock does the whole job. And it no
-// longer signs anybody out: it locks the screen and asks for a password, leaving the
-// page exactly as it was. The right password carries straight on; a different person
-// signs in as themselves. Identity is re-proven either way — which was always the
-// point — and a half-typed booking survives it.
+// longer signs anybody out: it locks the screen and asks "Still Kelly?", leaving the
+// page exactly as it was. Yes carries straight on; No signs out so the next person
+// signs in as themselves, and a half-typed booking survives a Yes. It used to ask for
+// the password; Jake dropped that 2026-11-10 — it is a reminder at the handover, not a
+// check, so it trusts the answer.
 //
 // Staying signed in between locks is safe. Supabase caps nothing on this project
 // (auth.sessions.not_after is NULL on all 296 sessions) and the longest session on
@@ -15015,58 +15016,32 @@ function showDeskLock() {
   var o = document.createElement('div');
   o.id = 'desk-lock';
   o.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(10,12,15,0.92);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px';
+  var btn = 'flex:1;border:0;border-radius:14px;padding:20px 12px;font-size:19px;font-weight:800;cursor:pointer;font-family:inherit;line-height:1.2';
   o.innerHTML =
-    '<div style="background:#fff;border-radius:20px;padding:34px 30px;width:min(420px,calc(100vw - 48px));box-shadow:0 20px 60px rgba(0,0,0,0.6);text-align:center">'+
-      '<div style="font-size:22px;font-weight:800;margin-bottom:10px;color:var(--text)">Still you, '+escHtml(who)+'?</div>'+
-      '<div style="font-size:14px;color:var(--text-secondary);line-height:1.5;margin-bottom:22px">It is gone 4:15, so the dashboard checks who is at the desk. Everything you had open is still here — put your password in to carry on.</div>'+
-      '<input id="desk-lock-pw" type="password" autocomplete="current-password" placeholder="Password" style="width:100%;box-sizing:border-box;padding:13px 14px;font-size:16px;font-family:inherit;border:2px solid var(--border);border-radius:10px;margin-bottom:10px">'+
-      '<div id="desk-lock-err" style="min-height:18px;font-size:13px;color:var(--bad-ink);margin-bottom:12px"></div>'+
-      '<button id="desk-lock-go" style="background:var(--accent-hero);color:#fff;border:0;border-radius:10px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer;width:100%;font-family:inherit">Carry on</button>'+
-      '<button id="desk-lock-other" style="background:none;border:0;color:var(--text-secondary);font-size:13px;font-family:inherit;cursor:pointer;margin-top:14px;text-decoration:underline">Someone else is at this desk</button>'+
+    '<div style="background:#fff;border-radius:22px;padding:34px 28px 28px;width:min(460px,calc(100vw - 48px));box-shadow:0 20px 60px rgba(0,0,0,0.6);text-align:center">'+
+      '<div style="font-size:46px;line-height:1;margin-bottom:12px">👋</div>'+
+      '<div style="font-size:30px;font-weight:800;margin-bottom:10px;color:var(--text)">Still '+escHtml(who)+'?</div>'+
+      '<div style="font-size:15px;color:var(--text-secondary);line-height:1.5;margin-bottom:26px">It\'s past 4:15, desk handover time. Everything you had open is still here.</div>'+
+      '<div style="display:flex;gap:12px">'+
+        '<button id="desk-lock-yes" style="'+btn+';background:var(--accent-hero);color:#fff">Yes, I\'m '+escHtml(who)+'</button>'+
+        '<button id="desk-lock-no" style="'+btn+';background:var(--n3);color:var(--text)">No, I\'m someone else</button>'+
+      '</div>'+
     '</div>';
   document.body.appendChild(o);
-  var pw  = document.getElementById('desk-lock-pw');
-  var err = document.getElementById('desk-lock-err');
-  var go  = document.getElementById('desk-lock-go');
-  function fail(m) {
-    err.textContent = m;
-    pw.value = '';
-    go.disabled = false;
-    go.textContent = 'Carry on';
-    pw.focus();
-  }
-  function unlock() {
-    var pass = pw.value;
-    if (!pass) { fail('Put your password in.'); return; }
-    err.textContent = '';
-    go.disabled = true;
-    go.textContent = 'Checking...';
-    // Signing in again as the same person is what re-proves who is at the desk, and it
-    // hands back a fresh token on the way through. currentUser is deliberately left
-    // alone: it carries displayName, and losing that would stamp the wrong editor onto
-    // every save made after this.
-    db.auth.signInWithPassword({ email: currentUser.email, password: pass }).then(function(r) {
-      if (r.error) {
-        var m = r.error.message || 'That did not work.';
-        if (/invalid login/i.test(m)) m = 'That password did not match.';
-        else if (/too many requests/i.test(m)) m = 'Too many tries — wait a minute and go again.';
-        fail(m);
-        return;
-      }
-      restampSession();
-      o.remove();
-    }).catch(function() {
-      fail('Could not reach the server — check the internet and go again.');
-    });
-  }
-  go.onclick = unlock;
-  pw.onkeydown = function(e) { if (e.key === 'Enter') unlock(); };
-  // The other way out: a real sign-out, which reloads to the sign-in screen. This is
-  // the handover the whole rule exists for.
-  document.getElementById('desk-lock-other').onclick = function() {
+  // Yes: same person, carry on. The old password sign-in handed back a fresh token on
+  // the way through; the wake-up path returns before its own refresh when the lock goes
+  // up, so ask for one here. If the login is really gone, the 60-second session check
+  // signs out — that stays the one place that decides it.
+  document.getElementById('desk-lock-yes').onclick = function() {
+    restampSession();
+    o.remove();
+    refreshSessionNow();
+  };
+  // No: a real sign-out, which reloads to the sign-in screen. This is the handover the
+  // whole rule exists for.
+  document.getElementById('desk-lock-no').onclick = function() {
     signOutWithReason('Signed out at 4:15 — please sign in again.');
   };
-  setTimeout(function() { pw.focus(); }, 50);
 }
 
 // Called from the every-minute check and from the wake-up path. Returns true if the
