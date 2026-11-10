@@ -56,13 +56,45 @@
       + '</div></div>';
   }
 
+  // Done notes are filed in a folder for the month they were finished (Jake, 2026-11-10).
+  // Only open and on-it notes stay on the wall as sticky notes. Folders start shut;
+  // which ones are open is remembered while the page is up.
+  var _openMonths = {};
+
+  function monthKey(iso){
+    var d = new Date(iso);
+    return d.getFullYear() + '-' + ('0' + (d.getMonth()+1)).slice(-2);
+  }
+
+  function monthFolders(done){
+    var byMonth = {};
+    done.forEach(function(n){
+      var k = monthKey(n.done_at);
+      (byMonth[k] = byMonth[k] || []).push(n);
+    });
+    return Object.keys(byMonth).sort().reverse().map(function(k){
+      var list = byMonth[k].sort(function(a,b){ return String(b.done_at).localeCompare(String(a.done_at)); });
+      var open = !!_openMonths[k];
+      var label = new Date(k + '-15T12:00:00').toLocaleDateString('en-CA',{month:'long',year:'numeric'});
+      return '<div class="sugg-file'+(open?' open':'')+'">'
+        + '<button type="button" class="sugg-file-tab" onclick="SuggestBox.toggleMonth(\''+k+'\')">'
+        +   '<span>'+(open?'📂':'📁')+'</span><span>'+label+'</span>'
+        +   '<span class="sugg-file-n">'+list.length+' done</span>'
+        + '</button>'
+        + (open ? '<div class="sugg-grid sugg-file-body">'+list.map(noteCard).join('')+'</div>' : '')
+        + '</div>';
+    }).join('');
+  }
+
+  function toggleMonth(k){ _openMonths[k] = !_openMonths[k]; paint(); }
+
   function paint(){
     var el = host(); if(!el) return;
-    var sorted = _notes.slice().sort(function(a,b){
-      var d = (a.status==='done'?1:0) - (b.status==='done'?1:0);
-      return d !== 0 ? d : String(b.created_at).localeCompare(String(a.created_at));
+    var sorted = _notes.filter(function(n){ return n.status!=='done'; }).sort(function(a,b){
+      return String(b.created_at).localeCompare(String(a.created_at));
     });
-    var openCount = _notes.filter(function(n){ return n.status!=='done'; }).length;
+    var done = _notes.filter(function(n){ return n.status==='done'; });
+    var openCount = sorted.length;
     // 1440 cap = 5 notes a row on big screens. It is 2px short of 6 (.sugg-grid minmax(215px) + 20px gap,
     // 26px side padding), so changing either of those can quietly flip it to 6 single-colour columns.
     var h = '<div style="max-width:clamp(1100px,62vw,1440px);margin:0 auto;padding:30px 26px 60px">'
@@ -77,7 +109,8 @@
       + '</div>'
       + (sorted.length
           ? '<div class="sugg-grid">'+sorted.map(noteCard).join('')+'</div>'
-          : '<div style="padding:60px;text-align:center;color:var(--muted);font-size:14px">Nothing on the board yet — be the first.</div>')
+          : '<div style="padding:60px;text-align:center;color:var(--muted);font-size:14px">'+(done.length?'Nothing open — all caught up.':'Nothing on the board yet — be the first.')+'</div>')
+      + (done.length ? '<div class="sugg-files-head">Filed — done notes by month</div>'+monthFolders(done) : '')
       + '</div>';
     el.innerHTML = h;
   }
@@ -141,5 +174,5 @@
 
   window.renderSuggestions = renderSuggestions;
   window.refreshSuggBadge = refreshBadge;
-  window.SuggestBox = { post:post, markDone:markDone, markWorking:markWorking, reply:reply, remove:remove };
+  window.SuggestBox = { post:post, markDone:markDone, markWorking:markWorking, reply:reply, remove:remove, toggleMonth:toggleMonth };
 })();
