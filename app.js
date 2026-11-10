@@ -2338,9 +2338,14 @@ async function editClient(cid){
   document.getElementById('client-modal').classList.add('open');
 }
 
+// A second click on Add Client while the first save was still running minted a second
+// customer with its own number. One save at a time.
+var _clientSaving=false;
 async function saveClient(e){
-  try{
   if(e&&e.preventDefault)e.preventDefault();
+  if(_clientSaving)return;
+  _clientSaving=true;
+  try{
   // Collect names — apply Title Case
   var nameEls=document.querySelectorAll('#c-names-wrap .c-name-inp');
   var names=[].slice.call(nameEls).map(function(el){
@@ -2467,6 +2472,7 @@ async function saveClient(e){
   clientsPage = 0;
   loadClientsPage();
   }catch(ex){console.error(ex);alert('Couldn\'t save this customer.\n\nNothing was saved - the form still has everything you typed, so you can try again.');}
+  finally{_clientSaving=false;}
 }
 
 function jobIdCls(id,svc){
@@ -5056,7 +5062,7 @@ async function renderDashBinsOut(){
     j._days=binDaysOut(drop);
     j._overdue=!!(j.binPickup && j.binPickup<todayS);
     j._overdueDays=j._overdue
-      ? Math.max(0,Math.floor((Date.now()-new Date(j.binPickup+'T12:00:00').getTime())/86400000)) : 0;
+      ? Math.max(0,Math.floor((Date.now()-new Date(j.binPickup+'T00:00:00').getTime())/86400000)) : 0;
     // A will-call has no pickup date until the customer rings in and names one, so it can
     // never be "overdue" — nothing was ever booked to be late for. That is the trap: the
     // one most likely to be forgotten is the one the overdue check cannot see.
@@ -11355,7 +11361,8 @@ function _binPickupAfter(dropStr, days){
 // 7/14/30 Jake set off the real fleet (they had moved to 8/15/31 for the Aug 31 rule).
 function binDaysOut(dropStr){
   if(!dropStr) return 0;
-  return Math.max(0,Math.floor((Date.now()-new Date(dropStr+'T12:00:00').getTime())/86400000));
+  // Counted from midnight, so the number changes with the date and not at lunchtime.
+  return Math.max(0,Math.floor((Date.now()-new Date(dropStr+'T00:00:00').getTime())/86400000));
 }
 
 // A will-call has no pickup date - the customer rings in when the bin is ready - so
@@ -18990,7 +18997,7 @@ async function emailMonthlyReport() {
       body: JSON.stringify({year: year, month: month})
     });
     var result = await r.json();
-    if (r.ok && !result.error) { toast('Report emailed to ' + REPORT_EMAILS.length + ' recipients!'); }
+    if (r.ok && !result.error) { toast('Report emailed to ' + result.recipients.join(', ')); }
     else { throw new Error(result.error || 'Edge function failed'); }
   } catch (e) {
     console.warn('Email send error:', e);
