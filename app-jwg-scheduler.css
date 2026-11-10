@@ -1056,86 +1056,6 @@
 #view-jwgscheduler .sum-cal-col {background:var(--bg-deep);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
 #view-jwgscheduler .sum-cal-day-header {padding:10px 12px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--fg-muted);background:var(--bg-elevated);border-bottom:1px solid var(--border);}
 #view-jwgscheduler .sum-cal-day-body {padding:8px;}
-#view-jwgscheduler .wt-wrap {padding:24px 28px;}
-#view-jwgscheduler .wt-header {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
-#view-jwgscheduler .wt-title {font-size:18px;font-weight:800;letter-spacing:-0.03em;color:var(--fg);}
-#view-jwgscheduler .wt-add-btn {
-  background:var(--dark);color:var(--accent);border:none;
-  padding:9px 18px;font-size:12px;font-weight:800;letter-spacing:0.04em;
-  text-transform:uppercase;border-radius:var(--radius);
-  box-shadow:var(--shadow-btn);transition:all var(--dur-fast) var(--ease-out);
-}
-#view-jwgscheduler .wt-add-btn:hover {background:#046329;transform:translateY(-1px);}
-#view-jwgscheduler .wt-filters {display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
-#view-jwgscheduler .wt-filter-btn {
-  border:1px solid var(--border);background:var(--bg-elevated);color:var(--fg-muted);
-  border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;
-  font-family:inherit;transition:all var(--dur-fast) var(--ease-out);
-}
-#view-jwgscheduler .wt-filter-btn.active, #view-jwgscheduler .wt-filter-btn:hover {background:var(--dark);color:var(--accent);border-color:var(--dark);}
-#view-jwgscheduler .wt-filter-btn.f-high.active {background:rgba(239,68,68,.1);color:#dc2626;border-color:rgba(239,68,68,.3);}
-#view-jwgscheduler .wt-filter-btn.f-medium.active {background:rgba(234,179,8,.1);color:#b45309;border-color:rgba(234,179,8,.35);}
-#view-jwgscheduler .wt-filter-btn.f-low.active {background:rgba(5,115,52,.08);color:var(--accent-dim);border-color:var(--border-acc);}
-#view-jwgscheduler .wt-board {display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;}
-#view-jwgscheduler .wt-col-hdr {display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--border);}
-#view-jwgscheduler .wt-col-label {font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-muted);}
-#view-jwgscheduler .wt-col-count {font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:var(--surface);color:var(--fg-muted);min-width:24px;text-align:center;}
-#view-jwgscheduler .wt-col-count.done-count {background:rgba(5,115,52,.08);color:var(--accent-dim);}
-#view-jwgscheduler .wt-card {
-  background:var(--bg-elevated);border-radius:var(--radius);
-  border:1px solid var(--border);margin-bottom:10px;
-  box-shadow:var(--shadow-card);
-  transition:box-shadow var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out);
-  position:relative;overflow:hidden;
-}
-#view-jwgscheduler .wt-card:hover {box-shadow:var(--shadow-ch);transform:translateY(-1px);border-color:var(--border-h);}
-#view-jwgscheduler .wt-card.done-card {opacity:.65;}
-#view-jwgscheduler .wt-card-inner {padding:14px 16px 14px 20px;}
-#view-jwgscheduler .wt-card::before {content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:4px 0 0 4px;}
-#view-jwgscheduler .wt-card.p-high::before {background:#ef4444;}
-#view-jwgscheduler .wt-card.p-medium::before {background:#eab308;}
-#view-jwgscheduler .wt-card.p-low::before {background:var(--accent);}
-#view-jwgscheduler .wt-card.p-high {border-color:rgba(239,68,68,.2);}
-#view-jwgscheduler .wt-card.p-medium {border-color:rgba(234,179,8,.25);}
-#view-jwgscheduler .wt-card.p-low {border-color:rgba(5,115,52,.15);}
-#view-jwgscheduler .wt-card.done-card::before {background:#94a3b8 !important;}
-#view-jwgscheduler .wt-card.done-card {border-color:var(--border) !important;}
-#view-jwgscheduler .wt-card-top {display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px;}
-#view-jwgscheduler .wt-priority-badge {flex-shrink:0;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:2px 8px;border-radius:4px;margin-top:1px;}
-#view-jwgscheduler .wt-priority-badge.ph {background:rgba(239,68,68,.12);color:#dc2626;}
-#view-jwgscheduler .wt-priority-badge.pm {background:rgba(234,179,8,.15);color:#92400e;}
-#view-jwgscheduler .wt-priority-badge.pl {background:rgba(5,115,52,.08);color:var(--accent-dim);}
-#view-jwgscheduler .wt-card-title {font-size:14px;font-weight:700;color:var(--fg);line-height:1.35;flex:1;}
-#view-jwgscheduler .wt-card.done-card .wt-card-title {text-decoration:line-through;color:var(--fg-muted);}
-#view-jwgscheduler .wt-card-desc {font-size:12px;color:var(--fg-muted);margin-bottom:10px;line-height:1.55;padding-right:4px;}
-#view-jwgscheduler .wt-card-meta {display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:2px;}
-#view-jwgscheduler .wt-chip {display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;background:var(--surface);color:var(--fg-muted);border:1px solid var(--border);white-space:nowrap;}
-#view-jwgscheduler .wt-chip.person-chip {background:rgba(5,115,52,.06);color:var(--accent-dim);border-color:var(--border-acc);}
-#view-jwgscheduler .wt-chip.date-chip {background:var(--surface);color:var(--fg-muted);}
-#view-jwgscheduler .wt-chip.done-chip {background:rgba(5,115,52,.06);color:var(--accent-dim);border-color:rgba(5,115,52,.15);}
-#view-jwgscheduler .wt-card-actions {display:flex;gap:4px;padding:8px 16px 10px 20px;border-top:1px solid var(--surface-h);}
-#view-jwgscheduler .wt-action-btn {flex:0 1 auto;border:none;border-radius:var(--radius-xs);padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s,background .15s;white-space:nowrap;}
-#view-jwgscheduler .wt-action-btn:hover {opacity:.8;}
-#view-jwgscheduler .wt-btn-done {background:rgba(5,115,52,.08);color:var(--accent-dim);}
-#view-jwgscheduler .wt-btn-reopen {background:var(--surface);color:var(--fg-muted);}
-#view-jwgscheduler .wt-btn-edit {background:rgba(59,130,246,.1);color:#2563eb;}
-#view-jwgscheduler .wt-btn-del {background:rgba(239,68,68,.1);color:#dc2626;flex:0;padding:7px 10px;}
-#view-jwgscheduler .wt-empty {text-align:center;padding:40px 20px;color:var(--fg-subtle);font-size:13px;border:1.5px dashed var(--border);border-radius:var(--radius);line-height:1.6;}
-#view-jwgscheduler .wt-empty-icon {font-size:26px;margin-bottom:8px;}
-#view-jwgscheduler .wt-form-row {margin-bottom:14px;}
-#view-jwgscheduler .wt-form-label {font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-muted);margin-bottom:5px;display:block;}
-#view-jwgscheduler .wt-input, #view-jwgscheduler .wt-select, #view-jwgscheduler .wt-textarea {width:100%;border:1px solid var(--border-h);border-radius:var(--radius-xs);padding:9px 12px;font-size:13px;font-family:inherit;color:var(--fg);background:var(--bg-elevated);transition:border-color var(--dur-fast) var(--ease-out),box-shadow var(--dur-fast) var(--ease-out);outline:none;}
-#view-jwgscheduler .wt-input:focus, #view-jwgscheduler .wt-select:focus, #view-jwgscheduler .wt-textarea:focus {border-color:var(--accent-dim);box-shadow:0 0 0 3px var(--accent-glow2);}
-#view-jwgscheduler .wt-textarea {resize:vertical;min-height:68px;}
-#view-jwgscheduler .wt-form-grid {display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-#view-jwgscheduler .wt-priority-picker {display:flex;gap:8px;}
-#view-jwgscheduler .wt-prio-opt {flex:1;border:2px solid var(--border);background:var(--bg-elevated);border-radius:var(--radius-xs);padding:9px 8px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all var(--dur-fast) var(--ease-out);letter-spacing:.03em;}
-#view-jwgscheduler .wt-prio-opt.sel-high, #view-jwgscheduler .wt-prio-opt:hover.opt-high {background:rgba(239,68,68,.12);border-color:#ef4444;color:#dc2626;}
-#view-jwgscheduler .wt-prio-opt.sel-medium, #view-jwgscheduler .wt-prio-opt:hover.opt-medium {background:rgba(234,179,8,.12);border-color:#eab308;color:#92400e;}
-#view-jwgscheduler .wt-prio-opt.sel-low, #view-jwgscheduler .wt-prio-opt:hover.opt-low {background:rgba(5,115,52,.08);border-color:var(--accent);color:var(--accent-dim);}
-#view-jwgscheduler .wt-person-grid {display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;}
-#view-jwgscheduler .wt-person-opt {border:1.5px solid var(--border);background:var(--bg-elevated);color:var(--fg-muted);border-radius:20px;padding:5px 13px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all var(--dur-fast) var(--ease-out);}
-#view-jwgscheduler .wt-person-opt.sel {background:var(--dark);color:var(--accent);border-color:var(--dark);font-weight:700;}
 #view-jwgscheduler #header {
   height:54px;padding:0 12px;
   display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;
@@ -1212,7 +1132,7 @@
 #view-jwgscheduler .shift-label {font-size:7px;line-height:1.1;}
 #view-jwgscheduler .shift-times {display:none !important;}
 #view-jwgscheduler .status-label {font-size:8px;padding:1px 3px;border-radius:3px;}
-#view-jwgscheduler input, #view-jwgscheduler select, #view-jwgscheduler textarea, #view-jwgscheduler .sf-select, #view-jwgscheduler .wh-field select, #view-jwgscheduler .login-input, #view-jwgscheduler .addinput, #view-jwgscheduler .tname, #view-jwgscheduler .new-tname, #view-jwgscheduler .day-note, #view-jwgscheduler .wt-input, #view-jwgscheduler .wt-select, #view-jwgscheduler .wt-textarea {font-size:16px !important;}
+#view-jwgscheduler input, #view-jwgscheduler select, #view-jwgscheduler textarea, #view-jwgscheduler .sf-select, #view-jwgscheduler .wh-field select, #view-jwgscheduler .login-input, #view-jwgscheduler .addinput, #view-jwgscheduler .tname, #view-jwgscheduler .new-tname, #view-jwgscheduler .day-note{font-size:16px !important;}
 #view-jwgscheduler .shift-form {grid-template-columns:1fr 1fr;gap:8px;}
 #view-jwgscheduler .task-grid {grid-template-columns:1fr 1fr;gap:5px;}
 #view-jwgscheduler .task-opt {padding:10px 8px;font-size:12px;min-height:44px;}
@@ -1267,16 +1187,6 @@
 #view-jwgscheduler .login-input {font-size:16px !important;padding:14px 16px;}
 #view-jwgscheduler .login-btn {min-height:52px;font-size:16px;padding:14px;}
 #view-jwgscheduler .login-btn:active {transform:scale(.98);}
-#view-jwgscheduler .wt-prio-opt {min-height:44px;padding:10px 8px;display:flex;align-items:center;justify-content:center;}
-#view-jwgscheduler .wt-prio-opt:active {filter:brightness(.96);}
-#view-jwgscheduler .wt-person-opt {min-height:44px;display:inline-flex;align-items:center;padding:0 14px;}
-#view-jwgscheduler .wt-person-opt:active {background:var(--dark);color:var(--accent);}
-#view-jwgscheduler .wt-action-btn {min-height:44px;padding:8px;}
-#view-jwgscheduler .wt-action-btn:active {opacity:.75;}
-#view-jwgscheduler .wt-add-btn {min-height:44px;}
-#view-jwgscheduler .wt-add-btn:active {opacity:.85;transform:none;}
-#view-jwgscheduler .wt-filter-btn {min-height:44px;padding:0 14px;display:inline-flex;align-items:center;}
-#view-jwgscheduler .wt-filter-btn:active {background:var(--dark);color:var(--accent);border-color:var(--dark);}
 #view-jwgscheduler #header {height:68px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;grid-template-columns:unset;}
 #view-jwgscheduler #header nav {display:flex;}
 #view-jwgscheduler .logo-words {display:flex;}
@@ -1321,7 +1231,7 @@
 #view-jwgscheduler .shift-label {font-size:10px;line-height:1;}
 #view-jwgscheduler .shift-times {display:inline !important;}
 #view-jwgscheduler .status-label {font-size:10px;padding:4px 10px;border-radius:var(--radius-xs);}
-#view-jwgscheduler input, #view-jwgscheduler select, #view-jwgscheduler textarea, #view-jwgscheduler .sf-select, #view-jwgscheduler .wh-field select, #view-jwgscheduler .login-input, #view-jwgscheduler .addinput, #view-jwgscheduler .tname, #view-jwgscheduler .new-tname, #view-jwgscheduler .day-note, #view-jwgscheduler .wt-input, #view-jwgscheduler .wt-select, #view-jwgscheduler .wt-textarea {font-size:unset !important;}
+#view-jwgscheduler input, #view-jwgscheduler select, #view-jwgscheduler textarea, #view-jwgscheduler .sf-select, #view-jwgscheduler .wh-field select, #view-jwgscheduler .login-input, #view-jwgscheduler .addinput, #view-jwgscheduler .tname, #view-jwgscheduler .new-tname, #view-jwgscheduler .day-note{font-size:unset !important;}
 #view-jwgscheduler .sf-select {font-size:13px !important;padding:10px 32px 10px 12px;}
 #view-jwgscheduler .wh-field select {font-size:14px !important;}
 #view-jwgscheduler .login-input {font-size:14px !important;padding:13px 16px;}
@@ -1329,7 +1239,6 @@
 #view-jwgscheduler .addinput {font-size:13px !important;}
 #view-jwgscheduler .tname, #view-jwgscheduler .new-tname {font-size:13px !important;}
 #view-jwgscheduler .day-note {font-size:12px !important;}
-#view-jwgscheduler .wt-input, #view-jwgscheduler .wt-select, #view-jwgscheduler .wt-textarea {font-size:13px !important;}
 #view-jwgscheduler .task-opt {min-height:0;padding:9px 12px;}
 #view-jwgscheduler .mfs-btn {min-height:0;padding:9px 8px;}
 #view-jwgscheduler .modal-add-btn {min-height:0;padding:11px 20px;}
@@ -1359,15 +1268,6 @@
 #view-jwgscheduler .ma-day-btn {min-height:0;padding:5px 11px;display:inline-block;}
 #view-jwgscheduler .ma-everyone-btn {min-height:0;}
 #view-jwgscheduler .mday-tab {min-height:0;padding:9px 13px;}
-#view-jwgscheduler .wt-wrap {padding:24px 28px;}
-#view-jwgscheduler .wt-board {grid-template-columns:1fr 1fr;gap:24px;}
-#view-jwgscheduler .wt-form-grid {grid-template-columns:1fr 1fr;}
-#view-jwgscheduler .wt-priority-picker {gap:8px;}
-#view-jwgscheduler .wt-prio-opt {min-height:0;padding:9px 8px;display:block;}
-#view-jwgscheduler .wt-person-opt {min-height:0;padding:5px 13px;display:inline-block;}
-#view-jwgscheduler .wt-action-btn {min-height:0;padding:7px 8px;}
-#view-jwgscheduler .wt-add-btn {min-height:0;}
-#view-jwgscheduler .wt-filter-btn {min-height:0;padding:5px 14px;display:inline-block;}
 #view-jwgscheduler .si-header {padding:20px 24px;gap:12px;}
 #view-jwgscheduler .si-action-btn {padding:10px 16px;font-size:13px;}
 #view-jwgscheduler .si-filter-bar {gap:12px;padding:14px 24px;}
