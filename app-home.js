@@ -5,7 +5,8 @@
 // v711 shipped one new layout and nobody kept it. On 2026-11-03 four more (A to D) went
 // behind a picker in the dashboard's top-right corner; on 2026-11-05 Jake kept E and
 // dropped A to D (nobody had kept one). The picker is now Old or E:
-//   E  the Glassy dashboard mockup's home screen (claude.ai/artifact/9YVzWzLUhkCWt1XkFSeAQU),
+//   E  the normal dashboard (same as Old; the mockup's home screen,
+//      claude.ai/artifact/9YVzWzLUhkCWt1XkFSeAQU, is on Jake's switch only),
 //      and every page in its glass look and menus over this season's login picture
 //      (Jake, 2026-11-05). Drawn by app-glass-home.js; the look and menus are
 //      app-glass.css / app-glass.js. To drop it: its HOME_LAYOUTS, HOME_PICKS and
@@ -45,16 +46,21 @@ var HOME_LAYOUTS = {
   e1: { top:['strip'], main:['yours', 'jobs'], side:['bins', 'week', 'overdue'], bottom:['gextra', 'folds'] },
   e2: { top:['strip'], main:['bins'], side:['week'], bottom:['jobs', 'yours', 'overdue', 'gextra', 'folds'] }
 };
+// E's home page is the normal dashboard, same cards in the same places as Old, only in
+// E's glass (Jake, 2026-11-09). e0 moves nothing: it is Old with the glass on.
 var HOME_EVIEWS = [
-  { id:'e', label:'Mockup' }, { id:'e1', label:'Day first' }, { id:'e2', label:'Booking desk' }
+  { id:'e0', label:'Home page' }, { id:'e', label:'Mockup' }, { id:'e1', label:'Day first' }, { id:'e2', label:'Booking desk' }
 ];
 var HOME_EVIEW_KEY = 'jjEView';   // Jake's pick, this browser only
-function _homeIsE(lay){ return lay === 'e' || lay === 'e1' || lay === 'e2'; }
-// Saved choice 'e' opens the arrangement Jake last picked on his switch; everyone else gets E.
+function _homeIsE(lay){ return lay === 'e0' || lay === 'e' || lay === 'e1' || lay === 'e2'; }
+// The real dashboard is on screen, nothing moved into #home: Old, and E's home page.
+function _homeIsDash(lay){ return lay === 'old' || lay === 'e0'; }
+// Saved choice 'e' opens the arrangement Jake last picked on his switch; everyone else gets the home page.
 function _homeOpen(pref){
-  if(pref !== 'e' || !canAccessDev()) return pref;
+  if(pref !== 'e') return pref;
+  if(!canAccessDev()) return 'e0';
   var v = localStorage.getItem(HOME_EVIEW_KEY);
-  return HOME_LAYOUTS[v] ? v : 'e';
+  return HOME_EVIEWS.some(function(x){ return x.id === v; }) ? v : 'e0';
 }
 var HOME_PICKS = [
   { id:'old', label:'Old', tip:'The dashboard as it always was' },
@@ -134,7 +140,7 @@ function _homeSwitchPaint(){
   var w = document.getElementById('home-switch');
   var base = _homeIsE(_homeLay) ? 'e' : _homeLay;
   w.querySelectorAll('[data-lay]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.lay === base ? 'true' : 'false'); });
-  w.querySelector('.home-fb').hidden = _homeLay === 'old';
+  w.querySelector('.home-fb').hidden = _homeIsDash(_homeLay);
   var ev = document.getElementById('home-ev');
   if(ev){
     ev.hidden = base !== 'e';
@@ -159,14 +165,14 @@ function homeApply(lay){
   JJGlass.set(_homeIsE(lay));
   var was = _homeLay;
   var view = document.getElementById('view-dashboard');
-  if(lay === 'old'){
+  if(_homeIsDash(lay)){
     _homeMoved.forEach(function(m){ m.mark.parentNode.insertBefore(m.node, m.mark); m.mark.remove(); });
     _homeMoved = [];
     view.classList.remove('home-on');
     document.body.classList.remove('home-on');   // brings back the corner quote reminder (see app-home.css)
   } else {
     _homeBuild();
-    if(was === 'old'){
+    if(_homeIsDash(was)){
       var slots = {
         'home-slot-bins': document.getElementById('dash-bin-by-size'),
         'home-slot-willcall': document.getElementById('card-will-call').closest('.dash-section'),
@@ -186,7 +192,7 @@ function homeApply(lay){
   }
   _homeLay = lay;
   _homeSwitchPaint();
-  if(lay === 'old') return;
+  if(_homeIsDash(lay)) return;
   if(_homeJobsData) _homeJobsPaint(_homeJobsData.day, _homeJobsData.d);   // the new layout's style at once; the refresh follows
   homeRefresh();
 }
@@ -240,7 +246,7 @@ function _homeBuild(){
   // Debounced, because a realtime burst redraws several times.
   ['dash-today-jobs', 'dash-will-call-list', 'dash-today-bookings', 'dash-needs-you'].forEach(function(id){
     new MutationObserver(function(){
-      if(_homeLay === 'old') return;
+      if(_homeIsDash(_homeLay)) return;
       clearTimeout(_homeTimer);
       _homeTimer = setTimeout(homeRefresh, 1500);
     }).observe(document.getElementById(id), { childList:true, subtree:true });
@@ -264,7 +270,7 @@ function homeFold(which){
 
 // ── The list, the greeting, Today's Jobs and the overdue bins ──
 async function homeRefresh(){
-  if(_homeLay === 'old' || !_homeReady) return;
+  if(_homeIsDash(_homeLay) || !_homeReady) return;
   if(_homeBusy){ _homeAgain = true; return; }
   _homeBusy = true;
   try {
@@ -568,7 +574,7 @@ function _homeHoursHtml(other){
 
 function _homeJobsPaint(day, d){
   _homeJobsData = { day:day, d:d };
-  if(_homeLay === 'old') return;
+  if(_homeIsDash(_homeLay)) return;
   var kevinId = _homeKevin().id;
   var drops = d.drops.map(function(j){ return _homeJobRow(j, 'drop', kevinId); });
   var picks = d.picks.map(function(j){ return _homeJobRow(j, 'pick', kevinId); });
