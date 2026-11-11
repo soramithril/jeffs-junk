@@ -81,11 +81,12 @@ window.WinterSitePlan = (function(){
           + '<polygon points="' + pts(p) + '" fill="none" stroke="' + (on ? '#fff' : c) + '" stroke-width="3.5"' + dash + ' stroke-linejoin="round"/>';
         if(!isDraft){
           // The code sits in the middle of the outline, unless the outline is too small
-          // to hold it: then it sits just above, so it never hides the mark it names.
+          // to hold it: then it sits just above (below, at the photo's top edge), so it never
+          // hides the mark it names.
           var text = label(marks, i), xs = p.map(function(q){ return q[0] * VW; }), ys = p.map(function(q){ return q[1] * vh; });
           var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
           var cw = (text.length * 8.6 + 12) * s, ch = 21 * s;
-          if(x1 - x0 < cw * 1.3 || y1 - y0 < ch * 1.9) g += chip((x0 + x1) / 2, y0 - ch / 2 - 4, text, c);
+          if(x1 - x0 < cw * 1.3 || y1 - y0 < ch * 1.9) g += chip((x0 + x1) / 2, y0 - ch - 4 < 0 ? y1 + ch / 2 + 4 : y0 - ch / 2 - 4, text, c);
           else {
             var cx = 0, cy = 0;
             p.forEach(function(q){ cx += q[0]; cy += q[1]; });
