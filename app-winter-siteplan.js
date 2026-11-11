@@ -150,7 +150,7 @@ window.WinterSitePlan = (function(){
     var loc = JWG.WIN.locations.find(function(l){ return l.id === id; });
     var run = JWG.WIN.locations.slice().sort(JWG.winterRouteSort);
     var pos = run.findIndex(function(l){ return l.id === id; });
-    st = {loc: loc, marks: JSON.parse(JSON.stringify(loc.site_marks || [])), tool: 'select', sel: null, vsel: null, ext: null, draft: null, drag: null, hover: null,
+    st = {loc: loc, marks: JSON.parse(JSON.stringify(loc.site_marks || [])), tool: 'select', sel: null, vsel: null, ext: null, crop: null, draft: null, drag: null, hover: null,
           zoom: 1, size: 1, labels: true, undo: [], redo: [], dirty: false, blob: null, ar: null,
           prev: run[pos - 1] ? run[pos - 1].id : null, next: run[pos + 1] ? run[pos + 1].id : null,
           url: loc.photo_path ? await signedUrl(loc.photo_path) : null};
@@ -172,9 +172,12 @@ window.WinterSitePlan = (function(){
       + '<div class="sp-tools"><button type="button" class="sp-tool" id="sp-labels" title="Show or hide the codes on the photo">Labels</button><button type="button" class="sp-tool" id="sp-undo">↶ Undo</button><button type="button" class="sp-tool" id="sp-redo">↷ Redo</button>'
       +   '<button type="button" class="sp-tool" data-zoom="-1" aria-label="Zoom out">−</button><b id="sp-zl">100%</b><button type="button" class="sp-tool" data-zoom="1" aria-label="Zoom in">+</button></div></div>'
       + '<div class="sp-note" id="sp-note"></div>'
+      + '<div id="sp-cropbar" hidden><b>Cropping.</b><span>Drag a box around the part of the photo to keep. Your marks move with it; a mark left wholly outside the box is removed.</span>'
+      +   '<button type="button" class="sp-btn primary" id="sp-crop-apply">Apply crop</button><button type="button" class="sp-btn" id="sp-crop-cancel">Cancel</button></div>'
       + '<div class="sp-body"><div class="sp-stage" id="sp-stage"></div>'
       + '<aside class="sp-side"><div class="sp-side-h">Marks on this site</div><div id="sp-list"></div>'
       +   '<div class="sp-side-f"><label class="sp-tool sp-upload">' + (st.url ? 'Replace photo' : 'Upload photo') + '<input type="file" accept="image/*" id="sp-file" hidden></label>'
+      +   '<button type="button" class="sp-tool" id="sp-crop">Crop photo</button>'
       +   '<button type="button" class="sp-tool" id="sp-clear">Clear all marks</button>'
       +   '<div class="sp-hint">You can also copy a Google Earth screenshot and press Ctrl+V. Notes print in the book.</div></div></aside></div>';
     var host = document.getElementById('win-page');
@@ -249,6 +252,9 @@ window.WinterSitePlan = (function(){
     if(t.closest('#sp-redo')){ step(st.redo, st.undo); return; }
     if((b = t.closest('[data-zoom]'))){ zoomTo(st.zoom * (+b.dataset.zoom > 0 ? 1.5 : 1 / 1.5)); return; }
     if(t.closest('#sp-labels')){ st.labels = !st.labels; paint(); return; }
+    if(t.closest('#sp-crop')){ finish(); st.crop = st.crop ? null : {box: null}; st.tool = 'select'; st.sel = null; st.vsel = null; st.ext = null; paint(); return; }
+    if(t.closest('#sp-crop-cancel')){ st.crop = null; paint(); return; }
+    if(t.closest('#sp-crop-apply')){ applyCrop(); return; }
     if(t.closest('#sp-clear')){ if(st.marks.length){ remember(); st.marks = []; st.sel = null; st.draft = null; paint(); } return; }
     if(t.closest('[data-del]')){ removeSelected(); return; }
     if((b = t.closest('[data-mark]')) && t.tagName !== 'INPUT'){ finish(); st.sel = +b.dataset.mark; st.vsel = null; st.ext = null; st.tool = 'select'; if(document.activeElement.blur) document.activeElement.blur(); paint(); }
@@ -262,6 +268,7 @@ window.WinterSitePlan = (function(){
   }
   function onKey(e){
     if(!alive() || /INPUT|TEXTAREA/.test(document.activeElement.tagName) || document.getElementById('jwg-confirm')) return;
+    if(st.crop){ if(e.key === 'Escape'){ st.crop = null; paint(); } return; }
     var cmd = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
     if(cmd && k === 'z'){ e.preventDefault(); if(e.shiftKey) step(st.redo, st.undo); else { finish(); step(st.undo, st.redo); } }
     else if(cmd && k === 'y'){ e.preventDefault(); step(st.redo, st.undo); }
@@ -376,7 +383,7 @@ window.WinterSitePlan = (function(){
   }
   // The one line of help under the tools: what the pointer does right now.
   function note(){
-    if(!st.url) return '';
+    if(!st.url || st.crop) return '';
     if(st.ext) return 'Carrying ' + label(st.marks, st.ext.i) + ' on from its end: click or drag to add to it. Double-click or press Enter to finish, Escape to stop.';
     if(st.tool !== 'select') return KINDS[st.tool].hint + ' Scroll to zoom in.';
     var m = st.sel != null ? st.marks[st.sel] : null, shape = m ? KINDS[m.t].shape : '';
@@ -387,11 +394,15 @@ window.WinterSitePlan = (function(){
   function paint(){
     var page = document.getElementById('sp-page'), el = document.getElementById('sp-svg');
     if(el && st.ar){
-      el.innerHTML = draw(st.marks, VW / st.ar, {sel: st.sel, vsel: st.vsel, draft: st.draft, hover: st.hover, size: st.size, labels: st.labels});
-      el.style.cursor = st.tool === 'select' && !st.ext ? 'default' : 'crosshair';
+      el.innerHTML = draw(st.marks, VW / st.ar, {sel: st.sel, vsel: st.vsel, draft: st.draft, hover: st.hover, size: st.size, labels: st.labels}) + cropShade();
+      el.style.cursor = st.tool === 'select' && !st.ext && !st.crop ? 'default' : 'crosshair';
     }
     page.querySelectorAll('[data-tool]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.tool === st.tool); b.disabled = !st.url; });
     page.querySelector('#sp-labels').setAttribute('aria-pressed', st.labels);
+    page.querySelector('#sp-cropbar').hidden = !st.crop;
+    page.querySelector('#sp-crop-apply').disabled = !(st.crop && st.crop.box);
+    page.querySelector('#sp-crop').setAttribute('aria-pressed', !!st.crop);
+    page.querySelector('#sp-crop').disabled = !st.url;
     page.querySelector('#sp-undo').disabled = !st.undo.length;
     page.querySelector('#sp-redo').disabled = !st.redo.length;
     page.querySelector('#sp-zl').textContent = Math.round(st.zoom * 100) + '%';
@@ -423,6 +434,7 @@ window.WinterSitePlan = (function(){
       el.setPointerCapture(e.pointerId);
       var p = pt(e), d = {cx: e.clientX, cy: e.clientY, a: p, moved: false};
       var v = e.target.closest('[data-v]'), m = e.target.closest('[data-m]');
+      if(st.crop){ st.crop.box = [p, p]; st.drag = {kind: 'crop'}; paint(); return; }
       var twice = lastDown && e.timeStamp - lastDown.t < 400 && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6;
       lastDown = twice ? null : {t: e.timeStamp, x: e.clientX, y: e.clientY};
       if(twice && st.draft){ finish(); paint(); return; }
@@ -454,6 +466,7 @@ window.WinterSitePlan = (function(){
       var d = st.drag, p = pt(e);
       if(!d){ if(st.draft){ st.hover = p; paint(); } return; }
       if(d.kind === 'pan'){ var sg = document.getElementById('sp-stage'); sg.scrollLeft = d.sx - (e.clientX - d.cx); sg.scrollTop = d.sy - (e.clientY - d.cy); return; }
+      if(d.kind === 'crop'){ st.crop.box[1] = p; paint(); return; }
       if(d.kind === 'move'){
         if(far(e, d, 2)) d.moved = true;
         st.marks[st.sel].p = d.orig.map(function(q){ return [clamp(q[0] + p[0] - d.a[0]), clamp(q[1] + p[1] - d.a[1])]; });
@@ -472,6 +485,13 @@ window.WinterSitePlan = (function(){
       st.drag = null;
       if(!d) return;
       if(d.kind === 'pan'){ paint(); return; }
+      if(d.kind === 'crop'){
+        // a click, or a sliver, is not a crop
+        var cb = st.crop.box;
+        if(Math.abs(cb[1][0] - cb[0][0]) < .05 || Math.abs(cb[1][1] - cb[0][1]) < .05) st.crop.box = null;
+        paint();
+        return;
+      }
       if(d.kind === 'move'){ if(d.moved){ st.undo.push(d.before); st.redo = []; st.dirty = true; } }
       else if(d.kind === 'vertex'){
         if(d.moved){ st.undo.push(d.before); st.redo = []; st.dirty = true; }
@@ -520,6 +540,58 @@ window.WinterSitePlan = (function(){
       m.p.splice(best.at, 0, best.p);
       st.vsel = best.at; st.ext = null;
       return true;
+    }
+  }
+
+  // ── cropping ──
+  // The box being dragged: everything outside it dimmed.
+  function cropShade(){
+    if(!st.crop || !st.crop.box) return '';
+    var b = st.crop.box, vh = VW / st.ar;
+    var x0 = Math.min(b[0][0], b[1][0]) * VW, x1 = Math.max(b[0][0], b[1][0]) * VW, y0 = Math.min(b[0][1], b[1][1]) * vh, y1 = Math.max(b[0][1], b[1][1]) * vh;
+    return '<g pointer-events="none"><path fill-rule="evenodd" fill="#000" fill-opacity=".6" d="M0 0H' + VW + 'V' + f1(vh) + 'H0Z M' + f1(x0) + ' ' + f1(y0) + 'H' + f1(x1) + 'V' + f1(y1) + 'H' + f1(x0) + 'Z"/>'
+      + '<rect x="' + f1(x0) + '" y="' + f1(y0) + '" width="' + f1(x1 - x0) + '" height="' + f1(y1 - y0) + '" fill="none" stroke="#fff" stroke-width="' + f1(2.5 * st.size) + '" stroke-dasharray="' + f1(9 * st.size) + ' ' + f1(6 * st.size) + '"/></g>';
+  }
+  // Cut the photo down to the box. The marks are fractions of the photo, so each
+  // point is re-measured against the box; a mark with no point inside it is dropped.
+  // Nothing is stored until Save: leaving without saving keeps the old photo.
+  async function applyCrop(){
+    var b = st.crop.box;
+    var x0 = Math.min(b[0][0], b[1][0]), x1 = Math.max(b[0][0], b[1][0]), y0 = Math.min(b[0][1], b[1][1]), y1 = Math.max(b[0][1], b[1][1]);
+    var site = st;
+    document.getElementById('sp-crop-apply').disabled = true;
+    try {
+      var src = st.blob;
+      if(!src){
+        var got = await fetch(st.url);
+        if(!got.ok) throw new Error('the photo did not download (' + got.status + ')');
+        src = await got.blob();
+      }
+      var bmp = await createImageBitmap(src);
+      var sx = Math.round(x0 * bmp.width), sy = Math.round(y0 * bmp.height), sw = Math.round((x1 - x0) * bmp.width), sh = Math.round((y1 - y0) * bmp.height);
+      var c = document.createElement('canvas');
+      c.width = sw; c.height = sh;
+      c.getContext('2d').drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
+      var blob = await new Promise(function(res){ c.toBlob(res, 'image/jpeg', .9); });
+      if(st !== site) return;
+      var lost = 0;
+      st.marks = st.marks.filter(function(m){
+        var inside = m.p.some(function(q){ return q[0] >= x0 && q[0] <= x1 && q[1] >= y0 && q[1] <= y1; });
+        if(!inside) lost++;
+        return inside;
+      }).map(function(m){
+        return Object.assign({}, m, {p: m.p.map(function(q){ return [clamp((q[0] - x0) / (x1 - x0)), clamp((q[1] - y0) / (y1 - y0))]; })});
+      });
+      st.blob = blob;
+      st.url = URL.createObjectURL(blob);
+      st.crop = null; st.sel = null; st.vsel = null; st.ext = null; st.draft = null;
+      st.undo = []; st.redo = []; st.dirty = true; st.zoom = 1;
+      JWG.toast('Photo cropped' + (lost ? ', ' + lost + ' mark' + (lost === 1 ? '' : 's') + ' outside it removed' : '') + '. Press Save to keep it.');
+      renderStage();
+    } catch(e){
+      JWG.toast('Could not crop the photo: ' + (e.message || e), 'error');
+      paint();
+      throw e;
     }
   }
 
