@@ -2485,8 +2485,9 @@ async function deleteSummerServiceType(typeId){
 // ── WINTER.JS ──────────────────────────────────────────
 // Part of JWG Staff Scheduler
 
-// Route groups and the Route map live in app-winter-routes.js (window.WinterRoutes).
-let WIN={locations:[],serviceTypes:[],locationServices:[],saltBins:[],groups:[],view:"list",filter:"",sortBy:"route",serviceFilter:"",lowOnly:false,pendingOnly:false};
+// The page itself is drawn by app-snow.js (window.SnowDesk); route groups and the map
+// live in app-winter-routes.js (window.WinterRoutes).
+let WIN={locations:[],serviceTypes:[],locationServices:[],saltBins:[],groups:[]};
 const DEFAULT_SALT_THRESHOLD=5;
 
 async function loadWinterData(){
@@ -2507,7 +2508,7 @@ async function loadWinterData(){
 }
 
 function buildWinterPage(){
-  return`<div class="card" id="win-page"><div style="padding:20px;text-align:center;color:var(--fg-muted)">Loading…</div></div>`;
+  return`<div id="win-page"><div style="padding:20px;text-align:center;color:var(--fg-muted)">Loading…</div></div>`;
 }
 
 async function initWinterPage(){
@@ -2518,116 +2519,7 @@ async function initWinterPage(){
 function renderWinterPage(){
   const root=document.getElementById("win-page");
   if(!root)return;
-  const viewBtn=(v,label)=>`<button type="button" class="wr-view-btn" aria-pressed="${WIN.view===v}" onclick="JWG.setWinterView('${v}')">${label}</button>`;
-  let h=`<div class="si-header">
-    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div class="si-title">Snow &amp; salt locations</div><div class="wr-view">${viewBtn("list","List")}${viewBtn("map","Route map")}</div></div>
-    <div class="si-actions">
-      <button class="si-action-btn" onclick="JWG.openAddWinterLocation()">Add location</button>
-      <button class="si-action-btn secondary" onclick="JWG.WIN.filtersOpen=!JWG.WIN.filtersOpen;var b=document.getElementById('win-filter-bar');if(b)b.style.display=JWG.WIN.filtersOpen?'':'none'">🔍 Filters</button>
-      <button class="si-action-btn secondary" onclick="JWG.openManageWinterServiceTypes()">Edit service list</button>
-      <button class="si-action-btn secondary" onclick="WinterBook.choose()">Print book</button>
-      <button class="si-action-btn secondary" onclick="window.print()">🖨 Print list</button>
-    </div>
-  </div>`;
-  if(WIN.view==="map"){
-    root.innerHTML=h+`<div class="wr-layout"><div class="wr-map-host" id="wr-map-host"></div><div class="wr-side" id="wr-side"></div></div>`;
-    WinterRoutes.render(document.getElementById("wr-map-host"),document.getElementById("wr-side"),WIN);
-    return;
-  }
-  h+=`<div class="si-filter-bar" id="win-filter-bar" style="${WIN.filtersOpen?"":"display:none"}">
-    <input type="text" class="si-filter-input" placeholder="Search location…" id="win-search" oninput="JWG.WIN.filter=this.value;JWG.filterAndSortWinter()">
-    <select class="si-filter-select" id="win-sort" onchange="JWG.WIN.sortBy=this.value;JWG.filterAndSortWinter()">
-      <option value="route"${WIN.sortBy==="route"?" selected":""}>Sort: Route order</option>
-      <option value="name"${WIN.sortBy==="name"?" selected":""}>Sort: A–Z</option>
-      <option value="city"${WIN.sortBy==="city"?" selected":""}>Sort: by City</option>
-    </select>
-    <select class="si-filter-select" id="win-svc" onchange="JWG.WIN.serviceFilter=this.value;JWG.filterAndSortWinter()">
-      <option value="">All Services</option>
-      ${WIN.serviceTypes.map(t=>`<option value="${t.id}"${WIN.serviceFilter===t.id?" selected":""}>${esc(t.name)}</option>`).join("")}
-    </select>
-    <button onclick="JWG.WIN.lowOnly=!JWG.WIN.lowOnly;JWG.filterAndSortWinter()" style="border:1.5px solid ${WIN.lowOnly?"#f97316":"var(--border)"};background:${WIN.lowOnly?"#f97316":"transparent"};color:${WIN.lowOnly?"#fff":"var(--fg-muted)"};border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Low on salt</button>
-    <button onclick="JWG.WIN.pendingOnly=!JWG.WIN.pendingOnly;JWG.filterAndSortWinter()" style="border:1.5px solid ${WIN.pendingOnly?"#d97706":"var(--border)"};background:${WIN.pendingOnly?"#d97706":"transparent"};color:${WIN.pendingOnly?"#fff":"var(--fg-muted)"};border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Pending only</button>
-  </div>
-  ${WIN.locations.length?`<div style="padding:12px 2px 0;font-size:13px;font-weight:700;color:var(--fg-muted)">${WIN.locations.filter(l=>l.winter_contract==="confirmed").length} of ${WIN.locations.length} contracts confirmed</div>`:""}
-  ${(function(){const wb=WIN.locations.filter(l=>WIN.saltBins.some(s=>s.location_id===l.id));const lc=wb.filter(l=>{const s=WIN.saltBins.find(x=>x.location_id===l.id);return s&&s.current_bags<=s.min_threshold;}).length;return wb.length?`<div style="padding:12px 2px 0;font-size:13px;font-weight:700;color:${lc?"#c2410c":"var(--fg-muted)"}">${lc} of ${wb.length} low on salt</div>`:"";})()}
-  <div style="padding:0 0 14px 0;overflow-x:auto;">`;
-
-  let filtered=WIN.locations.filter(loc=>{
-    if(WIN.filter&&!loc.client_name.toLowerCase().includes(WIN.filter.toLowerCase())&&!loc.address.toLowerCase().includes(WIN.filter.toLowerCase()))return false;
-    if(WIN.serviceFilter){
-      const hasService=WIN.locationServices.some(ls=>ls.location_id===loc.id&&ls.service_type_id===WIN.serviceFilter);
-      if(!hasService)return false;
-    }
-    if(WIN.lowOnly){
-      const salt=WIN.saltBins.find(s=>s.location_id===loc.id);
-      if(!salt||salt.current_bags>salt.min_threshold)return false;
-    }
-    if(WIN.pendingOnly&&loc.winter_contract!=="pending")return false;
-    return true;
-  });
-
-  if(WIN.sortBy==="city")filtered.sort((a,b)=>a.city.localeCompare(b.city));
-  if(WIN.sortBy==="route")filtered.sort(winterRouteSort);
-  if(WIN.lowOnly)filtered.sort((a,b)=>{
-    const sa=WIN.saltBins.find(s=>s.location_id===a.id);
-    const sb=WIN.saltBins.find(s=>s.location_id===b.id);
-    return(sa?.current_bags||0)-(sb?.current_bags||0);
-  });
-
-  if(!filtered.length){
-    h+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">❄️</div><div class="si-empty-text">No winter service locations</div><div class="si-empty-sub">Manage snow removal routes and salt bins</div></div></div>`;
-  }else{
-    h+=`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 10px;padding:0 2px">Showing ${filtered.length} of ${WIN.locations.length} location${WIN.locations.length!==1?"s":""}</div>`;
-    h+=`<table class="win-table">
-      <thead><tr>
-        <th class="win-th">Code</th>
-        <th class="win-th">Client</th>
-        <th class="win-th">Address</th>
-        <th class="win-th">City</th>
-        <th class="win-th">Contract</th>
-        <th class="win-th">Services</th>
-        <th class="win-th">Salt</th>
-        <th class="win-th">Notes</th>
-        <th class="win-th win-th-actions">Actions</th>
-      </tr></thead><tbody>`;
-    filtered.forEach(loc=>{
-      const salt=WIN.saltBins.find(s=>s.location_id===loc.id);
-      const isLow=salt&&salt.current_bags<=salt.min_threshold;
-      const wServices=WIN.locationServices?WIN.locationServices.filter(ls=>ls.location_id===loc.id):[];
-      const grp=WIN.groups.find(g=>g.code===loc.winter_group);
-      const wcode=WinterRoutes.code(loc);
-      h+=`<tr class="win-row">
-        <td class="win-td" data-label="Code">${wcode?`<span class="wr-code" style="background:${grp.color}">${wcode}</span>`:`<span class="wr-code none" title="${WinterRoutes.located(loc)?"No group yet":"Not on the map yet"}">—</span>`}</td>
-        <td class="win-td win-td-client">${esc(loc.client_name)}</td>
-        <td class="win-td" data-label="Address">${esc(loc.address)}</td>
-        <td class="win-td" data-label="City">${esc(loc.city)}</td>
-        <td class="win-td" data-label="Contract">${winterContractTag(loc.winter_contract)}</td>
-        <td class="win-td" data-label="Services"><div class="loc-services">${WIN.serviceTypes.map((t,i)=>{
-          const on=wServices.some(s=>s.service_type_id===t.id);
-          return`<button type="button" class="service-badge svc-color-${i%8}${on?"":" svc-off"}" aria-pressed="${on}" title="Click to turn ${on?"off":"on"}" onclick="this.disabled=true;JWG.toggleWinterService('${loc.id}','${t.id}')">${esc(t.name)}</button>`;
-        }).join("")}</div></td>
-        <td class="win-td" data-label="Salt">${salt?`<div class="salt-inline" style="flex-wrap:wrap;gap:4px">
-          <button class="stock-btn" onclick="JWG.adjustWinterSalt('${loc.id}',-5)">−5</button>
-          <button class="stock-btn" onclick="JWG.adjustWinterSalt('${loc.id}',-1)">−</button>
-          <input type="number" min="0" value="${salt.current_bags}" onchange="JWG.setWinterSalt('${loc.id}',this.value)" style="width:54px;text-align:center;font-size:17px;font-weight:800;color:${isLow?"#c2410c":"var(--fg)"};border:1.5px solid ${isLow?"#f97316":"var(--border)"};border-radius:7px;padding:4px 2px;background:var(--card)">
-          <button class="stock-btn" onclick="JWG.adjustWinterSalt('${loc.id}',1)">+</button>
-          <button class="stock-btn" onclick="JWG.adjustWinterSalt('${loc.id}',5)">+5</button>
-          <span class="salt-threshold">/ ${salt.min_threshold} min</span>
-          ${isLow?`<span class="salt-indicator">LOW</span>`:""}
-        </div>`:`<span style="color:var(--fg-muted)">—</span>`}</td>
-        <td class="win-td win-td-notes" data-label="Notes">${esc(loc.notes||"")}</td>
-        <td class="win-td card-actions">
-          <button class="loc-action-btn" onclick="WinterSitePlan.open('${loc.id}')" title="Aerial photo and snow drop zones">${loc.photo_path?"Site plan":"Add photo"}</button>
-          <button class="loc-action-btn" onclick="JWG.editWinterLocation('${loc.id}')">Edit</button>
-          <button class="loc-action-btn delete" onclick="JWG.deleteWinterLocation('${loc.id}')">Delete</button>
-        </td>
-      </tr>`;
-    });
-    h+=`</tbody></table>`;
-  }
-
-  h+=`</div></div>`;
-  root.innerHTML=h;
+  SnowDesk.render(root,WIN);
 }
 
 // Route order: group order from jwg_winter_groups, then stop; sites with no code yet go last.
@@ -2636,7 +2528,6 @@ function winterRouteSort(a,b){
   return gi(a.winter_group)-gi(b.winter_group)||(a.winter_stop||999)-(b.winter_stop||999);
 }
 
-function filterAndSortWinter(){renderWinterPage();}
 
 async function adjustWinterSalt(locId,delta){
   const salt=WIN.saltBins.find(s=>s.location_id===locId);
@@ -2672,14 +2563,16 @@ async function toggleWinterService(locId,typeId){
   renderWinterPage();
 }
 
-function setWinterView(v){WIN.view=v;renderWinterPage();}
 async function reloadWinter(){await loadWinterData();renderWinterPage();}
 
 // Contract status is 'confirmed' or 'pending' (database check constraint).
-function winterContractTag(status){
+async function setWinterContract(locId,status){
   if(status!=="confirmed"&&status!=="pending")throw new Error("Unknown winter contract status: "+status);
-  const ok=status==="confirmed";
-  return`<span style="display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;background:${ok?"#dcfce7":"#fef3c7"};color:${ok?"#166534":"#92400e"}">${ok?"Confirmed":"Pending"}</span>`;
+  try{
+    await sbF("PATCH",`jwg_service_locations?id=eq.${locId}`,{winter_contract:status,updated_at:new Date().toISOString()});
+    WIN.locations.find(l=>l.id===locId).winter_contract=status;
+    renderWinterPage();
+  }catch(e){toast("Could not save the contract status","error");console.error(e);}
 }
 function winterContractField(current){
   return`<div class="si-form-group">
@@ -3701,5 +3594,5 @@ function renderJwgScheduler(){
 window.renderJwgScheduler=renderJwgScheduler;
 // The Team page (app-team.js) calls these when someone is removed there.
 window.JWGRoster={forwardSummary:rosterForwardSummary,clearForward:rosterClearForward};
-window.JWG={addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,clDelete:clDelete,clOpenEdit:clOpenEdit,clSaveEdit:clSaveEdit,clOpenPerson:clOpenPerson,clSetTab:clSetTab,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,clOpenHandout:clOpenHandout,clHoTick:clHoTick,clHoTickGroup:clHoTickGroup,clHoSize:clHoSize,clHoDate:clHoDate,clHoSearch:clHoSearch,clHoSave:clHoSave,clOpenDesign:clOpenDesign,clEdPick:clEdPick,clEdColour:clEdColour,clEdColourNew:clEdColourNew,clEdAddColour:clEdAddColour,clStockStep:clStockStep,clStockSet:clStockSet,clOpenDelivery:clOpenDelivery,clSaveDelivery:clSaveDelivery,clEdPhoto:clEdPhoto,clSaveDesign:clSaveDesign,clDeleteDesign:clDeleteDesign,closeModal:closeModal,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,prevW:prevW,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setWinterSalt:setWinterSalt,setWinterView:setWinterView,toggleWinterService:toggleWinterService,reloadWinter:reloadWinter,freshWinterSites:freshWinterSites,winterRouteSort:winterRouteSort,winterStopOptions:winterStopOptions,sbF:sbF,toast:toast,openModal:openModal,jwgConfirm:jwgConfirm,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,S:S,SUM:SUM,WIN:WIN,CL:CL,render:render,closeEditor:closeEditor,edJob:edJob,edAway:edAway,edHrs:edHrs,edAllDay:edAllDay,edCustom:edCustom,edCustomSet:edCustomSet,edSel:edSel,edAdd:edAdd,edRemove:edRemove,edClear:edClear,edNote:edNote,edApply:edApply,mSetCrew:mSetCrew};
+window.JWG={addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,clDelete:clDelete,clOpenEdit:clOpenEdit,clSaveEdit:clSaveEdit,clOpenPerson:clOpenPerson,clSetTab:clSetTab,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,clOpenHandout:clOpenHandout,clHoTick:clHoTick,clHoTickGroup:clHoTickGroup,clHoSize:clHoSize,clHoDate:clHoDate,clHoSearch:clHoSearch,clHoSave:clHoSave,clOpenDesign:clOpenDesign,clEdPick:clEdPick,clEdColour:clEdColour,clEdColourNew:clEdColourNew,clEdAddColour:clEdAddColour,clStockStep:clStockStep,clStockSet:clStockSet,clOpenDelivery:clOpenDelivery,clSaveDelivery:clSaveDelivery,clEdPhoto:clEdPhoto,clSaveDesign:clSaveDesign,clDeleteDesign:clDeleteDesign,closeModal:closeModal,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,prevW:prevW,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setWinterSalt:setWinterSalt,setWinterContract:setWinterContract,toggleWinterService:toggleWinterService,reloadWinter:reloadWinter,freshWinterSites:freshWinterSites,winterRouteSort:winterRouteSort,winterStopOptions:winterStopOptions,sbF:sbF,toast:toast,openModal:openModal,jwgConfirm:jwgConfirm,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,S:S,SUM:SUM,WIN:WIN,CL:CL,render:render,closeEditor:closeEditor,edJob:edJob,edAway:edAway,edHrs:edHrs,edAllDay:edAllDay,edCustom:edCustom,edCustomSet:edCustomSet,edSel:edSel,edAdd:edAdd,edRemove:edRemove,edClear:edClear,edNote:edNote,edApply:edApply,mSetCrew:mSetCrew};
 })();
