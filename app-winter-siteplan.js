@@ -195,6 +195,18 @@ window.WinterSitePlan = (function(){
     document.addEventListener('paste', onPaste);
     document.addEventListener('keydown', onKey);
     window.addEventListener('resize', fit);
+    // A crop box may start in the dark border round the photo: it begins at the
+    // photo's nearest edge, and the photo's own handlers carry the drag from there.
+    page.querySelector('#sp-stage').addEventListener('pointerdown', function(e){
+      var svg = document.getElementById('sp-svg');
+      if(!st.crop || !svg || e.target !== this || e.offsetX >= this.clientWidth || e.offsetY >= this.clientHeight) return;
+      e.preventDefault();
+      svg.setPointerCapture(e.pointerId);
+      var r = svg.getBoundingClientRect(), p = [clamp((e.clientX - r.left) / r.width), clamp((e.clientY - r.top) / r.height)];
+      st.crop.box = [p, p];
+      st.drag = {kind: 'crop'};
+      paint();
+    });
     // The wheel zooms on the spot under the pointer, the way a map does.
     page.querySelector('#sp-stage').addEventListener('wheel', function(e){
       if(!st.ar) return;
@@ -252,7 +264,12 @@ window.WinterSitePlan = (function(){
     if(t.closest('#sp-redo')){ step(st.redo, st.undo); return; }
     if((b = t.closest('[data-zoom]'))){ zoomTo(st.zoom * (+b.dataset.zoom > 0 ? 1.5 : 1 / 1.5)); return; }
     if(t.closest('#sp-labels')){ st.labels = !st.labels; paint(); return; }
-    if(t.closest('#sp-crop')){ finish(); st.crop = st.crop ? null : {box: null}; st.tool = 'select'; st.sel = null; st.vsel = null; st.ext = null; paint(); return; }
+    if(t.closest('#sp-crop')){
+      finish();
+      // The crop bar takes the place of the tools and the hint line, at exactly their
+      // height, so the photo does not move when cropping starts.
+      if(!st.crop) document.getElementById('sp-cropbar').style.minHeight = (document.getElementById('sp-note').getBoundingClientRect().bottom - document.querySelector('#sp-page .sp-bar').getBoundingClientRect().top) + 'px';
+      st.crop = st.crop ? null : {box: null}; st.tool = 'select'; st.sel = null; st.vsel = null; st.ext = null; paint(); return; }
     if(t.closest('#sp-crop-cancel')){ st.crop = null; paint(); return; }
     if(t.closest('#sp-crop-apply')){ applyCrop(); return; }
     if(t.closest('#sp-clear')){ if(st.marks.length){ remember(); st.marks = []; st.sel = null; st.draft = null; paint(); } return; }
@@ -400,6 +417,7 @@ window.WinterSitePlan = (function(){
     page.querySelectorAll('[data-tool]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.tool === st.tool); b.disabled = !st.url; });
     page.querySelector('#sp-labels').setAttribute('aria-pressed', st.labels);
     page.querySelector('#sp-cropbar').hidden = !st.crop;
+    page.querySelector('.sp-bar').style.display = page.querySelector('#sp-note').style.display = st.crop ? 'none' : '';
     page.querySelector('#sp-crop-apply').disabled = !(st.crop && st.crop.box);
     page.querySelector('#sp-crop').setAttribute('aria-pressed', !!st.crop);
     page.querySelector('#sp-crop').disabled = !st.url;
