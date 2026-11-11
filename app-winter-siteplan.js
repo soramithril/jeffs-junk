@@ -55,7 +55,9 @@ window.WinterSitePlan = (function(){
   // Marks as SVG, in a 1000-wide box as tall as the photo's shape makes it, so
   // labels, pins and arrowheads are never stretched. o: sel (index picked in the
   // editor), draft (a mark still being drawn), hover (where the next point would
-  // go), labels (false to leave the codes off), size (label and pin scale).
+  // go), labels (false to leave the codes off), size (how heavy everything is drawn:
+  // line widths, codes, pins and handles all scale with it. The editor lowers it as
+  // you zoom in, so the photo grows and the marks stay as fine as they were).
   function draw(marks, vh, o){
     o = o || {};
     var s = o.size || 1, h = '';
@@ -66,53 +68,54 @@ window.WinterSitePlan = (function(){
       var w = (text.length * 8.6 + 12) * s, hh = 21 * s;
       x = Math.min(VW - w / 2 - 2, Math.max(w / 2 + 2, x));
       y = Math.min(vh - hh / 2 - 2, Math.max(hh / 2 + 2, y));
-      return '<rect x="' + f1(x - w / 2) + '" y="' + f1(y - hh / 2) + '" width="' + f1(w) + '" height="' + f1(hh) + '" rx="' + f1(5 * s) + '" fill="' + color + '" stroke="#012b1f" stroke-width="1.2"/>'
+      return '<rect x="' + f1(x - w / 2) + '" y="' + f1(y - hh / 2) + '" width="' + f1(w) + '" height="' + f1(hh) + '" rx="' + f1(5 * s) + '" fill="' + color + '" stroke="#012b1f" stroke-width="' + f1(1.2 * s) + '"/>'
         + '<text x="' + f1(x) + '" y="' + f1(y + 4.8 * s) + '" text-anchor="middle" font-size="' + f1(13.5 * s) + '" font-weight="800" fill="#012b1f" ' + FONT + '>' + text + '</text>';
     }
+    function w(n){ return f1(n * s); }
     function one(m, i, isDraft){
       var K = kind(m), c = K.color, on = !isDraft && o.sel === i, g = '';
       var p = isDraft && o.hover && K.shape !== 'arrow' && !m.closed ? m.p.concat([o.hover]) : m.p;
       if(!p.length) return '';
       var a = P(p[0]);
+      // Where a mark's code goes: in its middle if the mark can hold it, otherwise just
+      // above it (below, at the photo's top edge), so a code never hides its own mark.
+      function tag(mid){
+        var text = label(marks, i), xs = p.map(function(q){ return q[0] * VW; }), ys = p.map(function(q){ return q[1] * vh; });
+        var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+        var cw = (text.length * 8.6 + 12) * s, ch = 21 * s, gap = 7 * s;
+        if(mid && x1 - x0 >= cw * 1.3 && y1 - y0 >= ch * 1.9) return chip(mid[0], mid[1], text, c);
+        return chip((x0 + x1) / 2, y0 - ch - gap < 0 ? y1 + ch / 2 + gap : y0 - ch / 2 - gap, text, c);
+      }
       if(K.shape === 'area'){
-        var dash = m.t === 'zone' ? '' : ' stroke-dasharray="11 7"';
-        if(isDraft && !m.closed) g += '<polyline points="' + pts(p) + '" fill="' + c + '" fill-opacity=".15" stroke="' + c + '" stroke-width="3.5" stroke-dasharray="8 6" stroke-linejoin="round"/>';
-        else g += '<polygon points="' + pts(p) + '" fill="' + c + '" fill-opacity="' + (m.t === 'zone' ? .4 : .28) + '" stroke="#012b1f" stroke-width="' + (on ? 7 : 5.5) + '" stroke-linejoin="round" stroke-opacity=".7"/>'
-          + '<polygon points="' + pts(p) + '" fill="none" stroke="' + (on ? '#fff' : c) + '" stroke-width="3.5"' + dash + ' stroke-linejoin="round"/>';
+        var dash = m.t === 'zone' ? '' : ' stroke-dasharray="' + w(11) + ' ' + w(7) + '"';
+        if(isDraft && !m.closed) g += '<polyline points="' + pts(p) + '" fill="' + c + '" fill-opacity=".15" stroke="' + c + '" stroke-width="' + w(3) + '" stroke-dasharray="' + w(8) + ' ' + w(6) + '" stroke-linejoin="round"/>';
+        else g += '<polygon points="' + pts(p) + '" fill="' + c + '" fill-opacity="' + (m.t === 'zone' ? .4 : .28) + '" stroke="#012b1f" stroke-width="' + w(on ? 6.5 : 5) + '" stroke-linejoin="round" stroke-opacity=".7"/>'
+          + '<polygon points="' + pts(p) + '" fill="none" stroke="' + (on ? '#fff' : c) + '" stroke-width="' + w(3) + '"' + dash + ' stroke-linejoin="round"/>';
         if(!isDraft){
-          // The code sits in the middle of the outline, unless the outline is too small
-          // to hold it: then it sits just above (below, at the photo's top edge), so it never
-          // hides the mark it names.
-          var text = label(marks, i), xs = p.map(function(q){ return q[0] * VW; }), ys = p.map(function(q){ return q[1] * vh; });
-          var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
-          var cw = (text.length * 8.6 + 12) * s, ch = 21 * s;
-          if(x1 - x0 < cw * 1.3 || y1 - y0 < ch * 1.9) g += chip((x0 + x1) / 2, y0 - ch - 4 < 0 ? y1 + ch / 2 + 4 : y0 - ch / 2 - 4, text, c);
-          else {
-            var cx = 0, cy = 0;
-            p.forEach(function(q){ cx += q[0]; cy += q[1]; });
-            g += chip(cx / p.length * VW, cy / p.length * vh, text, c);
-          }
+          var cx = 0, cy = 0;
+          p.forEach(function(q){ cx += q[0]; cy += q[1]; });
+          g += tag([cx / p.length * VW, cy / p.length * vh]);
         }
       } else if(K.shape === 'line'){
-        g += '<polyline points="' + pts(p) + '" fill="none" stroke="transparent" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>'
-          + '<polyline points="' + pts(p) + '" fill="none" stroke="' + (on ? '#012b1f' : '#fff') + '" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>'
-          + '<polyline points="' + pts(p) + '" fill="none" stroke="' + c + '" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"' + (isDraft ? ' stroke-dasharray="10 8"' : '') + '/>';
-        if(!isDraft) g += chip(a[0], a[1] - 20 * s, label(marks, i), c);
+        g += '<polyline points="' + pts(p) + '" fill="none" stroke="transparent" stroke-width="' + w(22) + '" stroke-linecap="round" stroke-linejoin="round"/>'
+          + '<polyline points="' + pts(p) + '" fill="none" stroke="' + (on ? '#012b1f' : '#fff') + '" stroke-width="' + w(7.5) + '" stroke-linecap="round" stroke-linejoin="round"/>'
+          + '<polyline points="' + pts(p) + '" fill="none" stroke="' + c + '" stroke-width="' + w(4) + '" stroke-linecap="round" stroke-linejoin="round"' + (isDraft ? ' stroke-dasharray="' + w(10) + ' ' + w(8) + '"' : '') + '/>';
+        if(!isDraft) g += tag(null);
       } else if(K.shape === 'arrow'){
         if(p.length < 2) return '';
-        var b = P(p[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]), hd = 26 * s;
+        var b = P(p[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]), hd = 22 * s;
         var h1 = [b[0] - hd * Math.cos(ang - .45), b[1] - hd * Math.sin(ang - .45)], h2 = [b[0] - hd * Math.cos(ang + .45), b[1] - hd * Math.sin(ang + .45)];
         var col = on ? '#bbf7d0' : c;
-        g += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="#012b1f" stroke-width="12" stroke-linecap="round" stroke-opacity=".8"/>'
-          + '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + col + '" stroke-width="6.5" stroke-linecap="round"/>'
-          + '<polygon points="' + f1(b[0]) + ',' + f1(b[1]) + ' ' + f1(h1[0]) + ',' + f1(h1[1]) + ' ' + f1(h2[0]) + ',' + f1(h2[1]) + '" fill="' + col + '" stroke="#012b1f" stroke-width="2" stroke-linejoin="round"/>';
-        if(!isDraft) g += chip(a[0], a[1] + 22 * s, label(marks, i), c);
+        g += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="#012b1f" stroke-width="' + w(10) + '" stroke-linecap="round" stroke-opacity=".8"/>'
+          + '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + col + '" stroke-width="' + w(5.5) + '" stroke-linecap="round"/>'
+          + '<polygon points="' + f1(b[0]) + ',' + f1(b[1]) + ' ' + f1(h1[0]) + ',' + f1(h1[1]) + ' ' + f1(h2[0]) + ',' + f1(h2[1]) + '" fill="' + col + '" stroke="#012b1f" stroke-width="' + w(2) + '" stroke-linejoin="round"/>';
+        if(!isDraft) g += tag(null);
       } else {
-        g += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="' + f1((on ? 16 : 14) * s) + '" fill="' + c + '" stroke="' + (on ? '#fff' : '#012b1f') + '" stroke-width="' + (on ? 4 : 2) + '"/>'
-          + '<text x="' + f1(a[0]) + '" y="' + f1(a[1] + 5.4 * s) + '" text-anchor="middle" font-size="' + f1(15 * s) + '" font-weight="800" fill="#012b1f" ' + FONT + '>' + (m.t === 'hazard' ? '!' : 'S') + '</text>';
-        if(!isDraft) g += chip(a[0], a[1] + 29 * s, label(marks, i), c);
+        g += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="' + w(on ? 15 : 13) + '" fill="' + c + '" stroke="' + (on ? '#fff' : '#012b1f') + '" stroke-width="' + w(on ? 4 : 2) + '"/>'
+          + '<text x="' + f1(a[0]) + '" y="' + f1(a[1] + 5.2 * s) + '" text-anchor="middle" font-size="' + w(14.5) + '" font-weight="800" fill="#012b1f" ' + FONT + '>' + (m.t === 'hazard' ? '!' : 'S') + '</text>';
+        if(!isDraft) g += chip(a[0], a[1] + 27 * s, label(marks, i), c);
       }
-      if(on && K.shape !== 'pin') g += m.p.map(function(q, k){ var v = P(q); return '<circle data-v="' + k + '" cx="' + f1(v[0]) + '" cy="' + f1(v[1]) + '" r="7.5" fill="#fff" stroke="#012b1f" stroke-width="2.5" style="cursor:grab"/>'; }).join('');
+      if(on && K.shape !== 'pin') g += m.p.map(function(q, k){ var v = P(q); return '<circle data-v="' + k + '" cx="' + f1(v[0]) + '" cy="' + f1(v[1]) + '" r="' + w(7) + '" fill="#fff" stroke="#012b1f" stroke-width="' + w(2.2) + '" style="cursor:grab"/>'; }).join('');
       return isDraft ? '<g pointer-events="none">' + g + '</g>' : '<g data-m="' + i + '">' + g + '</g>';
     }
     marks.forEach(function(m, i){ h += one(m, i, false); });
@@ -147,7 +150,7 @@ window.WinterSitePlan = (function(){
     var run = JWG.WIN.locations.slice().sort(JWG.winterRouteSort);
     var pos = run.findIndex(function(l){ return l.id === id; });
     st = {loc: loc, marks: JSON.parse(JSON.stringify(loc.site_marks || [])), tool: 'select', sel: null, draft: null, drag: null, hover: null,
-          zoom: 1, undo: [], redo: [], dirty: false, blob: null, ar: null,
+          zoom: 1, size: 1, labels: true, undo: [], redo: [], dirty: false, blob: null, ar: null,
           prev: run[pos - 1] ? run[pos - 1].id : null, next: run[pos + 1] ? run[pos + 1].id : null,
           url: loc.photo_path ? await signedUrl(loc.photo_path) : null};
     var code = WinterRoutes.code(loc);
@@ -165,7 +168,7 @@ window.WinterSitePlan = (function(){
       +   (st.next ? '<button type="button" class="sp-btn primary" id="sp-save-next">Save &amp; next →</button>' : '') + '</div></div>'
       + '<div class="sp-bar"><div class="sp-tools"><button type="button" class="sp-tool" data-tool="select">Select &amp; move</button>'
       +   ORDER.map(function(t){ return '<button type="button" class="sp-tool" data-tool="' + t + '"><i style="background:' + KINDS[t].color + '"></i>' + KINDS[t].name + '</button>'; }).join('') + '</div>'
-      + '<div class="sp-tools"><button type="button" class="sp-tool" id="sp-undo">↶ Undo</button><button type="button" class="sp-tool" id="sp-redo">↷ Redo</button>'
+      + '<div class="sp-tools"><button type="button" class="sp-tool" id="sp-labels" title="Show or hide the codes on the photo">Labels</button><button type="button" class="sp-tool" id="sp-undo">↶ Undo</button><button type="button" class="sp-tool" id="sp-redo">↷ Redo</button>'
       +   '<button type="button" class="sp-tool" data-zoom="-1" aria-label="Zoom out">−</button><b id="sp-zl">100%</b><button type="button" class="sp-tool" data-zoom="1" aria-label="Zoom in">+</button></div></div>'
       + '<div class="sp-note" id="sp-note"></div>'
       + '<div class="sp-body"><div class="sp-stage" id="sp-stage"></div>'
@@ -188,6 +191,12 @@ window.WinterSitePlan = (function(){
     document.addEventListener('paste', onPaste);
     document.addEventListener('keydown', onKey);
     window.addEventListener('resize', fit);
+    // The wheel zooms on the spot under the pointer, the way a map does.
+    page.querySelector('#sp-stage').addEventListener('wheel', function(e){
+      if(!st.ar) return;
+      e.preventDefault();
+      zoomTo(st.zoom * (e.deltaY < 0 ? 1.25 : .8), e.clientX, e.clientY);
+    }, {passive: false});
     renderStage();
   }
 
@@ -237,7 +246,8 @@ window.WinterSitePlan = (function(){
     if((b = t.closest('[data-tool]'))){ finish(); st.tool = b.dataset.tool; if(st.tool !== 'select') st.sel = null; paint(); return; }
     if(t.closest('#sp-undo')){ finish(); step(st.undo, st.redo); return; }
     if(t.closest('#sp-redo')){ step(st.redo, st.undo); return; }
-    if((b = t.closest('[data-zoom]'))){ st.zoom = Math.min(4, Math.max(1, st.zoom + (+b.dataset.zoom) * .5)); fit(); return; }
+    if((b = t.closest('[data-zoom]'))){ zoomTo(st.zoom * (+b.dataset.zoom > 0 ? 1.5 : 1 / 1.5)); return; }
+    if(t.closest('#sp-labels')){ st.labels = !st.labels; paint(); return; }
     if(t.closest('#sp-clear')){ if(st.marks.length){ remember(); st.marks = []; st.sel = null; st.draft = null; paint(); } return; }
     if(t.closest('[data-del]')){ removeSelected(); return; }
     if((b = t.closest('[data-mark]')) && t.tagName !== 'INPUT'){ finish(); st.sel = +b.dataset.mark; st.tool = 'select'; if(document.activeElement.blur) document.activeElement.blur(); paint(); }
@@ -324,20 +334,38 @@ window.WinterSitePlan = (function(){
     var stage = document.getElementById('sp-stage');
     var w = Math.min(stage.clientWidth - 16, (stage.clientHeight - 16) * st.ar) * st.zoom;
     document.getElementById('sp-photo').style.width = Math.round(w) + 'px';
+    // Marks keep one size on screen whatever the zoom: a code about 12px tall, a
+    // sidewalk line about 4px wide. Zooming in makes the photo bigger, not the marks.
+    st.size = .9 * VW / w;
     paint();
+  }
+  // Zoom so the spot under (cx, cy) stays under it; with no spot given, the middle.
+  function zoomTo(z, cx, cy){
+    z = Math.min(8, Math.max(1, z));
+    if(z === st.zoom || !st.ar) return;
+    var stage = document.getElementById('sp-stage'), ph = document.getElementById('sp-photo');
+    var r = ph.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+    if(cx == null){ cx = sr.left + sr.width / 2; cy = sr.top + sr.height / 2; }
+    var fx = (cx - r.left) / r.width, fy = (cy - r.top) / r.height;
+    st.zoom = z;
+    fit();
+    var n = ph.getBoundingClientRect();
+    stage.scrollLeft += n.left + fx * n.width - cx;
+    stage.scrollTop += n.top + fy * n.height - cy;
   }
   function paint(){
     var page = document.getElementById('sp-page'), el = document.getElementById('sp-svg');
     if(el && st.ar){
-      el.innerHTML = draw(st.marks, VW / st.ar, {sel: st.sel, draft: st.draft, hover: st.hover});
+      el.innerHTML = draw(st.marks, VW / st.ar, {sel: st.sel, draft: st.draft, hover: st.hover, size: st.size, labels: st.labels});
       el.style.cursor = st.tool === 'select' ? 'default' : 'crosshair';
     }
     page.querySelectorAll('[data-tool]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.tool === st.tool); b.disabled = !st.url; });
+    page.querySelector('#sp-labels').setAttribute('aria-pressed', st.labels);
     page.querySelector('#sp-undo').disabled = !st.undo.length;
     page.querySelector('#sp-redo').disabled = !st.redo.length;
     page.querySelector('#sp-zl').textContent = Math.round(st.zoom * 100) + '%';
     page.querySelector('#sp-note').textContent = !st.url ? '' : st.tool === 'select'
-      ? 'Click a mark to select it. Drag it to move, drag a white dot to reshape, press Delete to remove.' : KINDS[st.tool].hint;
+      ? 'Click a mark to select it: drag to move, drag a white dot to reshape, Delete to remove. Scroll to zoom in; drag the photo to slide it.' : KINDS[st.tool].hint + ' Scroll to zoom in.';
     var list = page.querySelector('#sp-list');
     if(list.contains(document.activeElement)) return;   // someone is typing a note
     list.innerHTML = st.marks.length ? st.marks.map(function(m, i){
@@ -363,7 +391,7 @@ window.WinterSitePlan = (function(){
         var v = e.target.closest('[data-v]'), m = e.target.closest('[data-m]');
         if(v && st.sel != null){ d.kind = 'vertex'; d.k = +v.dataset.v; d.before = JSON.stringify(st.marks); }
         else if(m){ st.sel = +m.dataset.m; d.kind = 'move'; d.orig = JSON.parse(JSON.stringify(st.marks[st.sel].p)); d.before = JSON.stringify(st.marks); }
-        else { st.sel = null; d = null; }
+        else { st.sel = null; var sg = document.getElementById('sp-stage'); d.kind = 'pan'; d.sx = sg.scrollLeft; d.sy = sg.scrollTop; }
       } else {
         var shape = KINDS[st.tool].shape;
         st.sel = null;
@@ -379,6 +407,7 @@ window.WinterSitePlan = (function(){
       if(!st) return;
       var d = st.drag, p = pt(e);
       if(!d){ if(st.draft){ st.hover = p; paint(); } return; }
+      if(d.kind === 'pan'){ var sg = document.getElementById('sp-stage'); sg.scrollLeft = d.sx - (e.clientX - d.cx); sg.scrollTop = d.sy - (e.clientY - d.cy); return; }
       if(d.kind === 'move'){
         if(far(e, d, 2)) d.moved = true;
         st.marks[st.sel].p = d.orig.map(function(q){ return [clamp(q[0] + p[0] - d.a[0]), clamp(q[1] + p[1] - d.a[1])]; });
@@ -396,6 +425,7 @@ window.WinterSitePlan = (function(){
       var d = st.drag, p = pt(e);
       st.drag = null;
       if(!d) return;
+      if(d.kind === 'pan'){ paint(); return; }
       if(d.kind === 'move' || d.kind === 'vertex'){ if(d.moved){ st.undo.push(d.before); st.redo = []; st.dirty = true; } }
       else if(d.kind === 'arrow'){
         var a = st.draft;
