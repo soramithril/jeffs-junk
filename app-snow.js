@@ -80,15 +80,6 @@ window.SnowDesk = (function(){
   }
 
   // ── the picked site ──
-  function marksSvg(marks){
-    var h = '';
-    (marks || []).forEach(function(m){
-      if(m.t === 'zone') h += '<rect x="' + m.r[0] + '" y="' + m.r[1] + '" width="' + m.r[2] + '" height="' + m.r[3] + '" class="z"/>';
-      else if(m.t === 'walk') h += '<polyline points="' + m.p.map(function(p){ return p[0] + ',' + p[1]; }).join(' ') + '" class="w"/>';
-      else throw new Error('Unknown site mark type: ' + m.t);
-    });
-    return '<svg viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">' + h + '</svg>';
-  }
   function paintDetail(){
     var box = root.querySelector('#sx-detail'), loc = selected();
     if(!loc){ box.innerHTML = '<div class="sx-none">Pick a site from the list or the map.</div>'; return; }
@@ -116,7 +107,7 @@ window.SnowDesk = (function(){
       + '</div>'
       + '<div class="sx-sec"><div class="l">Site plan</div>'
       +   (loc.photo_path
-            ? '<button type="button" class="sx-photo" data-plan title="Open the site plan"><img id="sx-photo-img" alt="Aerial photo of ' + esc(loc.address) + '">' + marksSvg(loc.site_marks)
+            ? '<button type="button" class="sx-photo" data-plan title="Open the site plan"><img id="sx-photo-img" alt="Aerial photo of ' + esc(loc.address) + '"><span id="sx-photo-mk"></span>'
               + '<span class="cap">' + nMarks + ' mark' + (nMarks === 1 ? '' : 's') + ' drawn</span></button>'
             : '<button type="button" class="sx-photo none" data-plan>No aerial photo yet. Add one</button>')
       + '</div>'
@@ -136,7 +127,12 @@ window.SnowDesk = (function(){
       hit = photoUrls[loc.photo_path] = {url: r.data.signedUrl, until: Date.now() + 50 * 60 * 1000};
     }
     var img = root.querySelector('#sx-photo-img');
-    if(img && st.sel === loc.id) img.src = hit.url;
+    if(!img || st.sel !== loc.id) return;
+    // The marks need the photo's shape, which is only known once it has loaded.
+    img.onload = function(){
+      if(st.sel === loc.id) root.querySelector('#sx-photo-mk').innerHTML = WinterSitePlan.svg(loc.site_marks, img.naturalWidth / img.naturalHeight, {labels: false});
+    };
+    img.src = hit.url;
   }
 
   // ── map ──

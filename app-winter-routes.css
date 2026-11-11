@@ -19,47 +19,61 @@
 #view-jwgscheduler .wr-pin:hover{transform:translate(-50%,-50%) scale(1.15);z-index:2}
 #view-jwgscheduler .wr-shop{position:absolute;width:18px;height:18px;transform:translate(-50%,-50%) rotate(45deg);background:#012b1f;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)}
 
-/* site plan editor (app-winter-siteplan.js): the photo with its drop zones */
 /* The editor fills the window and the photo takes every pixel left over (Jake, 2026-11-03). */
 /* app-jwg-theme.css pads every pop-up into a 720px column with !important; the
    site plan takes the whole width, the same way the day editor (.sm-head) does. */
-#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sp-wrap){padding:14px 24px !important}
-#view-jwgscheduler .sp-wrap{display:flex;flex-direction:column;gap:8px;flex:1 1 auto;min-height:0}
-#view-jwgscheduler .sp-head{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
-#view-jwgscheduler .sp-head .si-modal-actions{margin:0 52px 0 0 !important;padding:0 !important;border:0 !important;width:auto !important;flex:0 0 auto}
-#view-jwgscheduler .sp-head .wr-code{font-size:15px;padding:4px 10px}
-#view-jwgscheduler .sp-addr{font-size:20px;font-weight:800;color:var(--fg)}
-#view-jwgscheduler .sp-nick{font-size:13px;color:var(--fg-muted)}
-#view-jwgscheduler .sp-pos{margin-left:auto;font-size:13px;font-weight:700;color:var(--fg-muted);white-space:nowrap}
-#view-jwgscheduler .sp-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-#view-jwgscheduler .sp-upload{cursor:pointer}
-#view-jwgscheduler .sp-hint{font-size:12px;color:var(--fg-muted)}
-#view-jwgscheduler .sp-sp{flex:1}
-#view-jwgscheduler .sp-tools button:disabled{opacity:.45;cursor:default}
-#view-jwgscheduler .sp-note{font-size:12.5px;color:var(--fg-muted);min-height:1em}
-#view-jwgscheduler .sp-stage{flex:1 1 auto;min-height:0;container-type:size;display:flex;justify-content:center;align-items:center;background:var(--bg-deep);border-radius:12px;padding:8px;overflow:hidden}
-#view-jwgscheduler .sp-empty{padding:70px 20px;text-align:center;color:var(--fg-muted);border:2px dashed var(--border);border-radius:10px;width:100%}
-#view-jwgscheduler .sp-photo{position:relative;max-width:100%;cursor:crosshair;touch-action:none;user-select:none;line-height:0}
-#view-jwgscheduler .sp-photo img{display:block;width:min(100cqw, calc(100cqh * var(--ar, 1)));height:auto}
-#view-jwgscheduler .sp-mark{position:absolute;background:rgba(255,214,10,.42);border:2px solid #ffd60a;outline:1px solid rgba(1,43,31,.6);cursor:move}
-#view-jwgscheduler .sp-mark.sel{border-color:#fff;outline:2px dashed #012b1f}
-#view-jwgscheduler .sp-mark span{position:absolute;left:0;top:0;transform:translateY(-100%);background:#ffd60a;color:#3d3200;font:700 10px/14px ui-monospace,Consolas,monospace;padding:0 4px;white-space:nowrap}
-#view-jwgscheduler .sp-h{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;background:#fff;border:2px solid #012b1f;border-radius:2px;cursor:nwse-resize}
 /* drop zone / sidewalk switch, and the traced sidewalk lines (blue, white casing) */
-#view-jwgscheduler .sp-mode{display:flex;border:1px solid #cfd8d3;border-radius:8px;overflow:hidden}
-#view-jwgscheduler .sp-mode button{font:inherit;font-size:12.5px;font-weight:700;padding:6px 12px;border:0;background:#f4f7f5;color:#14201a;cursor:pointer}
-#view-jwgscheduler .sp-mode button+button{border-left:1px solid #cfd8d3}
-#view-jwgscheduler .sp-mode button[aria-pressed="true"]{background:#012b1f;color:#fff}
-#view-jwgscheduler .sp-walks{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
-#view-jwgscheduler .sp-walks polyline{fill:none;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
-#view-jwgscheduler .sp-walks .hit{stroke:transparent;stroke-width:16px;pointer-events:stroke;cursor:move}
-#view-jwgscheduler .sp-walks .case{stroke:#fff;stroke-width:7px}
-#view-jwgscheduler .sp-walks .line{stroke:#2f80ed;stroke-width:4px}
-#view-jwgscheduler .sp-walk.sel .case{stroke:#012b1f}
-#view-jwgscheduler .sp-walk.draft .line{stroke-dasharray:8 6}
-#view-jwgscheduler .sp-wlabel{position:absolute;transform:translate(-50%,-150%);background:#2f80ed;color:#fff;font:700 10px/14px ui-monospace,Consolas,monospace;padding:0 4px;white-space:nowrap;pointer-events:none}
-#view-jwgscheduler .sp-wlabel.below{transform:translate(-50%,50%)}
-#view-jwgscheduler .sp-v{position:absolute;width:12px;height:12px;transform:translate(-50%,-50%);background:#fff;border:2px solid #012b1f;border-radius:50%;cursor:grab}
 
 /* print-book group picker (app-winter-book.js) */
 #view-jwgscheduler .wb-pick{display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:13px;text-align:left}
+
+/* Site plan editor (app-winter-siteplan.js). A full page over Snow & Ice. The marks
+   on the photo are drawn as SVG with their colours inline (the printed book uses
+   the same drawing), so only the page around the photo is styled here. Uses the
+   dashboard's neutral ladder, like app-snow.css, for the same reason. */
+#view-jwgscheduler #sp-page{display:flex;flex-direction:column;gap:10px;height:calc(100vh - 32px);min-height:560px;padding:24px 40px 20px;background:var(--n2);font-family:'Inter',system-ui,sans-serif;font-size:14px;color:var(--n12)}
+#view-jwgscheduler .sp-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+#view-jwgscheduler .sp-id{display:flex;align-items:center;gap:12px;min-width:0}
+#view-jwgscheduler .sp-code{display:inline-flex;align-items:center;justify-content:center;min-width:52px;padding:4px 9px;border-radius:6px;color:#fff;font-weight:800;font-size:13px;font-variant-numeric:tabular-nums;flex:none}
+#view-jwgscheduler .sp-id .sp-code{font-size:17px;padding:6px 11px}
+#view-jwgscheduler .sp-addr{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1.2px;line-height:1;color:var(--n12)}
+#view-jwgscheduler .sp-nick{font-size:13px;color:var(--n11);margin-top:3px}
+#view-jwgscheduler .sp-acts,#view-jwgscheduler .sp-tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#view-jwgscheduler .sp-btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 16px;border-radius:8px;font:600 14px 'Inter',system-ui,sans-serif;cursor:pointer;background:#fff;color:var(--n12);border:1px solid var(--n6);min-height:0}
+#view-jwgscheduler .sp-btn:hover{background:var(--n3)}
+#view-jwgscheduler .sp-btn.primary{background:var(--accent-hero);color:#052e16;border-color:transparent;box-shadow:inset 0 1px 0 rgba(255,255,255,.38),0 1px 2px rgba(20,83,45,.22)}
+#view-jwgscheduler .sp-btn.primary:hover{background:#1fb757}
+#view-jwgscheduler .sp-btn:disabled,#view-jwgscheduler .sp-tool:disabled{opacity:.45;cursor:default}
+#view-jwgscheduler .sp-bar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:center}
+#view-jwgscheduler .sp-tool{display:inline-flex;align-items:center;gap:7px;font:700 13px 'Inter',system-ui,sans-serif;padding:8px 12px;border-radius:8px;border:1px solid var(--n7);background:#fff;color:var(--n12);cursor:pointer;min-height:0;text-transform:none;letter-spacing:0}
+#view-jwgscheduler .sp-tool:hover{background:var(--n3)}
+#view-jwgscheduler .sp-tool[aria-pressed="true"]{background:var(--n12);border-color:var(--n12);color:#fff}
+#view-jwgscheduler .sp-tool i{width:13px;height:13px;border-radius:4px;border:1px solid rgba(1,43,31,.6)}
+#view-jwgscheduler #sp-zl{min-width:46px;text-align:center;font-size:13px;font-variant-numeric:tabular-nums}
+#view-jwgscheduler .sp-note{font-size:13px;color:var(--n11);min-height:19px}
+#view-jwgscheduler .sp-body{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
+#view-jwgscheduler .sp-stage{min-height:0;min-width:0;overflow:auto;display:flex;background:#1d2b24;border:1px solid var(--n6);border-radius:12px;padding:8px}
+#view-jwgscheduler .sp-photo{position:relative;flex:none;margin:auto;line-height:0;touch-action:none;user-select:none}
+#view-jwgscheduler .sp-photo img{display:block;width:100%;height:auto}
+#view-jwgscheduler .sp-photo svg{position:absolute;inset:0;width:100%;height:100%}
+#view-jwgscheduler .sp-empty{margin:auto;padding:60px 24px;text-align:center;color:#c9d6cf;border:2px dashed #46594f;border-radius:10px;max-width:440px;line-height:1.5}
+#view-jwgscheduler .sp-side{display:flex;flex-direction:column;min-height:0;background:#fff;border:1px solid var(--n6);border-radius:12px;box-shadow:var(--shadow-sm);padding:12px}
+#view-jwgscheduler .sp-side-h{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--n11);padding:2px 6px 8px}
+#view-jwgscheduler #sp-list{flex:1 1 auto;min-height:0;overflow:auto}
+#view-jwgscheduler .sp-mark{display:flex;flex-wrap:wrap;align-items:center;gap:6px 9px;padding:8px;border-radius:8px;cursor:pointer}
+#view-jwgscheduler .sp-mark:hover{background:var(--n3)}
+#view-jwgscheduler .sp-mark.on{background:#f0fdf4;box-shadow:inset 0 0 0 1.5px var(--green-s2)}
+#view-jwgscheduler .sp-mark b{font-weight:700;font-size:13px}
+#view-jwgscheduler .sp-mark .n{flex-basis:100%;font-size:12.5px;color:var(--n11);padding-left:61px}
+#view-jwgscheduler .sp-mark .sp-del{margin-left:auto;font-size:12px;padding:4px 9px;color:var(--bad-ink)}
+#view-jwgscheduler .sp-mark input{flex-basis:100%;font:500 14px 'Inter',system-ui,sans-serif;padding:9px 11px;border-radius:8px;border:1px solid var(--n7);background:#fff;color:var(--n12)}
+#view-jwgscheduler .sp-mark input:focus{outline:none;border-color:var(--green-s2);box-shadow:0 0 0 3px rgba(22,163,74,.18)}
+#view-jwgscheduler .sp-none{padding:14px 8px;color:var(--n11);font-size:13px;line-height:1.45}
+#view-jwgscheduler .sp-side-f{display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid var(--n4);padding-top:10px;margin-top:8px}
+#view-jwgscheduler .sp-upload{cursor:pointer}
+#view-jwgscheduler .sp-hint{flex-basis:100%;font-size:12px;color:var(--n11);line-height:1.4}
+@media (max-width:900px){
+  #view-jwgscheduler #sp-page{height:auto;padding:14px}
+  #view-jwgscheduler .sp-body{grid-template-columns:minmax(0,1fr)}
+  #view-jwgscheduler .sp-stage{height:60vh}
+}

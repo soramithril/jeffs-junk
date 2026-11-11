@@ -138,21 +138,10 @@ window.WinterBook = (function(){
     var nick = l.client_name && l.client_name !== l.address ? l.client_name : '';
     // Photo box: as wide as the margins allow, never taller than the space left (cqw).
     var w = photo ? Math.min(86, 50 * photo.ar) : 86;
-    // Zones are boxes, sidewalks are lines in one SVG under the boxes; each kind
-    // numbers itself in saved order, the same as the editor.
-    var nz = 0, nw = 0, walks = '', overlay = '';
-    marks.forEach(function(m){
-      if(m.t === 'zone'){
-        nz++;
-        overlay += '<div class="zone' + (m.r[1] < .05 ? ' top' : '') + '" style="left:' + m.r[0] * 100 + '%;top:' + m.r[1] * 100 + '%;width:' + m.r[2] * 100 + '%;height:' + m.r[3] * 100 + '%"><span>DZ-' + String(nz).padStart(2, '0') + '</span></div>';
-        return;
-      }
-      nw++;
-      var pts = m.p.map(function(q){ return q[0] * 100 + ',' + q[1] * 100; }).join(' ');
-      walks += '<polyline class="case" points="' + pts + '"/><polyline class="line" points="' + pts + '"/>';
-      overlay += '<span class="wl' + (m.p[0][1] < .06 ? ' below' : '') + '" style="left:' + m.p[0][0] * 100 + '%;top:' + m.p[0][1] * 100 + '%">SW-' + String(nw).padStart(2, '0') + '</span>';
-    });
-    var zones = (walks ? '<svg class="walks" viewBox="0 0 100 100" preserveAspectRatio="none">' + walks + '</svg>' : '') + overlay;
+    // The marks are drawn by the site plan editor's own draw(), so the book and the
+    // editor cannot disagree about what a mark looks like.
+    var zones = photo && marks.length ? WinterSitePlan.svg(marks, photo.ar, {size: 1.25}).replace('<svg ', '<svg class="mk" ') : '';
+    var used = WinterSitePlan.tally(marks), said = WinterSitePlan.notes(marks);
     return '<section class="page">'
       + '<div class="class">WINTER OPS // CREW EYES ONLY // SEASON ' + season(today) + '</div>'
       + '<div class="hdr"><img src="' + new URL('assets/jwg-logo.png', location.href).href + '" alt="">'
@@ -172,13 +161,14 @@ window.WinterBook = (function(){
           ? '<div class="grid"><div class="gx">' + 'ABCDEFGH'.split('').map(function(c){ return '<span>' + c + '</span>'; }).join('') + '</div>'
             + '<div class="gy">' + [1, 2, 3, 4, 5, 6].map(function(c){ return '<span>' + c + '</span>'; }).join('') + '</div>'
             + '<div class="photo" style="width:' + w + 'cqw;aspect-ratio:' + photo.ar + '"><img src="' + photo.url + '" alt="">' + zones + '<i class="brk"></i></div></div>'
-          : '<div class="nophoto">No photo yet. Add one in the Winter tab under Site plan.</div>') + '</div>'
+          : '<div class="nophoto">No photo yet. Add one on Snow &amp; Ice under Site plan.</div>') + '</div>'
       + '<div class="credit">Imagery © Google</div>'
       + '<div class="lower"><div><div class="h">Map key</div><div class="legend">'
-      + '<div><i></i><span><b>Drop zone (DZ).</b> Pile snow here. ' + nz + ' on this site.</span></div>'
-      + '<div><i class="w"></i><span><b>Sidewalk (SW).</b> Plow and salt the walk. ' + nw + ' on this site.</span></div>'
+      + used.map(function(u){ return '<div><i style="background:' + u.kind.color + '"></i><span><b>' + esc(u.kind.name) + ' (' + u.kind.code + ').</b> ' + u.kind.key + ' ' + u.n + ' on this site.</span></div>'; }).join('')
       + '<div><i class="x"></i><span><b>Never pile</b> on hydrants, doors, drains or neighbours\' lots.</span></div></div></div>'
-      + '<div class="notes"><div class="h">Field notes</div>' + (l.notes ? '<p>' + esc(l.notes) + '</p>' : '') + '<div class="lines"><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>'
+      + '<div class="notes"><div class="h">Field notes</div>' + (l.notes ? '<p>' + esc(l.notes) + '</p>' : '')
+      + said.map(function(n){ return '<p><b>' + n.code + '</b> ' + esc(n.text) + '</p>'; }).join('')
+      + '<div class="lines">' + new Array(Math.max(1, 6 - said.length) + 1).join('<i></i>') + '</div></div></div>'
       + '<div class="foot"><span>File JWG-W-' + code + '</span><span>Base: 92 Davidson St</span><span>Stop ' + l.winter_stop + ' of ' + groupSize + ' · ' + g.code + '</span></div>'
       + '<div class="class">WINTER OPS // CREW EYES ONLY // DO NOT LEAVE ON DASH</div></section>';
   }
@@ -233,15 +223,8 @@ window.WinterBook = (function(){
     '.gy{flex-direction:column;align-items:center}.gx{grid-column:2;grid-row:1}.gy{grid-column:1;grid-row:2}.grid .photo{grid-column:2;grid-row:2}',
     '.photo{position:relative;max-width:100%;overflow:hidden;outline:.25cqw solid var(--deep);outline-offset:.5cqw}',
     '.photo img{display:block;width:100%;height:100%;object-fit:cover}',
-    '.zone{position:absolute;background:rgba(255,214,10,.42);border:2px solid var(--pile);box-shadow:0 0 0 1px rgba(1,43,31,.55)}',
-    '.zone span{position:absolute;left:0;top:0;transform:translateY(-100%);background:var(--pile);color:var(--ink);font-family:var(--mono);font-weight:600;font-size:1.15cqw;padding:0 .45cqw;line-height:1.7cqw;white-space:nowrap;box-shadow:0 0 0 1px rgba(1,43,31,.55)}',
-    '.zone.top span{transform:none}',
+    '.mk{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}',
     // sidewalks: blue line with a white casing so it reads over grey pavement; its label sits at the first point
-    '.walks{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}',
-    '.walks polyline{fill:none;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}',
-    '.walks .case{stroke:#fff;stroke-width:7px}.walks .line{stroke:var(--walk);stroke-width:4px}',
-    '.wl{position:absolute;transform:translate(-50%,-150%);background:var(--walk);color:#fff;font-family:var(--mono);font-weight:600;font-size:1.15cqw;padding:0 .45cqw;line-height:1.7cqw;white-space:nowrap;box-shadow:0 0 0 1px rgba(1,43,31,.55)}',
-    '.wl.below{transform:translate(-50%,50%)}',
     '.brk{position:absolute;inset:0;pointer-events:none;--l:3cqw;--w:.5cqw;background:',
     '  linear-gradient(var(--logo),var(--logo)) 0 0/var(--l) var(--w) no-repeat,linear-gradient(var(--logo),var(--logo)) 0 0/var(--w) var(--l) no-repeat,',
     '  linear-gradient(var(--logo),var(--logo)) 100% 0/var(--l) var(--w) no-repeat,linear-gradient(var(--logo),var(--logo)) 100% 0/var(--w) var(--l) no-repeat,',
