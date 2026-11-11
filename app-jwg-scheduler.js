@@ -2858,22 +2858,10 @@ async function deleteWinterLocation(locId){
   }catch(e){toast("Failed to delete location","error");console.error(e);}
 }
 
+// The winter service list is a small panel on Snow & Ice, drawn by app-snow.js. Adding and
+// removing below both come back through here to redraw it.
 function openManageWinterServiceTypes(){
-  const html=`<div style="flex-direction:column;">
-    <h3 style="margin-bottom:14px;">Winter Service Types</h3>
-    <div id="win-types-list" style="margin-bottom:14px;">
-      ${WIN.serviceTypes.map(t=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:var(--bg-deep);border-radius:6px;margin-bottom:6px;">
-        <span>${esc(t.name)}</span>
-        <button class="loc-action-btn delete" onclick="JWG.deleteWinterServiceType('${t.id}')">Remove</button>
-      </div>`).join("")}
-    </div>
-    <div style="border-top:1px solid var(--border);padding-top:14px;">
-      <input type="text" class="si-form-input" id="new-win-type" placeholder="New service type…" style="margin-bottom:8px;">
-      <button class="si-action-btn" onclick="JWG.addWinterServiceType()" style="width:100%;">Add Type</button>
-    </div>
-    <button class="modal-cancel" onclick="JWG.closeModal()" style="margin-top:14px;width:100%;">Done</button>
-  </div>`;
-  openModal(html,"480px");
+  SnowDesk.openTypes();
 }
 
 async function addWinterServiceType(){

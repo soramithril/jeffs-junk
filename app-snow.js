@@ -153,6 +153,57 @@ window.SnowDesk = (function(){
     if(fromList && WinterRoutes.located(loc)) WinterRoutes.panTo(loc);
   }
 
+  // ── the service list ──
+  // The jobs that can be ticked on a site: a small panel that drops from the
+  // Service list button, with an x in its corner. (The pop-up it replaces took the
+  // whole screen for five lines and had only a "Done" at the bottom; Jake could not
+  // tell how to get out, and a full page was "too big for what it is".) Adding and
+  // removing are still the scheduler's; both end by calling this again to redraw.
+  function openTypes(){
+    W = JWG.WIN;
+    var pop = document.getElementById('sx-types');
+    if(pop) render(root, W);   // a service was just added or removed: the desk shows it too
+    else {
+      pop = document.createElement('div');
+      pop.id = 'sx-types';
+      pop.setAttribute('role', 'dialog');
+      pop.setAttribute('aria-label', 'Service list');
+      root.querySelector('.sx-acts').appendChild(pop);
+      pop.addEventListener('click', function(e){
+        var b;
+        if(e.target.closest('[data-types-close]')) closeTypes();
+        else if((b = e.target.closest('[data-type-del]'))) JWG.deleteWinterServiceType(b.dataset.typeDel);
+      });
+      pop.addEventListener('submit', function(e){ e.preventDefault(); JWG.addWinterServiceType(); });
+      document.addEventListener('keydown', typesKey);
+      document.addEventListener('mousedown', typesAway);
+    }
+    pop.innerHTML = '<div class="sx-types-h"><b>Service list</b><button type="button" class="sx-x" data-types-close aria-label="Close">×</button></div>'
+      + '<div class="sx-types-sub">The jobs you can tick on a winter site.</div>'
+      + (W.serviceTypes.length ? W.serviceTypes.map(function(t){
+          var n = W.locationServices.filter(function(x){ return x.service_type_id === t.id; }).length;
+          return '<div class="sx-type"><b>' + esc(t.name) + '</b><span>' + (n ? n + ' site' + (n === 1 ? '' : 's') : 'not used') + '</span>'
+            + '<button type="button" class="sx-link bad" data-type-del="' + t.id + '">Remove</button></div>';
+        }).join('') : '<div class="sx-none">No services yet.</div>')
+      + '<form class="sx-type-add"><input type="text" id="new-win-type" class="sx-search" placeholder="Add a service" aria-label="New service name">'
+      + '<button type="submit" class="sx-btn primary">Add</button></form>';
+  }
+  function typesKey(e){
+    if(e.key === 'Escape' && !document.getElementById('jwg-confirm')) closeTypes();
+  }
+  // A click anywhere else on the page closes it, except inside the "Remove?" question.
+  function typesAway(e){
+    var pop = document.getElementById('sx-types'), ask = document.getElementById('jwg-confirm');
+    if(!pop){ closeTypes(); return; }
+    if(!pop.contains(e.target) && !(ask && ask.contains(e.target)) && !e.target.closest('[data-types]')) closeTypes();
+  }
+  function closeTypes(){
+    var pop = document.getElementById('sx-types');
+    if(pop) pop.remove();
+    document.removeEventListener('keydown', typesKey);
+    document.removeEventListener('mousedown', typesAway);
+  }
+
   function frame(){
     root.innerHTML = '<div class="sx-page">'
       + '<div class="sx-head"><div><div class="sx-title">Snow &amp; Ice</div><div class="sx-sub" id="sx-sub"></div></div>'
@@ -185,7 +236,7 @@ window.SnowDesk = (function(){
       if((b = t.closest('[data-filter]'))){ st.filter = st.filter === b.dataset.filter ? '' : b.dataset.filter; paintGauges(); paintList(); return; }
       if(t.closest('[data-cancel-place]')){ WinterRoutes.cancelPlacing(); return; }
       if(t.closest('[data-book]')){ WinterBook.choose(); return; }
-      if(t.closest('[data-types]')){ JWG.openManageWinterServiceTypes(); return; }
+      if(t.closest('[data-types]')){ if(document.getElementById('sx-types')) closeTypes(); else openTypes(); return; }
       if(t.closest('[data-add]')){ JWG.openAddWinterLocation(); return; }
       if(!st.sel) return;
       if((b = t.closest('[data-contract]'))){ JWG.setWinterContract(st.sel, b.dataset.contract); return; }
@@ -215,7 +266,7 @@ window.SnowDesk = (function(){
   // The map calls this when a pin starts or stops waiting to be placed.
   function refresh(){ if(root && root.isConnected) paintMap(false); }
 
-  return {render: render, refresh: refresh};
+  return {render: render, refresh: refresh, openTypes: openTypes};
 })();
 
 // ── The two menu buttons' icons ───────────────────────────────────────────
