@@ -80,9 +80,17 @@ window.WinterSitePlan = (function(){
         else g += '<polygon points="' + pts(p) + '" fill="' + c + '" fill-opacity="' + (m.t === 'zone' ? .4 : .28) + '" stroke="#012b1f" stroke-width="' + (on ? 7 : 5.5) + '" stroke-linejoin="round" stroke-opacity=".7"/>'
           + '<polygon points="' + pts(p) + '" fill="none" stroke="' + (on ? '#fff' : c) + '" stroke-width="3.5"' + dash + ' stroke-linejoin="round"/>';
         if(!isDraft){
-          var cx = 0, cy = 0;
-          p.forEach(function(q){ cx += q[0]; cy += q[1]; });
-          g += chip(cx / p.length * VW, cy / p.length * vh, label(marks, i), c);
+          // The code sits in the middle of the outline, unless the outline is too small
+          // to hold it: then it sits just above, so it never hides the mark it names.
+          var text = label(marks, i), xs = p.map(function(q){ return q[0] * VW; }), ys = p.map(function(q){ return q[1] * vh; });
+          var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+          var cw = (text.length * 8.6 + 12) * s, ch = 21 * s;
+          if(x1 - x0 < cw * 1.3 || y1 - y0 < ch * 1.9) g += chip((x0 + x1) / 2, y0 - ch / 2 - 4, text, c);
+          else {
+            var cx = 0, cy = 0;
+            p.forEach(function(q){ cx += q[0]; cy += q[1]; });
+            g += chip(cx / p.length * VW, cy / p.length * vh, text, c);
+          }
         }
       } else if(K.shape === 'line'){
         g += '<polyline points="' + pts(p) + '" fill="none" stroke="transparent" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>'
