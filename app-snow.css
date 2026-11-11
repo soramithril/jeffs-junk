@@ -1,0 +1,117 @@
+/* Snow & Ice page (app-snow.js). It draws inside the Schedule page's container,
+   so every rule is prefixed with #view-jwgscheduler: app-jwg-scheduler.css zeroes
+   padding and margin on "#view-jwgscheduler *", which outranks a bare class.
+   That container also redefines --surface, --border, --accent and --radius for
+   the scheduler's own look, so this file uses the dashboard's neutral ladder
+   (--n1..--n12), its greens (--green-s*) and plain values instead of those four. */
+
+/* Summer and Winter are their own menu buttons now, so the Schedule page's
+   header (logo and tab strip) is not shown on them. */
+#view-jwgscheduler[data-tabgroup=svc] #header{display:none!important}
+/* The page paints its own background edge to edge, so the Schedule container's
+   padding comes off while Snow & Ice is showing. */
+#view-jwgscheduler #app:has(> #win-page){padding:0}
+#view-jwgscheduler:has(#win-page){padding-bottom:0!important}
+
+#view-jwgscheduler .sx-page{background:var(--n2);padding:32px 40px 28px;min-height:100vh;font-family:'Inter',system-ui,sans-serif;font-size:14px;color:var(--n12)}
+#view-jwgscheduler .sx-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+#view-jwgscheduler .sx-title{font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:1.5px;line-height:1;color:var(--n12)}
+#view-jwgscheduler .sx-sub{font-size:13px;color:var(--n11);margin-top:4px}
+#view-jwgscheduler .sx-acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#view-jwgscheduler .sx-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 18px;border-radius:8px;font:600 14px 'Inter',system-ui,sans-serif;cursor:pointer;background:#fff;color:var(--n12);border:1px solid var(--n6);min-height:0}
+#view-jwgscheduler .sx-btn:hover{background:var(--n3)}
+#view-jwgscheduler .sx-btn.primary{background:var(--accent-hero);color:#052e16;border-color:transparent;box-shadow:inset 0 1px 0 rgba(255,255,255,.38),0 1px 2px rgba(20,83,45,.22)}
+#view-jwgscheduler .sx-btn.primary:hover{background:#1fb757}
+#view-jwgscheduler .sx-page button:focus-visible,#view-jwgscheduler .sx-page input:focus-visible{outline:3px solid rgba(22,163,74,.45);outline-offset:2px}
+
+/* gauges: each one is also a filter for the list */
+#view-jwgscheduler .sx-gauges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+#view-jwgscheduler .sx-gauge{display:block;text-align:left;background:#fff;border:1px solid var(--n6);border-radius:12px;box-shadow:var(--shadow-sm);padding:12px 18px 14px;cursor:pointer;font-family:inherit;color:inherit;min-height:0}
+#view-jwgscheduler .sx-gauge:hover{border-color:var(--n8)}
+#view-jwgscheduler .sx-gauge[aria-pressed="true"]{border-color:var(--green-s2);box-shadow:0 0 0 2px var(--green-s2)}
+#view-jwgscheduler .sx-gauge .l{display:block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--n11)}
+#view-jwgscheduler .sx-gauge .v{display:block;font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:1px;line-height:1.1;color:var(--n12);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+#view-jwgscheduler .sx-gauge .v small{font-family:'Inter',system-ui,sans-serif;font-size:13px;font-weight:600;letter-spacing:0;color:var(--n11);margin-left:8px}
+#view-jwgscheduler .sx-bar{display:block;height:6px;border-radius:3px;background:var(--n4);overflow:hidden;margin-top:6px}
+#view-jwgscheduler .sx-bar i{display:block;height:100%;background:var(--green-s2)}
+#view-jwgscheduler .sx-bar i.warn{background:var(--warn)}
+
+/* list | map | site */
+#view-jwgscheduler .sx-desk{display:grid;grid-template-columns:290px minmax(0,1fr) 360px;gap:16px;align-items:start}
+#view-jwgscheduler .sx-panel{background:#fff;border:1px solid var(--n6);border-radius:12px;box-shadow:var(--shadow-sm)}
+#view-jwgscheduler .sx-list{padding:8px;display:flex;flex-direction:column;height:calc(100vh - 262px);min-height:460px}
+#view-jwgscheduler .sx-search{width:100%;font:500 14px 'Inter',system-ui,sans-serif;padding:9px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--n7);background:#fff;color:var(--n12)}
+#view-jwgscheduler #sx-stops{flex:1;overflow:auto;min-height:0}
+#view-jwgscheduler .sx-area{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;color:var(--n12);padding:10px;border-radius:8px;font:700 13.5px 'Inter',system-ui,sans-serif;cursor:pointer;min-height:0}
+#view-jwgscheduler .sx-area:hover{background:var(--n3)}
+#view-jwgscheduler .sx-area.on{background:#f0fdf4;color:var(--green-s4)}
+#view-jwgscheduler .sx-area .sw{width:12px;height:12px;border-radius:3px;flex:none}
+#view-jwgscheduler .sx-area .ct{margin-left:auto;color:var(--n11);font-weight:600;font-size:12.5px;font-variant-numeric:tabular-nums}
+#view-jwgscheduler .sx-stops{padding:2px 2px 8px}
+#view-jwgscheduler .sx-stop{display:flex;gap:9px;align-items:flex-start;width:100%;text-align:left;background:none;border:0;color:var(--n12);padding:7px 8px;border-radius:8px;font-family:'Inter',system-ui,sans-serif;cursor:pointer;min-height:0}
+#view-jwgscheduler .sx-stop:hover{background:var(--n3)}
+#view-jwgscheduler .sx-stop.on{background:#f0fdf4;box-shadow:inset 0 0 0 1.5px var(--green-s2)}
+#view-jwgscheduler .sx-stop .a{display:block;font-weight:600;font-size:13px;line-height:1.3}
+#view-jwgscheduler .sx-stop .n{display:block;font-size:12px;color:var(--n11)}
+#view-jwgscheduler .sx-code{display:inline-flex;align-items:center;justify-content:center;min-width:46px;padding:3px 7px;border-radius:6px;color:#fff;font-weight:800;font-size:12px;letter-spacing:.3px;font-variant-numeric:tabular-nums;flex:none}
+#view-jwgscheduler .sx-code.none{background:var(--n4);color:var(--n11)}
+#view-jwgscheduler .sx-code.big{font-size:15px;padding:5px 10px}
+#view-jwgscheduler .sx-loose{border:1px dashed var(--n7);border-radius:8px;padding:4px;margin:4px 0 6px}
+#view-jwgscheduler .sx-loose-h{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--warn-ink);padding:6px 8px 2px}
+#view-jwgscheduler .sx-none{padding:16px 10px;color:var(--n11);font-size:13px}
+
+#view-jwgscheduler .sx-mapbox{overflow:hidden;position:relative}
+#view-jwgscheduler .sx-mapbox .wr-map-host{border:0;border-radius:0}
+#view-jwgscheduler .sx-mapbox .wr-map{height:calc(100vh - 264px);min-height:458px}
+#view-jwgscheduler .sx-placing{position:absolute;left:12px;right:12px;top:12px;z-index:5;background:#fff;border:1px solid var(--n6);border-radius:8px;box-shadow:var(--shadow-md);padding:10px 14px;font-size:13.5px}
+#view-jwgscheduler .sx-placing button{margin-left:10px;font:700 13px 'Inter',system-ui,sans-serif;padding:5px 10px;border-radius:6px;border:1px solid var(--n7);background:#fff;color:var(--n12);cursor:pointer;min-height:0}
+#view-jwgscheduler .wr-pin.on{transform:translate(-50%,-50%) scale(1.3);z-index:3;box-shadow:0 0 0 3px #fff,0 0 0 5px rgba(0,0,0,.45),0 2px 8px rgba(0,0,0,.5)}
+
+#view-jwgscheduler .sx-detail{padding:18px;max-height:calc(100vh - 262px);min-height:460px;overflow:auto}
+#view-jwgscheduler .sx-detail h3{font:800 19px/1.2 'Inter',system-ui,sans-serif;color:var(--n12);margin:10px 0 2px}
+#view-jwgscheduler .sx-detail .nick{color:var(--n11);font-size:13px;font-weight:600}
+#view-jwgscheduler .sx-sec{margin-top:16px}
+#view-jwgscheduler .sx-sec .l{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--n11);margin-bottom:7px}
+#view-jwgscheduler .sx-seg{display:inline-flex;border-radius:8px;overflow:hidden;border:1px solid var(--n7)}
+#view-jwgscheduler .sx-seg button{background:#fff;border:0;color:var(--text-secondary);font:700 13px 'Inter',system-ui,sans-serif;padding:8px 14px;cursor:pointer;min-height:0}
+#view-jwgscheduler .sx-seg button[aria-pressed="true"]{background:var(--warn);color:#fff}
+#view-jwgscheduler .sx-seg button.ok[aria-pressed="true"]{background:var(--green-s2);color:#fff}
+#view-jwgscheduler .sx-svcs{display:flex;flex-wrap:wrap;gap:6px}
+#view-jwgscheduler .sx-svc{font:700 12px 'Inter',system-ui,sans-serif;padding:7px 10px;border-radius:8px;border:1px solid var(--n7);background:#fff;color:var(--n11);cursor:pointer;min-height:0}
+#view-jwgscheduler .sx-svc[aria-pressed="true"]{background:var(--green-s2);border-color:var(--green-s2);color:#fff}
+#view-jwgscheduler .sx-svc:disabled{opacity:.5}
+#view-jwgscheduler .sx-salt{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#view-jwgscheduler .sx-salt button{width:38px;height:38px;min-height:0;border-radius:8px;border:1px solid var(--n7);background:#fff;color:var(--n12);font:800 13px 'Inter',system-ui,sans-serif;cursor:pointer}
+#view-jwgscheduler .sx-salt button:hover{background:var(--n3)}
+#view-jwgscheduler .sx-salt input{width:62px;height:38px;text-align:center;font:800 18px 'Inter',system-ui,sans-serif;color:var(--n12);border:1px solid var(--n7);border-radius:8px;background:#fff;font-variant-numeric:tabular-nums}
+#view-jwgscheduler .sx-salt input.low{color:var(--bad-ink);border-color:var(--bad)}
+#view-jwgscheduler .sx-salt .t{color:var(--n11);font-weight:600;font-size:12.5px}
+#view-jwgscheduler .sx-tag{display:inline-flex;align-items:center;font-weight:800;font-size:11px;padding:3px 8px;border-radius:999px;letter-spacing:.3px}
+#view-jwgscheduler .sx-tag.bad{background:var(--bad-soft);color:var(--bad-ink)}
+#view-jwgscheduler .sx-dim{color:var(--n11)}
+#view-jwgscheduler .sx-notes{white-space:pre-wrap;font-size:13.5px}
+#view-jwgscheduler .sx-photo{display:block;position:relative;width:100%;border:1px solid var(--n6);border-radius:8px;overflow:hidden;background:#22301f;cursor:pointer;min-height:0;line-height:0}
+#view-jwgscheduler .sx-photo img{display:block;width:100%;height:auto;min-height:120px}
+#view-jwgscheduler .sx-photo svg{position:absolute;inset:0;width:100%;height:100%}
+#view-jwgscheduler .sx-photo .z{fill:rgba(255,242,52,.35);stroke:#fff234;stroke-width:2;vector-effect:non-scaling-stroke}
+#view-jwgscheduler .sx-photo .w{fill:none;stroke:#38bdf8;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+#view-jwgscheduler .sx-photo .cap{position:absolute;right:8px;bottom:8px;background:rgba(15,24,20,.8);color:#fff;font:700 11.5px/1 'Inter',system-ui,sans-serif;padding:5px 8px;border-radius:6px}
+#view-jwgscheduler .sx-photo.none{background:var(--n3);border-style:dashed;border-color:var(--n8);color:var(--warn-ink);font:700 13px/1.3 'Inter',system-ui,sans-serif;padding:26px 12px;text-align:center}
+#view-jwgscheduler .sx-row{display:flex;gap:8px;margin-top:18px}
+#view-jwgscheduler .sx-row .sx-btn{flex:1}
+#view-jwgscheduler .sx-row.quiet{justify-content:space-between;margin-top:12px}
+#view-jwgscheduler .sx-link{background:none;border:0;font:600 13px 'Inter',system-ui,sans-serif;color:var(--n11);cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:0;padding:4px 0}
+#view-jwgscheduler .sx-link:hover{color:var(--n12)}
+#view-jwgscheduler .sx-link.bad:hover{color:var(--bad-ink)}
+
+@media (max-width:1180px){
+  #view-jwgscheduler .sx-desk{grid-template-columns:270px minmax(0,1fr)}
+  #view-jwgscheduler .sx-detail{grid-column:1 / -1;max-height:none;min-height:0}
+}
+@media (max-width:900px){
+  #view-jwgscheduler .sx-page{padding:16px 14px 24px}
+  #view-jwgscheduler .sx-gauges{grid-template-columns:minmax(0,1fr)}
+  #view-jwgscheduler .sx-desk{grid-template-columns:minmax(0,1fr)}
+  #view-jwgscheduler .sx-list{height:auto;min-height:0;max-height:50vh}
+  #view-jwgscheduler .sx-mapbox .wr-map{height:55vh;min-height:300px}
+}

@@ -114,7 +114,7 @@ window.WinterRoutes = (function(){
   }
 
   // ── Google map ──
-  var mapEl = null, map = null, overlays = [], focus = null, placing = null, info = null, HtmlMarker = null;
+  var mapEl = null, map = null, overlays = [], focus = null, placing = null, HtmlMarker = null, selected = null, onPick = null;
 
   function loadGoogle(){
     if(window.google && google.maps) return Promise.resolve();
@@ -146,7 +146,6 @@ window.WinterRoutes = (function(){
     db.rpc('bump_google_api', {p_api: 'maps_dynamic'}).then(function(r){
       if(r.error) console.warn('map load not counted', r.error.message);
     });
-    info = new google.maps.InfoWindow();
     HtmlMarker = class extends google.maps.OverlayView {
       constructor(pos, el){ super(); this.pos = pos; this.el = el; }
       onAdd(){ this.getPanes().overlayMouseTarget.appendChild(this.el); }
@@ -161,27 +160,32 @@ window.WinterRoutes = (function(){
       var id = placing;
       placing = null;
       setPlacingCursor();
+      SnowDesk.refresh();
       placeSite(id, {lat: e.latLng.lat(), lng: e.latLng.lng()});
     });
   }
 
-  // Draw the route view into the Winter page. Called on every Winter render; the map
+  // Draw the map into the Snow & Ice page (app-snow.js), which owns the list and the
+  // site panel. opts: focus (an area code or null), selected (a site id), fit (frame
+  // the pins), onPick(site) when a pin is clicked. Called on every render; the map
   // itself is created only the first time.
-  async function render(host, side, W){
-    renderSide(side, W);
+  async function render(host, W, opts){
+    focus = opts.focus; selected = opts.selected; onPick = opts.onPick;
     try { await loadGoogle(); }
     catch(e){
-      host.innerHTML = '<div class="wr-map-error">The map could not load. Check the connection and reopen Route map.</div>';
+      host.innerHTML = '<div class="wr-map-error">The map could not load. Check the connection and reopen Snow &amp; Ice.</div>';
       throw e;
     }
-    // Frame the whole run only when the map is first built; later renders (a save,
-    // another office PC's change) redraw the pins and leave the view where it was.
     var first = !map;
     if(first) buildMap(host);
-    else host.appendChild(mapEl);
-    drawOverlays(W, first);
+    else if(mapEl.parentNode !== host) host.appendChild(mapEl);
+    drawOverlays(W, first || opts.fit);
   }
-
+  function panTo(loc){
+    if(!map) return;
+    map.panTo({lat: loc.lat, lng: loc.lng});
+    if(map.getZoom() < 15) map.setZoom(15);
+  }
   function groupOf(W, c){ return W.groups.find(function(g){ return g.code === c; }); }
   function routed(W, g){
     return W.locations.filter(function(l){ return l.winter_group === g && located(l) && l.winter_stop; })
@@ -205,11 +209,11 @@ window.WinterRoutes = (function(){
       stops.forEach(function(l){
         var el = document.createElement('button');
         el.type = 'button';
-        el.className = 'wr-pin' + (dim ? ' dim' : '');
+        el.className = 'wr-pin' + (dim ? ' dim' : '') + (l.id === selected ? ' on' : '');
         el.style.background = g.color;
         el.textContent = l.winter_stop;
         el.title = code(l) + ' · ' + l.address;
-        el.addEventListener('click', function(ev){ ev.stopPropagation(); openInfo(W, l); });
+        el.addEventListener('click', function(ev){ ev.stopPropagation(); onPick(l); });
         var m = new HtmlMarker(new google.maps.LatLng(l.lat, l.lng), el);
         m.setMap(map);
         overlays.push(m);
@@ -225,85 +229,17 @@ window.WinterRoutes = (function(){
     if(fit && !bounds.isEmpty()) map.fitBounds(bounds, 40);
   }
 
-  function svcNames(W, loc){
-    return W.locationServices.filter(function(s){ return s.location_id === loc.id; })
-      .map(function(s){ var t = W.serviceTypes.find(function(x){ return x.id === s.service_type_id; }); return t ? t.name : ''; })
-      .filter(Boolean);
-  }
-
-  function openInfo(W, loc){
-    var g = groupOf(W, loc.winter_group);
-    var div = document.createElement('div');
-    div.className = 'wr-info';
-    div.innerHTML = '<div class="wr-info-code" style="color:' + g.color + '">' + code(loc) + '</div>'
-      + '<div class="wr-info-addr">' + esc(loc.address) + '</div>'
-      + (loc.client_name && loc.client_name !== loc.address ? '<div class="wr-info-nick">Crew calls it ' + esc(loc.client_name) + '</div>' : '')
-      + '<div class="wr-info-svc">' + svcNames(W, loc).map(esc).join(' · ') + '</div>'
-      + (loc.notes ? '<div class="wr-info-notes">' + esc(loc.notes) + '</div>' : '')
-      + '<div class="wr-info-acts"><button type="button" data-act="plan">Site plan</button><button type="button" data-act="edit">Edit</button><button type="button" data-act="move">Move pin</button></div>';
-    div.querySelector('[data-act="plan"]').onclick = function(){ info.close(); WinterSitePlan.open(loc.id); };
-    div.querySelector('[data-act="edit"]').onclick = function(){ info.close(); JWG.editWinterLocation(loc.id); };
-    div.querySelector('[data-act="move"]').onclick = function(){ info.close(); startPlacing(loc.id); };
-    info.setContent(div);
-    info.setPosition({lat: loc.lat, lng: loc.lng});
-    info.open({map: map});
-  }
-
-  function renderSide(side, W){
-    var unplaced = W.locations.filter(function(l){ return !located(l); });
-    var h = '';
-    if(placing){
-      var pl = W.locations.find(function(l){ return l.id === placing; });
-      h += '<div class="wr-placing">Click the map where <b>' + esc(pl ? pl.address : '') + '</b> is. <button type="button" data-cancel>Cancel</button></div>';
-    }
-    if(unplaced.length){
-      h += '<div class="wr-group wr-unplaced"><div class="wr-gh"><span class="wr-chip" style="background:#9aa5a0">?</span>Not on the map yet</div>'
-        + '<div class="wr-gmeta">The address could not be found. Place each one by hand.</div><ol>'
-        + unplaced.map(function(l){ return '<li><span class="wr-addr">' + esc(l.address) + '</span><button type="button" data-place="' + l.id + '">Place</button></li>'; }).join('')
-        + '</ol></div>';
-    }
-    W.groups.forEach(function(g){
-      var stops = routed(W, g.code);
-      h += '<div class="wr-group' + (focus && focus !== g.code ? ' dim' : '') + (focus === g.code ? ' on' : '') + '" data-group="' + g.code + '">'
-        + '<div class="wr-gh"><span class="wr-chip" style="background:' + g.color + '">' + g.code + '</span>' + esc(g.name) + '</div>'
-        + '<div class="wr-gmeta">' + stops.length + ' site' + (stops.length === 1 ? '' : 's') + '</div><ol>'
-        + stops.map(function(l){
-            return '<li data-site="' + l.id + '"><code style="color:' + g.color + '">' + code(l) + '</code><span class="wr-addr">' + esc(l.address)
-              + (l.client_name && l.client_name !== l.address ? ' <i>· ' + esc(l.client_name) + '</i>' : '') + '</span></li>';
-          }).join('')
-        + '</ol></div>';
-    });
-    side.innerHTML = h;
-    side.onclick = function(e){
-      var t = e.target;
-      if(t.closest('[data-cancel]')){ placing = null; setPlacingCursor(); renderSide(side, W); return; }
-      var pb = t.closest('[data-place]');
-      if(pb){ startPlacing(pb.dataset.place); return; }
-      var li = t.closest('[data-site]');
-      if(li){
-        var loc = W.locations.find(function(l){ return l.id === li.dataset.site; });
-        map.panTo({lat: loc.lat, lng: loc.lng});
-        if(map.getZoom() < 16) map.setZoom(16);
-        openInfo(W, loc);
-        return;
-      }
-      var gr = t.closest('[data-group]');
-      if(gr){
-        focus = focus === gr.dataset.group ? null : gr.dataset.group;
-        renderSide(side, W);
-        drawOverlays(W, true);
-      }
-    };
-    renderSide.last = {side: side, W: W};
-  }
-
   // While a pin is waiting to be placed the map shows a crosshair instead of the hand.
   function setPlacingCursor(){ if(map) map.setOptions({draggableCursor: placing ? 'crosshair' : null}); }
   function startPlacing(id){
     placing = id;
     setPlacingCursor();
-    var l = renderSide.last;
-    if(l) renderSide(l.side, l.W);
+    SnowDesk.refresh();
+  }
+  function cancelPlacing(){
+    placing = null;
+    setPlacingCursor();
+    SnowDesk.refresh();
   }
 
   // A pin placed or moved by hand: save the spot, give it a group if it has none.
@@ -327,5 +263,5 @@ window.WinterRoutes = (function(){
     }
   }
 
-  return {code: code, located: located, placeInGroup: placeInGroup, closeGap: closeGap, bestSlot: bestSlot, suggestGroup: suggestGroup, findAddress: findAddress, render: render};
+  return {code: code, located: located, placeInGroup: placeInGroup, closeGap: closeGap, bestSlot: bestSlot, suggestGroup: suggestGroup, findAddress: findAddress, render: render, panTo: panTo, startPlacing: startPlacing, cancelPlacing: cancelPlacing, placing: function(){ return placing; }};
 })();

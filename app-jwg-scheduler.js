@@ -472,7 +472,7 @@ function switchTab(t){
   setTimeout(()=>{
     S.tab=t;
     // Show skeleton for async tabs while data loads
-    if(["summer","winter","inventory","tasks"].includes(t)){
+    if(["summer","winter","inventory"].includes(t)){
       showSkeleton();
     }
     render();
@@ -1234,7 +1234,7 @@ function refreshGrid(){
 
 function render(){
   const app=document.getElementById("app");
-  const labelMap={schedule:"Schedule",insights:"Insights",history:"History",analytics:"Analytics","tasks":"Tasks",summer:"Summer",winter:"Winter",inventory:"Inventory",clothing:"Clothing"};
+  const labelMap={schedule:"Schedule",insights:"Insights",history:"History",analytics:"Analytics",summer:"Summer",winter:"Winter",inventory:"Inventory",clothing:"Clothing"};
   // tell the host which tab-group is active so the header shows the right sub-tabs
   const _tg={summer:"svc",winter:"svc",inventory:"inv",clothing:"cloth"}[S.tab]||"sched";
   const _v=document.getElementById("view-jwgscheduler");if(_v)_v.setAttribute("data-tabgroup",_tg);
@@ -1250,7 +1250,6 @@ function render(){
   else if(S.tab==="history")app.innerHTML=buildHistory();
   else if(S.tab==="analytics"){app.innerHTML=buildAnalytics();requestAnimationFrame(()=>animateCounters());}
   else if(S.tab==="insights"){app.innerHTML=buildInsights();requestAnimationFrame(()=>animateCounters());}
-  else if(S.tab==="tasks"){app.innerHTML=buildTasksPage();initTasksPage();}
   else if(S.tab==="summer"){app.innerHTML=buildSummerPage();initSummerPage();}
   else if(S.tab==="winter"){app.innerHTML=buildWinterPage();initWinterPage();}
   else if(S.tab==="inventory"){
@@ -2027,239 +2026,6 @@ function initGridDrag(){
 // ── AUTH (Supabase) ──
 let _currentUser=null;
 
-/* ===== tasks.js ===== */
-// ── TASKS.JS ──────────────────────────────────────────
-// Part of JWG Staff Scheduler
-
-let WT={tasks:[],filter:"all"};
-
-// ─── SUMMER SERVICES ───────────────────────────────────────────────────────
-
-async function saveWorkshopTask(data){return sbF("POST","jwg_workshop_tasks",data);}
-async function updateWorkshopTask(id,data){return sbF("PATCH","jwg_workshop_tasks?id=eq."+id,data);}
-async function deleteWorkshopTask(id){return sbF("DELETE","jwg_workshop_tasks?id=eq."+id);}
-
-function buildTasksPage(){
-  return`<div class="card"><div class="wt-wrap" id="wt-root"><div style="text-align:center;padding:40px;color:var(--fg-subtle)">Loading tasks…</div></div></div>`;
-}
-
-async function initTasksPage(){
-  try{
-    WT.tasks=await loadWorkshopTasks();
-    renderTasksBoard();
-  }catch(e){
-    const root=document.getElementById("wt-root");
-    if(root)root.innerHTML=`<div style="color:#dc2626;padding:20px">Failed to load: ${e.message}</div>`;
-  }
-}
-
-function wtSetFilter(f){
-  WT.filter=f;
-  renderTasksBoard();
-}
-
-function renderTasksBoard(){
-  const root=document.getElementById("wt-root");
-  if(!root)return;
-
-  // Sort: by priority then created_at
-  const sorted=[...WT.tasks].sort((a,b)=>{
-    const pd=(PRIO_ORDER[a.priority]??1)-(PRIO_ORDER[b.priority]??1);
-    return pd||0;
-  });
-
-  // Apply filter
-  const filtered=WT.filter==="all"?sorted:sorted.filter(t=>t.priority===WT.filter);
-
-  const todo=filtered.filter(t=>t.status==="todo");
-  const done=filtered.filter(t=>t.status==="done");
-
-  function taskCard(t){
-    const isDone=t.status==="done";
-    const prio=t.priority||"medium";
-    const people=(t.assigned_to_arr||[]);
-    let chips="";
-    people.forEach(p=>{chips+=`<span class="wt-chip person-chip">👤 ${esc(p)}</span>`;});
-    if(t.started_at)chips+=`<span class="wt-chip date-chip">Started ${fmtWTDate(t.started_at)}</span>`;
-    if(t.completed_at)chips+=`<span class="wt-chip done-chip">Done ${fmtWTDate(t.completed_at)}</span>`;
-
-    const actions=isDone
-      ?`<button class="wt-action-btn wt-btn-reopen" onclick="JWG.wtReopen('${t.id}')">↩ Reopen</button>
-         <button class="wt-action-btn wt-btn-edit" onclick="JWG.wtOpenEdit('${t.id}')">✎ Edit</button>
-         <button class="wt-action-btn wt-btn-del" onclick="JWG.wtDelete('${t.id}')">✕</button>`
-      :`<button class="wt-action-btn wt-btn-done" onclick="JWG.wtMarkDone('${t.id}')">✓ Mark Done</button>
-         <button class="wt-action-btn wt-btn-edit" onclick="JWG.wtOpenEdit('${t.id}')">✎ Edit</button>
-         <button class="wt-action-btn wt-btn-del" onclick="JWG.wtDelete('${t.id}')">✕</button>`;
-
-    return`<div class="wt-card p-${prio}${isDone?" done-card":""}">
-      <div class="wt-card-inner">
-        <div class="wt-card-top">
-          <div class="wt-card-title">${esc(t.title)}</div>
-          <span class="wt-priority-badge ${PRIO_CLASS[prio]}">${PRIO_LABEL[prio]}</span>
-        </div>
-        ${t.description?`<div class="wt-card-desc">${esc(t.description)}</div>`:""}
-        ${chips?`<div class="wt-card-meta">${chips}</div>`:""}
-      </div>
-      <div class="wt-card-actions">${actions}</div>
-    </div>`;
-  }
-
-  const f=WT.filter;
-  const filterBtns=[
-    {k:"all",label:"All"},
-    {k:"high",label:"High"},
-    {k:"medium",label:"Medium"},
-    {k:"low",label:"Low"},
-  ].map(({k,label})=>`<button class="wt-filter-btn f-${k}${f===k?" active":""}" onclick="JWG.wtSetFilter('${k}')">${label}</button>`).join("");
-
-  root.innerHTML=`
-    <div class="wt-header">
-      <div class="wt-title">Workshop Tasks <span>Downtime to-do list</span></div>
-      <button class="wt-add-btn" onclick="JWG.wtOpenAdd()">+ Add Task</button>
-    </div>
-    <div class="wt-filters">${filterBtns}</div>
-    <div class="wt-board">
-      <div class="wt-col">
-        <div class="wt-col-hdr">
-          <span class="wt-col-label">To Do</span>
-          <span class="wt-col-count">${todo.length}</span>
-        </div>
-        ${todo.length?todo.map(taskCard).join(""):`<div class="wt-empty"><div class="wt-empty-icon">✓</div>Nothing pending${f!=="all"?" at this priority":""} — good work!</div>`}
-      </div>
-      <div class="wt-col">
-        <div class="wt-col-hdr">
-          <span class="wt-col-label">Done</span>
-          <span class="wt-col-count done-count">${done.length}</span>
-        </div>
-        ${done.length?done.map(taskCard).join(""):`<div class="wt-empty"><div class="wt-empty-icon">📋</div>Completed tasks will appear here.</div>`}
-      </div>
-    </div>`;
-}
-
-function fmtWTDate(d){
-  if(!d)return"";
-  const[y,m,day]=d.split("-");
-  return new Date(+y,+m-1,+day).toLocaleDateString("en-US",{month:"short",day:"numeric"});
-}
-
-function wtOpenAdd(){wtOpenForm(null);}
-function wtOpenEdit(id){wtOpenForm(id);}
-
-let _wtSelPeople=[];
-let _wtSelPrio="medium";
-
-function wtPickPrio(p){
-  _wtSelPrio=p;
-  ["high","medium","low"].forEach(v=>{
-    const el=document.getElementById("wt_prio_"+v);
-    if(el)el.className=`wt-prio-opt opt-${v}${_wtSelPrio===v?" sel-"+v:""}`;
-  });
-}
-
-function wtTogglePerson(name){
-  if(_wtSelPeople.includes(name)){
-    _wtSelPeople=_wtSelPeople.filter(n=>n!==name);
-  }else{
-    _wtSelPeople=[..._wtSelPeople,name];
-  }
-  document.querySelectorAll(".wt-person-opt").forEach(el=>{
-    el.classList.toggle("sel",_wtSelPeople.includes(el.dataset.name));
-  });
-}
-
-function wtOpenForm(id){
-  const t=id?WT.tasks.find(x=>x.id===id):null;
-  _wtSelPrio=t?.priority||"medium";
-  _wtSelPeople=t?.assigned_to_arr?[...t.assigned_to_arr]:[];
-
-  const prioOpts=["high","medium","low"].map(v=>{
-    const labels={high:"🔴 High",medium:"🟡 Medium",low:"🟢 Low"};
-    return`<button type="button" id="wt_prio_${v}" class="wt-prio-opt opt-${v}${_wtSelPrio===v?" sel-"+v:""}" onclick="JWG.wtPickPrio('${v}')">${labels[v]}</button>`;
-  }).join("");
-
-  const personBtns=S.employees.map(e=>`<button type="button" class="wt-person-opt${_wtSelPeople.includes(e.name)?" sel":""}" data-name="${esc(e.name)}" onclick="JWG.wtTogglePerson('${esc(e.name)}')">${esc(e.name)}</button>`).join("");
-
-  const h=`
-    <div class="modal-title">${t?"Edit Task":"New Workshop Task"}</div>
-    <div class="modal-sub">${t?"Update the task details below.":"Add a task to do during downtime."}</div>
-    <div class="wt-form-row">
-      <label class="wt-form-label">Task Name *</label>
-      <input class="wt-input" id="wt_title" placeholder="e.g. Clean paint booth, Organize shelving…" value="${esc(t?.title||"")}">
-    </div>
-    <div class="wt-form-row">
-      <label class="wt-form-label">Description <span style="opacity:.5;font-weight:400;text-transform:none">(optional)</span></label>
-      <textarea class="wt-textarea" id="wt_desc" placeholder="Any extra details…">${esc(t?.description||"")}</textarea>
-    </div>
-    <div class="wt-form-row">
-      <label class="wt-form-label">Priority</label>
-      <div class="wt-priority-picker">${prioOpts}</div>
-    </div>
-    <div class="wt-form-row">
-      <label class="wt-form-label">Assign To <span style="opacity:.5;font-weight:400;text-transform:none">(select one or more)</span></label>
-      <div class="wt-person-grid">${personBtns}</div>
-    </div>
-    <div class="wt-form-row">
-      <label class="wt-form-label">Start Date</label>
-      <input class="wt-input" type="date" id="wt_start" value="${t?.started_at||""}">
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-      <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
-      <button class="modal-done" onclick="JWG.wtSaveForm('${id||""}')">${t?"Save Changes":"Add Task"}</button>
-    </div>`;
-  openModal(h,"500px");
-}
-
-async function wtSaveForm(id){
-  const title=document.getElementById("wt_title")?.value.trim();
-  if(!title){toast("Task name is required","error");return;}
-  const data={
-    title,
-    description:document.getElementById("wt_desc")?.value.trim()||null,
-    priority:_wtSelPrio,
-    assigned_to_arr:_wtSelPeople,
-    started_at:document.getElementById("wt_start")?.value||null,
-  };
-  try{
-    if(id){
-      await updateWorkshopTask(id,data);
-      const idx=WT.tasks.findIndex(t=>t.id===id);
-      if(idx>=0)WT.tasks[idx]={...WT.tasks[idx],...data};
-    }else{
-      const[created]=await saveWorkshopTask({...data,status:"todo"});
-      WT.tasks.unshift(created);
-    }
-    closeModal();renderTasksBoard();toast(id?"Task updated":"Task added");
-  }catch(e){toast(e.message,"error");}
-}
-
-async function wtMarkDone(id){
-  const today=localDateStr(new Date());
-  try{
-    await updateWorkshopTask(id,{status:"done",completed_at:today});
-    const t=WT.tasks.find(x=>x.id===id);
-    if(t){t.status="done";t.completed_at=today;}
-    renderTasksBoard();toast("Task marked done ✓");
-  }catch(e){toast(e.message,"error");}
-}
-
-async function wtReopen(id){
-  try{
-    await updateWorkshopTask(id,{status:"todo",completed_at:null});
-    const t=WT.tasks.find(x=>x.id===id);
-    if(t){t.status="todo";t.completed_at=null;}
-    renderTasksBoard();toast("Task reopened");
-  }catch(e){toast(e.message,"error");}
-}
-
-async function wtDelete(id){
-  if(!(await jwgConfirm({title:"Delete task",consequence:"This can't be undone.",confirmLabel:"Delete"})))return;
-  try{
-    await deleteWorkshopTask(id);
-    WT.tasks=WT.tasks.filter(t=>t.id!==id);
-    renderTasksBoard();toast("Task deleted");
-  }catch(e){toast(e.message,"error");}
-}
-
 // On load — check session then boot app
 /* ===== summer.js ===== */
 // ── SUMMER.JS ──────────────────────────────────────────
@@ -2719,8 +2485,9 @@ async function deleteSummerServiceType(typeId){
 // ── WINTER.JS ──────────────────────────────────────────
 // Part of JWG Staff Scheduler
 
-// Route groups and the Route map live in app-winter-routes.js (window.WinterRoutes).
-let WIN={locations:[],serviceTypes:[],locationServices:[],saltBins:[],groups:[],view:"list",filter:"",sortBy:"route",serviceFilter:"",lowOnly:false,pendingOnly:false};
+// The page itself is drawn by app-snow.js (window.SnowDesk); route groups and the map
+// live in app-winter-routes.js (window.WinterRoutes).
+let WIN={locations:[],serviceTypes:[],locationServices:[],saltBins:[],groups:[]};
 const DEFAULT_SALT_THRESHOLD=5;
 
 async function loadWinterData(){
@@ -2741,7 +2508,7 @@ async function loadWinterData(){
 }
 
 function buildWinterPage(){
-  return`<div class="card" id="win-page"><div style="padding:20px;text-align:center;color:var(--fg-muted)">Loading…</div></div>`;
+  return`<div id="win-page"><div style="padding:20px;text-align:center;color:var(--fg-muted)">Loading…</div></div>`;
 }
 
 async function initWinterPage(){
@@ -2752,116 +2519,7 @@ async function initWinterPage(){
 function renderWinterPage(){
   const root=document.getElementById("win-page");
   if(!root)return;
-  const viewBtn=(v,label)=>`<button type="button" class="wr-view-btn" aria-pressed="${WIN.view===v}" onclick="JWG.setWinterView('${v}')">${label}</button>`;
-  let h=`<div class="si-header">
-    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div class="si-title">Snow &amp; salt locations</div><div class="wr-view">${viewBtn("list","List")}${viewBtn("map","Route map")}</div></div>
-    <div class="si-actions">
-      <button class="si-action-btn" onclick="JWG.openAddWinterLocation()">Add location</button>
-      <button class="si-action-btn secondary" onclick="JWG.WIN.filtersOpen=!JWG.WIN.filtersOpen;var b=document.getElementById('win-filter-bar');if(b)b.style.display=JWG.WIN.filtersOpen?'':'none'">🔍 Filters</button>
-      <button class="si-action-btn secondary" onclick="JWG.openManageWinterServiceTypes()">Edit service list</button>
-      <button class="si-action-btn secondary" onclick="WinterBook.choose()">Print book</button>
-      <button class="si-action-btn secondary" onclick="window.print()">🖨 Print list</button>
-    </div>
-  </div>`;
-  if(WIN.view==="map"){
-    root.innerHTML=h+`<div class="wr-layout"><div class="wr-map-host" id="wr-map-host"></div><div class="wr-side" id="wr-side"></div></div>`;
-    WinterRoutes.render(document.getElementById("wr-map-host"),document.getElementById("wr-side"),WIN);
-    return;
-  }
-  h+=`<div class="si-filter-bar" id="win-filter-bar" style="${WIN.filtersOpen?"":"display:none"}">
-    <input type="text" class="si-filter-input" placeholder="Search location…" id="win-search" oninput="JWG.WIN.filter=this.value;JWG.filterAndSortWinter()">
-    <select class="si-filter-select" id="win-sort" onchange="JWG.WIN.sortBy=this.value;JWG.filterAndSortWinter()">
-      <option value="route"${WIN.sortBy==="route"?" selected":""}>Sort: Route order</option>
-      <option value="name"${WIN.sortBy==="name"?" selected":""}>Sort: A–Z</option>
-      <option value="city"${WIN.sortBy==="city"?" selected":""}>Sort: by City</option>
-    </select>
-    <select class="si-filter-select" id="win-svc" onchange="JWG.WIN.serviceFilter=this.value;JWG.filterAndSortWinter()">
-      <option value="">All Services</option>
-      ${WIN.serviceTypes.map(t=>`<option value="${t.id}"${WIN.serviceFilter===t.id?" selected":""}>${esc(t.name)}</option>`).join("")}
-    </select>
-    <button onclick="JWG.WIN.lowOnly=!JWG.WIN.lowOnly;JWG.filterAndSortWinter()" style="border:1.5px solid ${WIN.lowOnly?"#f97316":"var(--border)"};background:${WIN.lowOnly?"#f97316":"transparent"};color:${WIN.lowOnly?"#fff":"var(--fg-muted)"};border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Low on salt</button>
-    <button onclick="JWG.WIN.pendingOnly=!JWG.WIN.pendingOnly;JWG.filterAndSortWinter()" style="border:1.5px solid ${WIN.pendingOnly?"#d97706":"var(--border)"};background:${WIN.pendingOnly?"#d97706":"transparent"};color:${WIN.pendingOnly?"#fff":"var(--fg-muted)"};border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Pending only</button>
-  </div>
-  ${WIN.locations.length?`<div style="padding:12px 2px 0;font-size:13px;font-weight:700;color:var(--fg-muted)">${WIN.locations.filter(l=>l.winter_contract==="confirmed").length} of ${WIN.locations.length} contracts confirmed</div>`:""}
-  ${(function(){const wb=WIN.locations.filter(l=>WIN.saltBins.some(s=>s.location_id===l.id));const lc=wb.filter(l=>{const s=WIN.saltBins.find(x=>x.location_id===l.id);return s&&s.current_bags<=s.min_threshold;}).length;return wb.length?`<div style="padding:12px 2px 0;font-size:13px;font-weight:700;color:${lc?"#c2410c":"var(--fg-muted)"}">${lc} of ${wb.length} low on salt</div>`:"";})()}
-  <div style="padding:0 0 14px 0;overflow-x:auto;">`;
-
-  let filtered=WIN.locations.filter(loc=>{
-    if(WIN.filter&&!loc.client_name.toLowerCase().includes(WIN.filter.toLowerCase())&&!loc.address.toLowerCase().includes(WIN.filter.toLowerCase()))return false;
-    if(WIN.serviceFilter){
-      const hasService=WIN.locationServices.some(ls=>ls.location_id===loc.id&&ls.service_type_id===WIN.serviceFilter);
-      if(!hasService)return false;
-    }
-    if(WIN.lowOnly){
-      const salt=WIN.saltBins.find(s=>s.location_id===loc.id);
-      if(!salt||salt.current_bags>salt.min_threshold)return false;
-    }
-    if(WIN.pendingOnly&&loc.winter_contract!=="pending")return false;
-    return true;
-  });
-
-  if(WIN.sortBy==="city")filtered.sort((a,b)=>a.city.localeCompare(b.city));
-  if(WIN.sortBy==="route")filtered.sort(winterRouteSort);
-  if(WIN.lowOnly)filtered.sort((a,b)=>{
-    const sa=WIN.saltBins.find(s=>s.location_id===a.id);
-    const sb=WIN.saltBins.find(s=>s.location_id===b.id);
-    return(sa?.current_bags||0)-(sb?.current_bags||0);
-  });
-
-  if(!filtered.length){
-    h+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">❄️</div><div class="si-empty-text">No winter service locations</div><div class="si-empty-sub">Manage snow removal routes and salt bins</div></div></div>`;
-  }else{
-    h+=`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 10px;padding:0 2px">Showing ${filtered.length} of ${WIN.locations.length} location${WIN.locations.length!==1?"s":""}</div>`;
-    h+=`<table class="win-table">
-      <thead><tr>
-        <th class="win-th">Code</th>
-        <th class="win-th">Client</th>
-        <th class="win-th">Address</th>
-        <th class="win-th">City</th>
-        <th class="win-th">Contract</th>
-        <th class="win-th">Services</th>
-        <th class="win-th">Salt</th>
-        <th class="win-th">Notes</th>
-        <th class="win-th win-th-actions">Actions</th>
-      </tr></thead><tbody>`;
-    filtered.forEach(loc=>{
-      const salt=WIN.saltBins.find(s=>s.location_id===loc.id);
-      const isLow=salt&&salt.current_bags<=salt.min_threshold;
-      const wServices=WIN.locationServices?WIN.locationServices.filter(ls=>ls.location_id===loc.id):[];
-      const grp=WIN.groups.find(g=>g.code===loc.winter_group);
-      const wcode=WinterRoutes.code(loc);
-      h+=`<tr class="win-row">
-        <td class="win-td" data-label="Code">${wcode?`<span class="wr-code" style="background:${grp.color}">${wcode}</span>`:`<span class="wr-code none" title="${WinterRoutes.located(loc)?"No group yet":"Not on the map yet"}">—</span>`}</td>
-        <td class="win-td win-td-client">${esc(loc.client_name)}</td>
-        <td class="win-td" data-label="Address">${esc(loc.address)}</td>
-        <td class="win-td" data-label="City">${esc(loc.city)}</td>
-        <td class="win-td" data-label="Contract">${winterContractTag(loc.winter_contract)}</td>
-        <td class="win-td" data-label="Services"><div class="loc-services">${WIN.serviceTypes.map((t,i)=>{
-          const on=wServices.some(s=>s.service_type_id===t.id);
-          return`<button type="button" class="service-badge svc-color-${i%8}${on?"":" svc-off"}" aria-pressed="${on}" title="Click to turn ${on?"off":"on"}" onclick="this.disabled=true;JWG.toggleWinterService('${loc.id}','${t.id}')">${esc(t.name)}</button>`;
-        }).join("")}</div></td>
-        <td class="win-td" data-label="Salt">${salt?`<div class="salt-inline" style="flex-wrap:wrap;gap:4px">
-          <button class="stock-btn" onclick="JWG.adjustWinterSalt('${loc.id}',-5)">−5</button>
-          <button class="stock-btn" onclick="JWG.adjustWinterSalt('${loc.id}',-1)">−</button>
-          <input type="number" min="0" value="${salt.current_bags}" onchange="JWG.setWinterSalt('${loc.id}',this.value)" style="width:54px;text-align:center;font-size:17px;font-weight:800;color:${isLow?"#c2410c":"var(--fg)"};border:1.5px solid ${isLow?"#f97316":"var(--border)"};border-radius:7px;padding:4px 2px;background:var(--card)">
-          <button class="stock-btn" onclick="JWG.adjustWinterSalt('${loc.id}',1)">+</button>
-          <button class="stock-btn" onclick="JWG.adjustWinterSalt('${loc.id}',5)">+5</button>
-          <span class="salt-threshold">/ ${salt.min_threshold} min</span>
-          ${isLow?`<span class="salt-indicator">LOW</span>`:""}
-        </div>`:`<span style="color:var(--fg-muted)">—</span>`}</td>
-        <td class="win-td win-td-notes" data-label="Notes">${esc(loc.notes||"")}</td>
-        <td class="win-td card-actions">
-          <button class="loc-action-btn" onclick="WinterSitePlan.open('${loc.id}')" title="Aerial photo and snow drop zones">${loc.photo_path?"Site plan":"Add photo"}</button>
-          <button class="loc-action-btn" onclick="JWG.editWinterLocation('${loc.id}')">Edit</button>
-          <button class="loc-action-btn delete" onclick="JWG.deleteWinterLocation('${loc.id}')">Delete</button>
-        </td>
-      </tr>`;
-    });
-    h+=`</tbody></table>`;
-  }
-
-  h+=`</div></div>`;
-  root.innerHTML=h;
+  SnowDesk.render(root,WIN);
 }
 
 // Route order: group order from jwg_winter_groups, then stop; sites with no code yet go last.
@@ -2870,7 +2528,6 @@ function winterRouteSort(a,b){
   return gi(a.winter_group)-gi(b.winter_group)||(a.winter_stop||999)-(b.winter_stop||999);
 }
 
-function filterAndSortWinter(){renderWinterPage();}
 
 async function adjustWinterSalt(locId,delta){
   const salt=WIN.saltBins.find(s=>s.location_id===locId);
@@ -2906,14 +2563,16 @@ async function toggleWinterService(locId,typeId){
   renderWinterPage();
 }
 
-function setWinterView(v){WIN.view=v;renderWinterPage();}
 async function reloadWinter(){await loadWinterData();renderWinterPage();}
 
 // Contract status is 'confirmed' or 'pending' (database check constraint).
-function winterContractTag(status){
+async function setWinterContract(locId,status){
   if(status!=="confirmed"&&status!=="pending")throw new Error("Unknown winter contract status: "+status);
-  const ok=status==="confirmed";
-  return`<span style="display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;background:${ok?"#dcfce7":"#fef3c7"};color:${ok?"#166534":"#92400e"}">${ok?"Confirmed":"Pending"}</span>`;
+  try{
+    await sbF("PATCH",`jwg_service_locations?id=eq.${locId}`,{winter_contract:status,updated_at:new Date().toISOString()});
+    WIN.locations.find(l=>l.id===locId).winter_contract=status;
+    renderWinterPage();
+  }catch(e){toast("Could not save the contract status","error");console.error(e);}
 }
 function winterContractField(current){
   return`<div class="si-form-group">
@@ -3245,14 +2904,8 @@ async function deleteWinterServiceType(typeId){
 /* ===== inventory.js -> app-jwg-inventory.js (v682) =====
    Moved out so Darrin's kiosk can load the inventory WITHOUT the scheduler
    (Jake, 2026-10-05). index.html loads both files; the Inventory tab below
-   delegates to window.JWGInv. The workshop-task helpers stayed here, because
-   the Tasks tab uses them and the kiosk does not.  ===== */
+   delegates to window.JWGInv.  ===== */
 
-const PRIO_ORDER={high:0,medium:1,low:2};
-const PRIO_LABEL={high:"High",medium:"Medium",low:"Low"};
-const PRIO_CLASS={high:"ph",medium:"pm",low:"pl"};
-
-async function loadWorkshopTasks(){return sbF("GET","jwg_workshop_tasks?order=created_at.desc");}
 /* ===== clothing.js ===== */
 // ── CLOTHING ─────────────────────────────────────────────
 // The design shelf (Jake picked mockup B, 2026-11-03). Every garment the shop hands out
@@ -3747,28 +3400,6 @@ function initRealtime(){
 
   _realtimeChannel=_sbClient.channel("live-sync")
 
-    // ── Workshop Tasks ──
-    .on("postgres_changes",{event:"INSERT",schema:"public",table:"jwg_workshop_tasks"},payload=>{
-      const row=payload.new;
-      if(!row||WT.tasks.some(t=>t.id===row.id))return;
-      WT.tasks.unshift(row);
-      if(S.tab==="tasks"&&!isModalOpen())renderTasksBoard();
-    })
-    .on("postgres_changes",{event:"UPDATE",schema:"public",table:"jwg_workshop_tasks"},payload=>{
-      const row=payload.new;
-      if(!row)return;
-      const idx=WT.tasks.findIndex(t=>t.id===row.id);
-      if(idx>=0)WT.tasks[idx]={...WT.tasks[idx],...row};
-      else WT.tasks.unshift(row);
-      if(S.tab==="tasks"&&!isModalOpen())renderTasksBoard();
-    })
-    .on("postgres_changes",{event:"DELETE",schema:"public",table:"jwg_workshop_tasks"},payload=>{
-      const old=payload.old;
-      if(!old)return;
-      WT.tasks=WT.tasks.filter(t=>t.id!==old.id);
-      if(S.tab==="tasks"&&!isModalOpen())renderTasksBoard();
-    })
-
     // ── Schedules ──
     .on("postgres_changes",{event:"*",schema:"public",table:"jwg_schedules"},payload=>{
       const row=payload.eventType==="DELETE"?payload.old:payload.new;
@@ -3922,8 +3553,7 @@ closeModal=function(){
   _origCloseModal();
   // Small delay to let DOM settle, then refresh current view
   setTimeout(()=>{
-    if(S.tab==="tasks")renderTasksBoard();
-    else if(S.tab==="schedule")refreshGrid();
+    if(S.tab==="schedule")refreshGrid();
     // render() would blank the Summer and Winter lists to "Loading…" first, which drops
     // you at the top, so these two refresh in place.
     else if(S.tab==="summer")initSummerPage();
@@ -3964,5 +3594,5 @@ function renderJwgScheduler(){
 window.renderJwgScheduler=renderJwgScheduler;
 // The Team page (app-team.js) calls these when someone is removed there.
 window.JWGRoster={forwardSummary:rosterForwardSummary,clearForward:rosterClearForward};
-window.JWG={addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,clDelete:clDelete,clOpenEdit:clOpenEdit,clSaveEdit:clSaveEdit,clOpenPerson:clOpenPerson,clSetTab:clSetTab,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,clOpenHandout:clOpenHandout,clHoTick:clHoTick,clHoTickGroup:clHoTickGroup,clHoSize:clHoSize,clHoDate:clHoDate,clHoSearch:clHoSearch,clHoSave:clHoSave,clOpenDesign:clOpenDesign,clEdPick:clEdPick,clEdColour:clEdColour,clEdColourNew:clEdColourNew,clEdAddColour:clEdAddColour,clStockStep:clStockStep,clStockSet:clStockSet,clOpenDelivery:clOpenDelivery,clSaveDelivery:clSaveDelivery,clEdPhoto:clEdPhoto,clSaveDesign:clSaveDesign,clDeleteDesign:clDeleteDesign,closeModal:closeModal,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,prevW:prevW,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setWinterSalt:setWinterSalt,setWinterView:setWinterView,toggleWinterService:toggleWinterService,reloadWinter:reloadWinter,freshWinterSites:freshWinterSites,winterRouteSort:winterRouteSort,winterStopOptions:winterStopOptions,sbF:sbF,toast:toast,openModal:openModal,jwgConfirm:jwgConfirm,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render,closeEditor:closeEditor,edJob:edJob,edAway:edAway,edHrs:edHrs,edAllDay:edAllDay,edCustom:edCustom,edCustomSet:edCustomSet,edSel:edSel,edAdd:edAdd,edRemove:edRemove,edClear:edClear,edNote:edNote,edApply:edApply,mSetCrew:mSetCrew};
+window.JWG={addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,clDelete:clDelete,clOpenEdit:clOpenEdit,clSaveEdit:clSaveEdit,clOpenPerson:clOpenPerson,clSetTab:clSetTab,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,clOpenHandout:clOpenHandout,clHoTick:clHoTick,clHoTickGroup:clHoTickGroup,clHoSize:clHoSize,clHoDate:clHoDate,clHoSearch:clHoSearch,clHoSave:clHoSave,clOpenDesign:clOpenDesign,clEdPick:clEdPick,clEdColour:clEdColour,clEdColourNew:clEdColourNew,clEdAddColour:clEdAddColour,clStockStep:clStockStep,clStockSet:clStockSet,clOpenDelivery:clOpenDelivery,clSaveDelivery:clSaveDelivery,clEdPhoto:clEdPhoto,clSaveDesign:clSaveDesign,clDeleteDesign:clDeleteDesign,closeModal:closeModal,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,prevW:prevW,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setWinterSalt:setWinterSalt,setWinterContract:setWinterContract,toggleWinterService:toggleWinterService,reloadWinter:reloadWinter,freshWinterSites:freshWinterSites,winterRouteSort:winterRouteSort,winterStopOptions:winterStopOptions,sbF:sbF,toast:toast,openModal:openModal,jwgConfirm:jwgConfirm,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,S:S,SUM:SUM,WIN:WIN,CL:CL,render:render,closeEditor:closeEditor,edJob:edJob,edAway:edAway,edHrs:edHrs,edAllDay:edAllDay,edCustom:edCustom,edCustomSet:edCustomSet,edSel:edSel,edAdd:edAdd,edRemove:edRemove,edClear:edClear,edNote:edNote,edApply:edApply,mSetCrew:mSetCrew};
 })();
