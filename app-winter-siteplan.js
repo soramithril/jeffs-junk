@@ -158,7 +158,7 @@ window.WinterSitePlan = (function(){
     page.innerHTML = '<div class="sp-head">'
       + '<div class="sp-id">' + (code ? '<span class="sp-code" style="background:' + grp.color + '">' + code + '</span>' : '')
       +   '<div><div class="sp-addr">' + esc(loc.address) + '</div><div class="sp-nick">' + [nick, grp ? grp.name : '', 'site ' + (pos + 1) + ' of ' + run.length].filter(Boolean).map(esc).join(' · ') + '</div></div></div>'
-      + '<div class="sp-acts"><button type="button" class="sp-btn" data-go="back">← Snow &amp; Ice</button>'
+      + '<div class="sp-acts"><button type="button" class="sp-btn" data-go="back">← Back to Snow &amp; Ice</button>'
       +   '<button type="button" class="sp-btn" data-go="prev"' + (st.prev ? '' : ' disabled') + '>‹ Previous</button>'
       +   '<button type="button" class="sp-btn" data-go="next"' + (st.next ? '' : ' disabled') + '>Next ›</button>'
       +   '<button type="button" class="sp-btn primary" id="sp-save">Save</button>'
