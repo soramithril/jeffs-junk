@@ -3444,7 +3444,7 @@ function reviewDoneDate(r){
 }
 
 // The flagged-happy customers due to be asked for a review. One list, read by the card
-// below and by the new homepage's to-do buttons (app-home.js), so the two can't disagree.
+// below.
 async function reviewFollowupsDue(){
   var r = await db.from('jobs')
     .select('job_id,name,service,date,bin_pickup,fb_date,junk_date')
@@ -14684,8 +14684,7 @@ async function loadSignedInApp() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
   startSessionGuards();
   // The data load ends by drawing the dashboard, so the screen you were on reopens after it.
-  // The opt-in homepage (app-home.js) puts each person's layout on while that loads.
-  homeSignedIn(loadAllFromSupabase().then(_resumeScreen));
+  loadAllFromSupabase().then(_resumeScreen);
 }
 
 function applyDeleteVisibility() {
