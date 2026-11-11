@@ -4,7 +4,8 @@
 // in its site panel.
 //
 // The photo is a Google Earth screenshot the office uploads or pastes (Ctrl+V).
-// It is shrunk to 1600px wide in the browser (enough for a printed page) and
+// It is shrunk to 3200px wide in the browser (sharp enough to zoom in on; it was
+// 1600 until 2026-11-11, which went soft as soon as the editor could zoom) and
 // stored in the private 'winter-sites' bucket; a replaced photo gets a new path
 // and the old file is removed.
 //
@@ -21,7 +22,7 @@
 // gets the room. draw() below is the ONE place marks are turned into a picture;
 // the book and the site panel call it too.
 window.WinterSitePlan = (function(){
-  var BUCKET = 'winter-sites', MAX_W = 1600, VW = 1000;
+  var BUCKET = 'winter-sites', MAX_W = 3200, VW = 1000;
   var AREA_HINT = 'Drag to draw the outline by hand, or click each corner for straight edges. Hold Shift and drag for a box. Double-click to finish.';
   var KINDS = {
     zone:   {name: 'Drop zone',  code: 'DZ', color: '#ffd60a', shape: 'area',  key: 'Pile snow here.', hint: AREA_HINT},
@@ -54,7 +55,7 @@ window.WinterSitePlan = (function(){
   // ── drawing (shared with the book and the Snow & Ice site panel) ──
   // Marks as SVG, in a 1000-wide box as tall as the photo's shape makes it, so
   // labels, pins and arrowheads are never stretched. o: sel (index picked in the
-  // editor), draft (a mark still being drawn), hover (where the next point would
+  // editor), vsel (the dot picked on that mark), draft (a mark still being drawn), hover (where the next point would
   // go), labels (false to leave the codes off), size (how heavy everything is drawn:
   // line widths, codes, pins and handles all scale with it. The editor lowers it as
   // you zoom in, so the photo grows and the marks stay as fine as they were).
@@ -115,7 +116,7 @@ window.WinterSitePlan = (function(){
           + '<text x="' + f1(a[0]) + '" y="' + f1(a[1] + 5.2 * s) + '" text-anchor="middle" font-size="' + w(14.5) + '" font-weight="800" fill="#012b1f" ' + FONT + '>' + (m.t === 'hazard' ? '!' : 'S') + '</text>';
         if(!isDraft) g += chip(a[0], a[1] + 27 * s, label(marks, i), c);
       }
-      if(on && K.shape !== 'pin') g += m.p.map(function(q, k){ var v = P(q); return '<circle data-v="' + k + '" cx="' + f1(v[0]) + '" cy="' + f1(v[1]) + '" r="' + w(7) + '" fill="#fff" stroke="#012b1f" stroke-width="' + w(2.2) + '" style="cursor:grab"/>'; }).join('');
+      if(on && K.shape !== 'pin') g += m.p.map(function(q, k){ var v = P(q); return '<circle data-v="' + k + '" cx="' + f1(v[0]) + '" cy="' + f1(v[1]) + '" r="' + w(k === o.vsel ? 8.5 : 7) + '" fill="' + (k === o.vsel ? '#22c55e' : '#fff') + '" stroke="#012b1f" stroke-width="' + w(2.2) + '" style="cursor:grab"/>'; }).join('');
       return isDraft ? '<g pointer-events="none">' + g + '</g>' : '<g data-m="' + i + '">' + g + '</g>';
     }
     marks.forEach(function(m, i){ h += one(m, i, false); });
@@ -149,7 +150,7 @@ window.WinterSitePlan = (function(){
     var loc = JWG.WIN.locations.find(function(l){ return l.id === id; });
     var run = JWG.WIN.locations.slice().sort(JWG.winterRouteSort);
     var pos = run.findIndex(function(l){ return l.id === id; });
-    st = {loc: loc, marks: JSON.parse(JSON.stringify(loc.site_marks || [])), tool: 'select', sel: null, draft: null, drag: null, hover: null,
+    st = {loc: loc, marks: JSON.parse(JSON.stringify(loc.site_marks || [])), tool: 'select', sel: null, vsel: null, ext: null, draft: null, drag: null, hover: null,
           zoom: 1, size: 1, labels: true, undo: [], redo: [], dirty: false, blob: null, ar: null,
           prev: run[pos - 1] ? run[pos - 1].id : null, next: run[pos + 1] ? run[pos + 1].id : null,
           url: loc.photo_path ? await signedUrl(loc.photo_path) : null};
@@ -234,7 +235,7 @@ window.WinterSitePlan = (function(){
     if(!from.length) return;
     to.push(JSON.stringify(st.marks));
     st.marks = JSON.parse(from.pop());
-    st.sel = null; st.draft = null; st.hover = null; st.dirty = true;
+    st.sel = null; st.vsel = null; st.ext = null; st.draft = null; st.hover = null; st.dirty = true;
     paint();
   }
 
@@ -243,14 +244,14 @@ window.WinterSitePlan = (function(){
     if((b = t.closest('[data-go]'))){ leave(b.dataset.go); return; }
     if(t.closest('#sp-save')){ save(false); return; }
     if(t.closest('#sp-save-next')){ save(true); return; }
-    if((b = t.closest('[data-tool]'))){ finish(); st.tool = b.dataset.tool; if(st.tool !== 'select') st.sel = null; paint(); return; }
+    if((b = t.closest('[data-tool]'))){ finish(); st.tool = b.dataset.tool; st.vsel = null; st.ext = null; if(st.tool !== 'select') st.sel = null; paint(); return; }
     if(t.closest('#sp-undo')){ finish(); step(st.undo, st.redo); return; }
     if(t.closest('#sp-redo')){ step(st.redo, st.undo); return; }
     if((b = t.closest('[data-zoom]'))){ zoomTo(st.zoom * (+b.dataset.zoom > 0 ? 1.5 : 1 / 1.5)); return; }
     if(t.closest('#sp-labels')){ st.labels = !st.labels; paint(); return; }
     if(t.closest('#sp-clear')){ if(st.marks.length){ remember(); st.marks = []; st.sel = null; st.draft = null; paint(); } return; }
     if(t.closest('[data-del]')){ removeSelected(); return; }
-    if((b = t.closest('[data-mark]')) && t.tagName !== 'INPUT'){ finish(); st.sel = +b.dataset.mark; st.tool = 'select'; if(document.activeElement.blur) document.activeElement.blur(); paint(); }
+    if((b = t.closest('[data-mark]')) && t.tagName !== 'INPUT'){ finish(); st.sel = +b.dataset.mark; st.vsel = null; st.ext = null; st.tool = 'select'; if(document.activeElement.blur) document.activeElement.blur(); paint(); }
   }
   function onPaste(e){
     if(!alive()) return;
@@ -267,28 +268,48 @@ window.WinterSitePlan = (function(){
     else if(st.draft){
       // Still drawing: Enter ends it, Escape throws it away, Backspace takes back the last point.
       if(e.key === 'Enter'){ e.preventDefault(); finish(); paint(); }
-      else if(e.key === 'Escape'){ e.preventDefault(); st.draft = null; st.hover = null; paint(); }
+      else if(e.key === 'Escape'){ e.preventDefault(); st.draft = null; st.hover = null; st.ext = null; paint(); }
       else if(e.key === 'Backspace'){ e.preventDefault(); st.draft.p.pop(); if(!st.draft.p.length) st.draft = null; paint(); }
     }
-    else if(e.key === 'Escape'){ st.sel = null; paint(); }
-    else if((e.key === 'Delete' || e.key === 'Backspace') && st.sel != null){ e.preventDefault(); removeSelected(); }
+    else if(e.key === 'Escape'){ if(st.ext) st.ext = null; else { st.sel = null; st.vsel = null; } paint(); }
+    // Delete takes out the picked dot if there is one, otherwise the whole mark.
+    else if((e.key === 'Delete' || e.key === 'Backspace') && st.sel != null){ e.preventDefault(); if(st.vsel != null) removeDot(); else removeSelected(); }
   }
   function removeSelected(){
     if(st.sel == null) return;
     remember();
     st.marks.splice(st.sel, 1);
-    st.sel = null;
+    st.sel = null; st.vsel = null; st.ext = null;
     if(document.activeElement.blur) document.activeElement.blur();
+    paint();
+  }
+  function removeDot(){
+    var m = st.marks[st.sel], shape = KINDS[m.t].shape;
+    if(shape === 'arrow' || m.p.length <= NEED[shape]){ JWG.toast('That mark has no dot to spare. Remove the whole mark instead.', 'error'); return; }
+    remember();
+    m.p.splice(st.vsel, 1);
+    st.vsel = null; st.ext = null;
     paint();
   }
 
   // End the mark being drawn by clicks. A double-click lands its last point twice,
   // so points on top of each other are dropped; too few points is not a mark.
+  // When a line is being carried on from one of its ends (st.ext), the draft starts
+  // at that end dot and everything after it joins the line.
   function finish(){
-    var d = st.draft;
+    var d = st.draft, ext = st.ext;
     if(!d) return;
     st.draft = null; st.hover = null;
     var p = d.p.filter(function(q, i){ return i === 0 || Math.abs(q[0] - d.p[i - 1][0]) > .004 || Math.abs(q[1] - d.p[i - 1][1]) > .004; });
+    if(ext){
+      st.ext = null;
+      var add = p.slice(1), m = st.marks[ext.i];
+      if(!add.length) return;
+      remember();
+      m.p = ext.atEnd ? m.p.concat(add) : add.reverse().concat(m.p);
+      st.sel = ext.i; st.vsel = null;
+      return;
+    }
     if(p.length >= NEED[KINDS[d.t].shape]) commit({t: d.t, p: p});
   }
   function commit(m){
@@ -353,19 +374,28 @@ window.WinterSitePlan = (function(){
     stage.scrollLeft += n.left + fx * n.width - cx;
     stage.scrollTop += n.top + fy * n.height - cy;
   }
+  // The one line of help under the tools: what the pointer does right now.
+  function note(){
+    if(!st.url) return '';
+    if(st.ext) return 'Carrying ' + label(st.marks, st.ext.i) + ' on from its end: click or drag to add to it. Double-click or press Enter to finish, Escape to stop.';
+    if(st.tool !== 'select') return KINDS[st.tool].hint + ' Scroll to zoom in.';
+    var m = st.sel != null ? st.marks[st.sel] : null, shape = m ? KINDS[m.t].shape : '';
+    if(shape === 'line') return 'Drag a dot to reshape. Click an end dot to carry the line on. Double-click the line to add a dot; click a dot and press Delete to remove it.';
+    if(shape === 'area') return 'Drag a dot to reshape. Double-click the outline to add a dot; click a dot and press Delete to remove it.';
+    return 'Click a mark to select it: drag to move, drag a white dot to reshape, Delete to remove. Scroll to zoom in; drag the photo to slide it.';
+  }
   function paint(){
     var page = document.getElementById('sp-page'), el = document.getElementById('sp-svg');
     if(el && st.ar){
-      el.innerHTML = draw(st.marks, VW / st.ar, {sel: st.sel, draft: st.draft, hover: st.hover, size: st.size, labels: st.labels});
-      el.style.cursor = st.tool === 'select' ? 'default' : 'crosshair';
+      el.innerHTML = draw(st.marks, VW / st.ar, {sel: st.sel, vsel: st.vsel, draft: st.draft, hover: st.hover, size: st.size, labels: st.labels});
+      el.style.cursor = st.tool === 'select' && !st.ext ? 'default' : 'crosshair';
     }
     page.querySelectorAll('[data-tool]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.tool === st.tool); b.disabled = !st.url; });
     page.querySelector('#sp-labels').setAttribute('aria-pressed', st.labels);
     page.querySelector('#sp-undo').disabled = !st.undo.length;
     page.querySelector('#sp-redo').disabled = !st.redo.length;
     page.querySelector('#sp-zl').textContent = Math.round(st.zoom * 100) + '%';
-    page.querySelector('#sp-note').textContent = !st.url ? '' : st.tool === 'select'
-      ? 'Click a mark to select it: drag to move, drag a white dot to reshape, Delete to remove. Scroll to zoom in; drag the photo to slide it.' : KINDS[st.tool].hint + ' Scroll to zoom in.';
+    page.querySelector('#sp-note').textContent = note();
     var list = page.querySelector('#sp-list');
     if(list.contains(document.activeElement)) return;   // someone is typing a note
     list.innerHTML = st.marks.length ? st.marks.map(function(m, i){
@@ -383,22 +413,38 @@ window.WinterSitePlan = (function(){
       return [clamp((e.clientX - r.left) / r.width), clamp((e.clientY - r.top) / r.height)];
     }
     function far(e, d, px){ return Math.hypot(e.clientX - d.cx, e.clientY - d.cy) > px; }
+    // The end dot a line is being carried on from, and that line's kind.
+    function anchor(){ var m = st.marks[st.ext.i]; return m.p[st.ext.atEnd ? m.p.length - 1 : 0]; }
+    // Double-clicks are told apart here, not by the browser: every repaint swaps the
+    // shapes under the pointer, and the browser drops a dblclick whose target has gone.
+    var lastDown = null;
     el.addEventListener('pointerdown', function(e){
       e.preventDefault();
       el.setPointerCapture(e.pointerId);
       var p = pt(e), d = {cx: e.clientX, cy: e.clientY, a: p, moved: false};
-      if(st.tool === 'select'){
-        var v = e.target.closest('[data-v]'), m = e.target.closest('[data-m]');
-        if(v && st.sel != null){ d.kind = 'vertex'; d.k = +v.dataset.v; d.before = JSON.stringify(st.marks); }
-        else if(m){ st.sel = +m.dataset.m; d.kind = 'move'; d.orig = JSON.parse(JSON.stringify(st.marks[st.sel].p)); d.before = JSON.stringify(st.marks); }
-        else { st.sel = null; var sg = document.getElementById('sp-stage'); d.kind = 'pan'; d.sx = sg.scrollLeft; d.sy = sg.scrollTop; }
-      } else {
+      var v = e.target.closest('[data-v]'), m = e.target.closest('[data-m]');
+      var twice = lastDown && e.timeStamp - lastDown.t < 400 && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6;
+      lastDown = twice ? null : {t: e.timeStamp, x: e.clientX, y: e.clientY};
+      if(twice && st.draft){ finish(); paint(); return; }
+      if(twice && !v && addDot(p)){ paint(); return; }
+      if(st.tool === 'select' && v && st.sel != null){ d.kind = 'vertex'; d.k = +v.dataset.v; d.before = JSON.stringify(st.marks); }
+      else if(st.tool === 'select' && st.ext && !st.draft && m && +m.dataset.m !== st.ext.i){ st.ext = null; st.vsel = null; st.sel = +m.dataset.m; d.kind = 'move'; d.orig = JSON.parse(JSON.stringify(st.marks[st.sel].p)); d.before = JSON.stringify(st.marks); }
+      else if(st.tool === 'select' && st.ext){
+        // carrying a line on: a drag draws by hand from its end, a click adds a point
+        d.kind = 'trace'; d.t = st.marks[st.ext.i].t; d.path = [anchor(), p]; d.box = false; d.clicking = !!st.draft;
+      }
+      else if(st.tool === 'select' && m){
+        if(st.sel !== +m.dataset.m) st.vsel = null;
+        st.sel = +m.dataset.m; d.kind = 'move'; d.orig = JSON.parse(JSON.stringify(st.marks[st.sel].p)); d.before = JSON.stringify(st.marks);
+      }
+      else if(st.tool === 'select'){ st.sel = null; st.vsel = null; var sg = document.getElementById('sp-stage'); d.kind = 'pan'; d.sx = sg.scrollLeft; d.sy = sg.scrollTop; }
+      else {
         var shape = KINDS[st.tool].shape;
-        st.sel = null;
+        st.sel = null; st.vsel = null;
         if(shape === 'pin'){ commit({t: st.tool, p: [p]}); d = null; }
         else if(shape === 'arrow'){ d.kind = 'arrow'; st.draft = {t: st.tool, p: [p, p]}; }
         // A drag draws by hand (or a box with Shift); a plain click adds a corner.
-        else { d.kind = 'trace'; d.path = [p]; d.box = shape === 'area' && e.shiftKey; d.clicking = !!st.draft; }
+        else { d.kind = 'trace'; d.t = st.tool; d.path = [p]; d.box = shape === 'area' && e.shiftKey; d.clicking = !!st.draft; }
       }
       st.drag = d;
       paint();
@@ -411,12 +457,12 @@ window.WinterSitePlan = (function(){
       if(d.kind === 'move'){
         if(far(e, d, 2)) d.moved = true;
         st.marks[st.sel].p = d.orig.map(function(q){ return [clamp(q[0] + p[0] - d.a[0]), clamp(q[1] + p[1] - d.a[1])]; });
-      } else if(d.kind === 'vertex'){ st.marks[st.sel].p[d.k] = p; d.moved = true; }
+      } else if(d.kind === 'vertex'){ if(far(e, d, 3)){ d.moved = true; st.marks[st.sel].p[d.k] = p; } }
       else if(d.kind === 'arrow') st.draft.p[1] = p;
       else if(!d.clicking && (d.moved || far(e, d, 8))){
         d.moved = true;
         d.path.push(p);
-        st.draft = d.box ? {t: st.tool, closed: true, p: [d.a, [p[0], d.a[1]], p, [d.a[0], p[1]]]} : {t: st.tool, p: d.path};
+        st.draft = d.box ? {t: d.t, closed: true, p: [d.a, [p[0], d.a[1]], p, [d.a[0], p[1]]]} : {t: d.t, p: d.path};
         st.hover = null;
       }
       paint();
@@ -426,26 +472,55 @@ window.WinterSitePlan = (function(){
       st.drag = null;
       if(!d) return;
       if(d.kind === 'pan'){ paint(); return; }
-      if(d.kind === 'move' || d.kind === 'vertex'){ if(d.moved){ st.undo.push(d.before); st.redo = []; st.dirty = true; } }
+      if(d.kind === 'move'){ if(d.moved){ st.undo.push(d.before); st.redo = []; st.dirty = true; } }
+      else if(d.kind === 'vertex'){
+        if(d.moved){ st.undo.push(d.before); st.redo = []; st.dirty = true; }
+        else {
+          // a plain click picks the dot; on either end of a line it also starts carrying the line on
+          var mk = st.marks[st.sel];
+          st.vsel = d.k;
+          st.ext = KINDS[mk.t].shape === 'line' && (d.k === 0 || d.k === mk.p.length - 1) ? {i: st.sel, atEnd: d.k !== 0} : null;
+        }
+      }
       else if(d.kind === 'arrow'){
         var a = st.draft;
         st.draft = null;
         if(far(e, d, 14)) commit({t: a.t, p: a.p});
       } else if(d.moved){
-        var drawn = st.draft, need = NEED[KINDS[drawn.t].shape];
+        var drawn = st.draft;
         st.draft = null;
         var path = d.box ? drawn.p : simplify(d.path);
-        if(path.length >= need) commit({t: drawn.t, p: path});
+        if(st.ext){ st.draft = {t: d.t, p: path}; finish(); }
+        else if(path.length >= NEED[KINDS[d.t].shape]) commit({t: d.t, p: path});
       } else {
         // a click: one more corner; clicking the first corner again closes an outline
-        if(!st.draft) st.draft = {t: st.tool, p: []};
+        if(!st.draft) st.draft = {t: d.t, p: st.ext ? [anchor()] : []};
         var first = st.draft.p[0], r = el.getBoundingClientRect();
-        if(first && KINDS[st.tool].shape === 'area' && st.draft.p.length >= 3 && Math.hypot((p[0] - first[0]) * r.width, (p[1] - first[1]) * r.height) < 14) finish();
+        if(!st.ext && first && KINDS[d.t].shape === 'area' && st.draft.p.length >= 3 && Math.hypot((p[0] - first[0]) * r.width, (p[1] - first[1]) * r.height) < 14) finish();
         else st.draft.p.push(p);
       }
       paint();
     });
-    el.addEventListener('dblclick', function(e){ e.preventDefault(); finish(); paint(); });
+    // On a selected line or outline, a double-click drops a new dot where you clicked,
+    // so a straight stretch can be bent. True when it did.
+    function addDot(c){
+      if(st.tool !== 'select' || st.sel == null) return false;
+      var m = st.marks[st.sel], shape = KINDS[m.t].shape;
+      if(shape !== 'line' && shape !== 'area') return false;
+      var r = el.getBoundingClientRect(), n = m.p.length, best = null;
+      for(var i = 0; i < (shape === 'area' ? n : n - 1); i++){
+        var a = m.p[i], b = m.p[(i + 1) % n];
+        var ax = a[0] * r.width, ay = a[1] * r.height, dx = b[0] * r.width - ax, dy = b[1] * r.height - ay;
+        var t = Math.max(0, Math.min(1, ((c[0] * r.width - ax) * dx + (c[1] * r.height - ay) * dy) / (dx * dx + dy * dy || 1)));
+        var dist = Math.hypot(c[0] * r.width - (ax + t * dx), c[1] * r.height - (ay + t * dy));
+        if(!best || dist < best.dist) best = {dist: dist, at: i + 1, p: [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]};
+      }
+      if(!best || best.dist > 14) return false;
+      remember();
+      m.p.splice(best.at, 0, best.p);
+      st.vsel = best.at; st.ext = null;
+      return true;
+    }
   }
 
   // A new photo: shrink it to print size as a JPEG, show it, and offer to clear
