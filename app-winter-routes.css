@@ -51,6 +51,9 @@
 #view-jwgscheduler .sp-tool i{width:13px;height:13px;border-radius:4px;border:1px solid rgba(1,43,31,.6)}
 #view-jwgscheduler #sp-zl{min-width:46px;text-align:center;font-size:13px;font-variant-numeric:tabular-nums}
 #view-jwgscheduler .sp-note{font-size:13px;color:var(--n11);min-height:19px}
+#view-jwgscheduler #sp-cropbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:#fff;border:1px solid var(--n6);border-radius:8px;padding:8px 12px;font-size:13.5px}
+#view-jwgscheduler #sp-cropbar[hidden]{display:none}
+#view-jwgscheduler #sp-cropbar span{flex:1;min-width:200px;color:var(--n11)}
 #view-jwgscheduler .sp-body{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
 #view-jwgscheduler .sp-stage{min-height:0;min-width:0;overflow:auto;display:flex;background:#1d2b24;border:1px solid var(--n6);border-radius:12px;padding:8px}
 #view-jwgscheduler .sp-photo{position:relative;flex:none;margin:auto;line-height:0;touch-action:none;user-select:none}
