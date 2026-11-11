@@ -1,27 +1,129 @@
 // ── WINTER SITE PLAN EDITOR ───────────────────────────────────────────────
-// One winter site's aerial photo with its snow marks drawn on it (Jake,
-// 2026-10-15). This is what the printed winter book shows for every site.
+// One winter site's aerial photo with its marks drawn on it. This is what the
+// printed winter book shows for every site, and what the Snow & Ice page shows
+// in its site panel.
 //
 // The photo is a Google Earth screenshot the office uploads or pastes (Ctrl+V).
 // It is shrunk to 1600px wide in the browser (enough for a printed page) and
 // stored in the private 'winter-sites' bucket; a replaced photo gets a new path
-// and the old file is removed. Marks are saved in site_marks as fractions of the
-// photo, so they line up at any size. Two kinds (Jake, 2026-10-19):
-//   {t:'zone', r:[x, y, w, h]}      a drop zone box - pile the snow here
-//   {t:'walk', p:[[x, y], ...]}     a sidewalk line we plow, traced point by point
-// Each kind numbers itself in saved order: DZ-01 is the first zone, SW-01 the
-// first sidewalk.
+// and the old file is removed.
+//
+// Marks are saved in site_marks as fractions of the photo, so they line up at
+// any size. Every mark is {t: kind, p: [[x, y], ...], n: 'optional note'}
+// (Jake, 2026-11-11 - before that a drop zone was a box, {t:'zone', r:[x,y,w,h]}):
+//   zone, nopile, clear   an outline, three points or more
+//   walk                  a line, two points or more
+//   push                  an arrow, exactly two points (from, to)
+//   hazard, salt          a pin, one point
+// Each kind numbers itself in saved order: DZ-01 is the first drop zone.
+//
+// The editor opens as a full page over Snow & Ice, not a pop-up, so the photo
+// gets the room. draw() below is the ONE place marks are turned into a picture;
+// the book and the site panel call it too.
 window.WinterSitePlan = (function(){
-  var BUCKET = 'winter-sites', MAX_W = 1600;
-  var st = null;   // the site being edited: {loc, marks, mode, draft, sel, url, blob, drag}
+  var BUCKET = 'winter-sites', MAX_W = 1600, VW = 1000;
+  var AREA_HINT = 'Drag to draw the outline by hand, or click each corner for straight edges. Hold Shift and drag for a box. Double-click to finish.';
+  var KINDS = {
+    zone:   {name: 'Drop zone',  code: 'DZ', color: '#ffd60a', shape: 'area',  key: 'Pile snow here.', hint: AREA_HINT},
+    nopile: {name: 'Don’t pile', code: 'NP', color: '#ef4444', shape: 'area',  key: 'Never pile snow here.', hint: AREA_HINT},
+    clear:  {name: 'Keep clear', code: 'KC', color: '#22d3ee', shape: 'area',  key: 'Entrances, fire routes and doors stay open.', hint: AREA_HINT},
+    walk:   {name: 'Sidewalk',   code: 'SW', color: '#2f80ed', shape: 'line',  key: 'Plow and salt the walk.', hint: 'Drag along the sidewalk to trace it by hand, or click point to point for straight runs. Double-click to finish.'},
+    push:   {name: 'Push arrow', code: 'PA', color: '#ffffff', shape: 'arrow', key: 'Push the snow this way.', hint: 'Drag from where the plow starts to where the snow ends up.'},
+    hazard: {name: 'Hazard',     code: 'HZ', color: '#fb923c', shape: 'pin',   key: 'Watch for this.', hint: 'Click on a hydrant, curb, speed bump or anything else to watch for.'},
+    salt:   {name: 'Salt bin',   code: 'SB', color: '#c4b5fd', shape: 'pin',   key: 'The salt bin is here.', hint: 'Click where the salt bin sits.'}
+  };
+  var ORDER = ['zone', 'nopile', 'clear', 'walk', 'push', 'hazard', 'salt'];
+  var NEED = {area: 3, line: 2, arrow: 2, pin: 1};
+  var FONT = 'font-family="Inter,system-ui,sans-serif"';
+  var st = null;   // the site being edited
 
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
-  function label(i){
-    var m = st.marks[i], n = 0;
-    for(var k = 0; k < i; k++) if(st.marks[k].t === m.t) n++;
-    return (m.t === 'zone' ? 'DZ-' : 'SW-') + String(n + 1).padStart(2, '0');
+  function kind(m){
+    var k = KINDS[m.t];
+    if(!k) throw new Error('Unknown site mark type: ' + m.t);
+    return k;
+  }
+  function label(marks, i){
+    var m = marks[i], n = 0;
+    for(var k = 0; k < i; k++) if(marks[k].t === m.t) n++;
+    return kind(m).code + '-' + String(n + 1).padStart(2, '0');
   }
   function clamp(v){ return Math.min(1, Math.max(0, v)); }
+  function f1(v){ return v.toFixed(1); }
+
+  // ── drawing (shared with the book and the Snow & Ice site panel) ──
+  // Marks as SVG, in a 1000-wide box as tall as the photo's shape makes it, so
+  // labels, pins and arrowheads are never stretched. o: sel (index picked in the
+  // editor), draft (a mark still being drawn), hover (where the next point would
+  // go), labels (false to leave the codes off), size (label and pin scale).
+  function draw(marks, vh, o){
+    o = o || {};
+    var s = o.size || 1, h = '';
+    function P(q){ return [q[0] * VW, q[1] * vh]; }
+    function pts(p){ return p.map(function(q){ var c = P(q); return f1(c[0]) + ',' + f1(c[1]); }).join(' '); }
+    function chip(x, y, text, color){
+      if(o.labels === false) return '';
+      var w = (text.length * 8.6 + 12) * s, hh = 21 * s;
+      x = Math.min(VW - w / 2 - 2, Math.max(w / 2 + 2, x));
+      y = Math.min(vh - hh / 2 - 2, Math.max(hh / 2 + 2, y));
+      return '<rect x="' + f1(x - w / 2) + '" y="' + f1(y - hh / 2) + '" width="' + f1(w) + '" height="' + f1(hh) + '" rx="' + f1(5 * s) + '" fill="' + color + '" stroke="#012b1f" stroke-width="1.2"/>'
+        + '<text x="' + f1(x) + '" y="' + f1(y + 4.8 * s) + '" text-anchor="middle" font-size="' + f1(13.5 * s) + '" font-weight="800" fill="#012b1f" ' + FONT + '>' + text + '</text>';
+    }
+    function one(m, i, isDraft){
+      var K = kind(m), c = K.color, on = !isDraft && o.sel === i, g = '';
+      var p = isDraft && o.hover && K.shape !== 'arrow' && !m.closed ? m.p.concat([o.hover]) : m.p;
+      if(!p.length) return '';
+      var a = P(p[0]);
+      if(K.shape === 'area'){
+        var dash = m.t === 'zone' ? '' : ' stroke-dasharray="11 7"';
+        if(isDraft && !m.closed) g += '<polyline points="' + pts(p) + '" fill="' + c + '" fill-opacity=".15" stroke="' + c + '" stroke-width="3.5" stroke-dasharray="8 6" stroke-linejoin="round"/>';
+        else g += '<polygon points="' + pts(p) + '" fill="' + c + '" fill-opacity="' + (m.t === 'zone' ? .4 : .28) + '" stroke="#012b1f" stroke-width="' + (on ? 7 : 5.5) + '" stroke-linejoin="round" stroke-opacity=".7"/>'
+          + '<polygon points="' + pts(p) + '" fill="none" stroke="' + (on ? '#fff' : c) + '" stroke-width="3.5"' + dash + ' stroke-linejoin="round"/>';
+        if(!isDraft){
+          var cx = 0, cy = 0;
+          p.forEach(function(q){ cx += q[0]; cy += q[1]; });
+          g += chip(cx / p.length * VW, cy / p.length * vh, label(marks, i), c);
+        }
+      } else if(K.shape === 'line'){
+        g += '<polyline points="' + pts(p) + '" fill="none" stroke="transparent" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>'
+          + '<polyline points="' + pts(p) + '" fill="none" stroke="' + (on ? '#012b1f' : '#fff') + '" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>'
+          + '<polyline points="' + pts(p) + '" fill="none" stroke="' + c + '" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"' + (isDraft ? ' stroke-dasharray="10 8"' : '') + '/>';
+        if(!isDraft) g += chip(a[0], a[1] - 20 * s, label(marks, i), c);
+      } else if(K.shape === 'arrow'){
+        if(p.length < 2) return '';
+        var b = P(p[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]), hd = 26 * s;
+        var h1 = [b[0] - hd * Math.cos(ang - .45), b[1] - hd * Math.sin(ang - .45)], h2 = [b[0] - hd * Math.cos(ang + .45), b[1] - hd * Math.sin(ang + .45)];
+        var col = on ? '#bbf7d0' : c;
+        g += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="#012b1f" stroke-width="12" stroke-linecap="round" stroke-opacity=".8"/>'
+          + '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + col + '" stroke-width="6.5" stroke-linecap="round"/>'
+          + '<polygon points="' + f1(b[0]) + ',' + f1(b[1]) + ' ' + f1(h1[0]) + ',' + f1(h1[1]) + ' ' + f1(h2[0]) + ',' + f1(h2[1]) + '" fill="' + col + '" stroke="#012b1f" stroke-width="2" stroke-linejoin="round"/>';
+        if(!isDraft) g += chip(a[0], a[1] + 22 * s, label(marks, i), c);
+      } else {
+        g += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="' + f1((on ? 16 : 14) * s) + '" fill="' + c + '" stroke="' + (on ? '#fff' : '#012b1f') + '" stroke-width="' + (on ? 4 : 2) + '"/>'
+          + '<text x="' + f1(a[0]) + '" y="' + f1(a[1] + 5.4 * s) + '" text-anchor="middle" font-size="' + f1(15 * s) + '" font-weight="800" fill="#012b1f" ' + FONT + '>' + (m.t === 'hazard' ? '!' : 'S') + '</text>';
+        if(!isDraft) g += chip(a[0], a[1] + 29 * s, label(marks, i), c);
+      }
+      if(on && K.shape !== 'pin') g += m.p.map(function(q, k){ var v = P(q); return '<circle data-v="' + k + '" cx="' + f1(v[0]) + '" cy="' + f1(v[1]) + '" r="7.5" fill="#fff" stroke="#012b1f" stroke-width="2.5" style="cursor:grab"/>'; }).join('');
+      return isDraft ? '<g pointer-events="none">' + g + '</g>' : '<g data-m="' + i + '">' + g + '</g>';
+    }
+    marks.forEach(function(m, i){ h += one(m, i, false); });
+    if(o.draft) h += one(o.draft, -1, true);
+    return h;
+  }
+  // A finished overlay for a photo of the given shape (width / height).
+  function svg(marks, ar, o){
+    var vh = VW / ar;
+    return '<svg viewBox="0 0 ' + VW + ' ' + f1(vh) + '" preserveAspectRatio="none" aria-hidden="true">' + draw(marks || [], vh, o) + '</svg>';
+  }
+  // What the book's map key lists: each kind used on a site, with its count.
+  function tally(marks){
+    return ORDER.map(function(t){
+      return {t: t, kind: KINDS[t], n: (marks || []).filter(function(m){ return m.t === t; }).length};
+    }).filter(function(x){ return x.n; });
+  }
+  function notes(marks){
+    return (marks || []).map(function(m, i){ return m.n ? {code: label(marks, i), text: m.n} : null; }).filter(Boolean);
+  }
 
   async function signedUrl(path){
     var r = await db.storage.from(BUCKET).createSignedUrl(path, 3600);
@@ -29,56 +131,107 @@ window.WinterSitePlan = (function(){
     return r.data.signedUrl;
   }
 
+  // ── the editor ──
   async function open(id){
+    close();
     var loc = JWG.WIN.locations.find(function(l){ return l.id === id; });
-    st = {loc: loc, marks: JSON.parse(JSON.stringify(loc.site_marks || [])), mode: 'zone', draft: null, sel: null, blob: null, drag: null,
+    var run = JWG.WIN.locations.slice().sort(JWG.winterRouteSort);
+    var pos = run.findIndex(function(l){ return l.id === id; });
+    st = {loc: loc, marks: JSON.parse(JSON.stringify(loc.site_marks || [])), tool: 'select', sel: null, draft: null, drag: null, hover: null,
+          zoom: 1, undo: [], redo: [], dirty: false, blob: null, ar: null,
+          prev: run[pos - 1] ? run[pos - 1].id : null, next: run[pos + 1] ? run[pos + 1].id : null,
           url: loc.photo_path ? await signedUrl(loc.photo_path) : null};
     var code = WinterRoutes.code(loc);
     var grp = JWG.WIN.groups.find(function(g){ return g.code === loc.winter_group; });
-    var run = JWG.WIN.locations.slice().sort(JWG.winterRouteSort);
-    var pos = run.findIndex(function(l){ return l.id === id; });
-    st.next = run[pos + 1] ? run[pos + 1].id : null;
-    JWG.openModal('<div class="sp-wrap">'
-      + '<div class="sp-head">' + (code ? '<span class="wr-code" style="background:' + grp.color + '">' + code + '</span>' : '')
-      + '<div><div class="sp-addr">' + esc(loc.address) + '</div>'
-      + (loc.client_name && loc.client_name !== loc.address ? '<div class="sp-nick">Crew calls it ' + esc(loc.client_name) + '</div>' : '') + '</div>'
-      + '<span class="sp-pos">' + (pos + 1) + ' of ' + run.length + '</span>'
-      // Save sits up here so the photo gets the height a bottom button row would take.
-      + '<div class="si-modal-actions"><button class="modal-done" id="sp-save">Save site plan</button>'
-      + (st.next ? '<button class="modal-done" id="sp-save-next">Save &amp; next →</button>' : '')
-      + '<button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button></div></div>'
-      + '<div class="sp-tools">'
-      + '<div class="sp-mode"><button type="button" data-mode="zone">Drop zones</button><button type="button" data-mode="walk">Sidewalks</button></div>'
-      + '<label class="si-action-btn secondary sp-upload">Upload photo<input type="file" accept="image/*" id="sp-file" hidden></label>'
-      + '<span class="sp-hint">or copy a Google Earth screenshot and press Ctrl+V</span>'
-      + '<span class="sp-sp"></span>'
-      + '<button type="button" class="si-action-btn" id="sp-finish" hidden>Finish line</button>'
-      + '<button type="button" class="si-action-btn secondary" id="sp-del" disabled>Delete</button>'
-      + '<button type="button" class="si-action-btn secondary" id="sp-clear">Clear all</button>'
-      + '</div>'
+    var nick = loc.client_name && loc.client_name !== loc.address ? loc.client_name : '';
+    var page = document.createElement('div');
+    page.id = 'sp-page';
+    page.innerHTML = '<div class="sp-head">'
+      + '<div class="sp-id">' + (code ? '<span class="sp-code" style="background:' + grp.color + '">' + code + '</span>' : '')
+      +   '<div><div class="sp-addr">' + esc(loc.address) + '</div><div class="sp-nick">' + [nick, grp ? grp.name : '', 'site ' + (pos + 1) + ' of ' + run.length].filter(Boolean).map(esc).join(' · ') + '</div></div></div>'
+      + '<div class="sp-acts"><button type="button" class="sp-btn" data-go="back">← Snow &amp; Ice</button>'
+      +   '<button type="button" class="sp-btn" data-go="prev"' + (st.prev ? '' : ' disabled') + '>‹ Previous</button>'
+      +   '<button type="button" class="sp-btn" data-go="next"' + (st.next ? '' : ' disabled') + '>Next ›</button>'
+      +   '<button type="button" class="sp-btn primary" id="sp-save">Save</button>'
+      +   (st.next ? '<button type="button" class="sp-btn primary" id="sp-save-next">Save &amp; next →</button>' : '') + '</div></div>'
+      + '<div class="sp-bar"><div class="sp-tools"><button type="button" class="sp-tool" data-tool="select">Select &amp; move</button>'
+      +   ORDER.map(function(t){ return '<button type="button" class="sp-tool" data-tool="' + t + '"><i style="background:' + KINDS[t].color + '"></i>' + KINDS[t].name + '</button>'; }).join('') + '</div>'
+      + '<div class="sp-tools"><button type="button" class="sp-tool" id="sp-undo">↶ Undo</button><button type="button" class="sp-tool" id="sp-redo">↷ Redo</button>'
+      +   '<button type="button" class="sp-tool" data-zoom="-1" aria-label="Zoom out">−</button><b id="sp-zl">100%</b><button type="button" class="sp-tool" data-zoom="1" aria-label="Zoom in">+</button></div></div>'
       + '<div class="sp-note" id="sp-note"></div>'
-      + '<div class="sp-stage" id="sp-stage"></div>'
-      + '</div>', null, true);
-    document.querySelectorAll('.sp-mode button').forEach(function(b){ b.onclick = function(){ setMode(b.dataset.mode); }; });
-    document.getElementById('sp-file').onchange = function(e){ if(e.target.files[0]) takePhoto(e.target.files[0]); };
-    document.getElementById('sp-finish').onclick = finishWalk;
-    document.getElementById('sp-del').onclick = deleteSelected;
-    document.getElementById('sp-clear').onclick = function(){ st.marks = []; st.draft = null; st.sel = null; renderMarks(); };
-    document.getElementById('sp-save').onclick = function(){ save(false); };
-    if(st.next) document.getElementById('sp-save-next').onclick = function(){ save(true); };
+      + '<div class="sp-body"><div class="sp-stage" id="sp-stage"></div>'
+      + '<aside class="sp-side"><div class="sp-side-h">Marks on this site</div><div id="sp-list"></div>'
+      +   '<div class="sp-side-f"><label class="sp-tool sp-upload">' + (st.url ? 'Replace photo' : 'Upload photo') + '<input type="file" accept="image/*" id="sp-file" hidden></label>'
+      +   '<button type="button" class="sp-tool" id="sp-clear">Clear all marks</button>'
+      +   '<div class="sp-hint">You can also copy a Google Earth screenshot and press Ctrl+V. Notes print in the book.</div></div></aside></div>';
+    var host = document.getElementById('win-page');
+    host.hidden = true;
+    host.parentNode.appendChild(page);
+    window.scrollTo(0, 0);   // the editor is one screen tall; start at its top
+    page.addEventListener('click', onClick);
+    page.querySelector('#sp-file').onchange = function(e){ if(e.target.files[0]) takePhoto(e.target.files[0]); };
+    page.querySelector('#sp-list').addEventListener('input', function(e){
+      if(e.target.dataset.note == null) return;
+      st.marks[+e.target.dataset.note].n = e.target.value;
+      st.dirty = true;
+    });
+    page.querySelector('#sp-list').addEventListener('focusin', function(e){ if(e.target.dataset.note != null) remember(); });
     document.addEventListener('paste', onPaste);
     document.addEventListener('keydown', onKey);
-    setMode('zone');
+    window.addEventListener('resize', fit);
     renderStage();
   }
 
-  // Listeners live only while this editor is on screen.
-  function alive(){
-    if(document.getElementById('sp-stage')) return true;
+  // Take the editor off the page and put Snow & Ice back.
+  function close(){
+    var page = document.getElementById('sp-page');
+    if(page) page.remove();
+    var host = document.getElementById('win-page');
+    if(host) host.hidden = false;
     document.removeEventListener('paste', onPaste);
     document.removeEventListener('keydown', onKey);
+    window.removeEventListener('resize', fit);
     st = null;
+  }
+  // The Schedule page can redraw under the editor (a tab switch); then it is gone.
+  function alive(){
+    if(st && document.getElementById('sp-page')) return true;
+    if(st) close();
     return false;
+  }
+  async function leave(to){
+    finish();
+    if(st.dirty && !await JWG.jwgConfirm({title: 'Unsaved changes', message: 'The changes to this site plan are not saved yet.', confirmLabel: 'Leave without saving'})) return;
+    if(to === 'back'){ close(); await JWG.reloadWinter(); }
+    else await open(to === 'prev' ? st.prev : st.next);
+  }
+
+  function remember(){
+    st.undo.push(JSON.stringify(st.marks));
+    if(st.undo.length > 80) st.undo.shift();
+    st.redo = [];
+    st.dirty = true;
+  }
+  function step(from, to){
+    if(!from.length) return;
+    to.push(JSON.stringify(st.marks));
+    st.marks = JSON.parse(from.pop());
+    st.sel = null; st.draft = null; st.hover = null; st.dirty = true;
+    paint();
+  }
+
+  function onClick(e){
+    var t = e.target, b;
+    if((b = t.closest('[data-go]'))){ leave(b.dataset.go); return; }
+    if(t.closest('#sp-save')){ save(false); return; }
+    if(t.closest('#sp-save-next')){ save(true); return; }
+    if((b = t.closest('[data-tool]'))){ finish(); st.tool = b.dataset.tool; if(st.tool !== 'select') st.sel = null; paint(); return; }
+    if(t.closest('#sp-undo')){ finish(); step(st.undo, st.redo); return; }
+    if(t.closest('#sp-redo')){ step(st.redo, st.undo); return; }
+    if((b = t.closest('[data-zoom]'))){ st.zoom = Math.min(4, Math.max(1, st.zoom + (+b.dataset.zoom) * .5)); fit(); return; }
+    if(t.closest('#sp-clear')){ if(st.marks.length){ remember(); st.marks = []; st.sel = null; st.draft = null; paint(); } return; }
+    if(t.closest('[data-del]')){ removeSelected(); return; }
+    if((b = t.closest('[data-mark]')) && t.tagName !== 'INPUT'){ finish(); st.sel = +b.dataset.mark; st.tool = 'select'; if(document.activeElement.blur) document.activeElement.blur(); paint(); }
   }
   function onPaste(e){
     if(!alive()) return;
@@ -88,155 +241,172 @@ window.WinterSitePlan = (function(){
     takePhoto(item.getAsFile());
   }
   function onKey(e){
-    if(!alive() || /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
-    if(st.draft){
-      // Tracing a sidewalk: Enter ends it, Escape throws it away, Backspace undoes the last point.
-      if(e.key === 'Enter'){ e.preventDefault(); finishWalk(); }
-      else if(e.key === 'Escape'){ e.preventDefault(); st.draft.p = []; finishWalk(); }
-      else if(e.key === 'Backspace'){ e.preventDefault(); st.draft.p.pop(); if(st.draft.p.length) renderMarks(); else finishWalk(); }
-    } else if((e.key === 'Delete' || e.key === 'Backspace') && st.sel != null){
-      e.preventDefault();
-      deleteSelected();
+    if(!alive() || /INPUT|TEXTAREA/.test(document.activeElement.tagName) || document.getElementById('jwg-confirm')) return;
+    var cmd = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+    if(cmd && k === 'z'){ e.preventDefault(); if(e.shiftKey) step(st.redo, st.undo); else { finish(); step(st.undo, st.redo); } }
+    else if(cmd && k === 'y'){ e.preventDefault(); step(st.redo, st.undo); }
+    else if(st.draft){
+      // Still drawing: Enter ends it, Escape throws it away, Backspace takes back the last point.
+      if(e.key === 'Enter'){ e.preventDefault(); finish(); paint(); }
+      else if(e.key === 'Escape'){ e.preventDefault(); st.draft = null; st.hover = null; paint(); }
+      else if(e.key === 'Backspace'){ e.preventDefault(); st.draft.p.pop(); if(!st.draft.p.length) st.draft = null; paint(); }
     }
+    else if(e.key === 'Escape'){ st.sel = null; paint(); }
+    else if((e.key === 'Delete' || e.key === 'Backspace') && st.sel != null){ e.preventDefault(); removeSelected(); }
+  }
+  function removeSelected(){
+    if(st.sel == null) return;
+    remember();
+    st.marks.splice(st.sel, 1);
+    st.sel = null;
+    if(document.activeElement.blur) document.activeElement.blur();
+    paint();
   }
 
-  function setMode(mode){
-    finishWalk();
-    st.mode = mode;
-    st.sel = null;
-    document.querySelectorAll('.sp-mode button').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.mode === mode); });
-    document.getElementById('sp-note').textContent = !st.url ? '' : mode === 'zone'
-      ? 'Drag on the photo to draw a drop zone. Click a zone to select it, drag it to move, use the corner to resize.'
-      : 'Click along the sidewalk to trace it, then press Enter or Finish line. Click a line to select it, drag it to move, drag a dot to bend it.';
-    renderMarks();
+  // End the mark being drawn by clicks. A double-click lands its last point twice,
+  // so points on top of each other are dropped; too few points is not a mark.
+  function finish(){
+    var d = st.draft;
+    if(!d) return;
+    st.draft = null; st.hover = null;
+    var p = d.p.filter(function(q, i){ return i === 0 || Math.abs(q[0] - d.p[i - 1][0]) > .004 || Math.abs(q[1] - d.p[i - 1][1]) > .004; });
+    if(p.length >= NEED[KINDS[d.t].shape]) commit({t: d.t, p: p});
+  }
+  function commit(m){
+    remember();
+    st.marks.push(m);
+    st.sel = st.marks.length - 1;
+  }
+  // A hand-drawn path keeps only the points that carry its shape (Ramer-Douglas-Peucker),
+  // measured on the 1000-wide drawing so "close enough" means the same on every photo.
+  function simplify(path){
+    var vh = VW / st.ar, P = path.map(function(q){ return [q[0] * VW, q[1] * vh]; }), keep = [];
+    (function rdp(a, b){
+      var far = 0, at = -1, ax = P[a][0], ay = P[a][1], dx = P[b][0] - ax, dy = P[b][1] - ay, len = Math.hypot(dx, dy) || 1;
+      for(var i = a + 1; i < b; i++){
+        var d = Math.abs(dy * (P[i][0] - ax) - dx * (P[i][1] - ay)) / len;
+        if(d > far){ far = d; at = i; }
+      }
+      if(far > 4){ rdp(a, at); keep.push(at); rdp(at, b); }
+    })(0, P.length - 1);
+    return [0].concat(keep, [P.length - 1]).map(function(i){ return path[i]; });
   }
 
   function renderStage(){
     var stage = document.getElementById('sp-stage');
     if(!st.url){
       stage.innerHTML = '<div class="sp-empty">No photo yet. Upload a Google Earth screenshot of this site, or copy one and press Ctrl+V.</div>';
-      document.getElementById('sp-note').textContent = '';
+      paint();
       return;
     }
-    stage.innerHTML = '<div class="sp-photo" id="sp-photo"><img src="' + st.url + '" alt="Aerial photo of ' + esc(st.loc.address) + '" draggable="false"></div>';
-    var ph = document.getElementById('sp-photo');
-    // The photo's shape lets the CSS grow it to fill the space without stretching.
-    ph.querySelector('img').onload = function(){ ph.style.setProperty('--ar', this.naturalWidth / this.naturalHeight); };
-    wirePhoto(ph);
-    setMode(st.mode);
+    stage.innerHTML = '<div class="sp-photo" id="sp-photo"><img src="' + st.url + '" alt="Aerial photo of ' + esc(st.loc.address) + '" draggable="false"><svg id="sp-svg" preserveAspectRatio="none"></svg></div>';
+    var site = st;
+    stage.querySelector('img').onload = function(){
+      if(st !== site) return;
+      st.ar = this.naturalWidth / this.naturalHeight;
+      document.getElementById('sp-svg').setAttribute('viewBox', '0 0 ' + VW + ' ' + f1(VW / st.ar));
+      wire(document.getElementById('sp-svg'));
+      fit();
+    };
+  }
+  // The photo fills the stage without stretching; zoom makes it bigger and the stage scrolls.
+  function fit(){
+    if(!alive() || !st.ar) return;
+    var stage = document.getElementById('sp-stage');
+    var w = Math.min(stage.clientWidth - 16, (stage.clientHeight - 16) * st.ar) * st.zoom;
+    document.getElementById('sp-photo').style.width = Math.round(w) + 'px';
+    paint();
+  }
+  function paint(){
+    var page = document.getElementById('sp-page'), el = document.getElementById('sp-svg');
+    if(el && st.ar){
+      el.innerHTML = draw(st.marks, VW / st.ar, {sel: st.sel, draft: st.draft, hover: st.hover});
+      el.style.cursor = st.tool === 'select' ? 'default' : 'crosshair';
+    }
+    page.querySelectorAll('[data-tool]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.tool === st.tool); b.disabled = !st.url; });
+    page.querySelector('#sp-undo').disabled = !st.undo.length;
+    page.querySelector('#sp-redo').disabled = !st.redo.length;
+    page.querySelector('#sp-zl').textContent = Math.round(st.zoom * 100) + '%';
+    page.querySelector('#sp-note').textContent = !st.url ? '' : st.tool === 'select'
+      ? 'Click a mark to select it. Drag it to move, drag a white dot to reshape, press Delete to remove.' : KINDS[st.tool].hint;
+    var list = page.querySelector('#sp-list');
+    if(list.contains(document.activeElement)) return;   // someone is typing a note
+    list.innerHTML = st.marks.length ? st.marks.map(function(m, i){
+      var on = st.sel === i;
+      return '<div class="sp-mark' + (on ? ' on' : '') + '" data-mark="' + i + '"><span class="sp-code" style="background:' + kind(m).color + ';color:#012b1f">' + label(st.marks, i) + '</span><b>' + kind(m).name + '</b>'
+        + (on ? '<button type="button" class="sp-tool sp-del" data-del>Remove</button><input type="text" data-note="' + i + '" placeholder="Add a note for the crew" value="' + esc(m.n || '') + '">'
+              : (m.n ? '<span class="n">' + esc(m.n) + '</span>' : '')) + '</div>';
+    }).join('') : '<div class="sp-none">' + (st.url ? 'Nothing drawn yet. Pick a kind of mark above and draw on the photo.' : 'Add a photo to start.') + '</div>';
   }
 
-  function renderMarks(){
-    var ph = document.getElementById('sp-photo');
-    var del = document.getElementById('sp-del');
-    del.disabled = st.sel == null || !!st.draft;
-    del.textContent = st.sel != null && !st.draft ? 'Delete ' + label(st.sel) : 'Delete';
-    document.getElementById('sp-finish').hidden = !st.draft;
-    if(!ph) return;
-    ph.querySelectorAll('.sp-mark,.sp-walks,.sp-wlabel,.sp-v').forEach(function(m){ m.remove(); });
-    var pct = function(v){ return v * 100 + '%'; };
-    var walks = '', html = '';
-    st.marks.forEach(function(m, i){
-      var sel = st.sel === i;
-      if(m.t === 'zone'){
-        html += '<div class="sp-mark' + (sel ? ' sel' : '') + '" data-i="' + i + '" style="left:' + pct(m.r[0]) + ';top:' + pct(m.r[1]) + ';width:' + pct(m.r[2]) + ';height:' + pct(m.r[3]) + '">'
-          + '<span>' + label(i) + '</span>' + (sel ? '<i class="sp-h"></i>' : '') + '</div>';
-        return;
-      }
-      var pts = m.p.map(function(q){ return q[0] * 100 + ',' + q[1] * 100; }).join(' ');
-      walks += '<g class="sp-walk' + (sel ? ' sel' : '') + (m === st.draft ? ' draft' : '') + '" data-i="' + i + '">'
-        + '<polyline class="hit" points="' + pts + '"/><polyline class="case" points="' + pts + '"/><polyline class="line" points="' + pts + '"/></g>';
-      html += '<span class="sp-wlabel' + (m.p[0][1] < .06 ? ' below' : '') + '" style="left:' + pct(m.p[0][0]) + ';top:' + pct(m.p[0][1]) + '">' + label(i) + '</span>';
-      if(sel) html += m.p.map(function(q, k){ return '<i class="sp-v" data-i="' + i + '" data-k="' + k + '" style="left:' + pct(q[0]) + ';top:' + pct(q[1]) + '"></i>'; }).join('');
-    });
-    ph.insertAdjacentHTML('beforeend', '<svg class="sp-walks" viewBox="0 0 100 100" preserveAspectRatio="none">' + walks + '</svg>' + html);
-  }
-
-  function deleteSelected(){
-    if(st.sel == null) return;
-    st.marks.splice(st.sel, 1);
-    st.sel = null;
-    renderMarks();
-  }
-
-  // End the sidewalk being traced. A double-click lands its last point twice,
-  // so trailing points on top of each other are dropped; fewer than two points
-  // is not a line and goes away.
-  function finishWalk(){
-    var w = st.draft;
-    if(!w) return;
-    st.draft = null;
-    var near = function(a, b){ return Math.abs(a[0] - b[0]) < .004 && Math.abs(a[1] - b[1]) < .004; };
-    while(w.p.length > 1 && near(w.p[w.p.length - 1], w.p[w.p.length - 2])) w.p.pop();
-    if(w.p.length < 2){ st.marks.splice(st.marks.indexOf(w), 1); st.sel = null; }
-    renderMarks();
-  }
-
-  // Draw, trace, move and resize, all as fractions of the photo.
-  function wirePhoto(ph){
+  // Draw, trace, move and reshape, all as fractions of the photo.
+  function wire(el){
     function pt(e){
-      var r = ph.getBoundingClientRect();
+      var r = el.getBoundingClientRect();
       return [clamp((e.clientX - r.left) / r.width), clamp((e.clientY - r.top) / r.height)];
     }
-    ph.addEventListener('pointerdown', function(e){
+    function far(e, d, px){ return Math.hypot(e.clientX - d.cx, e.clientY - d.cy) > px; }
+    el.addEventListener('pointerdown', function(e){
       e.preventDefault();
-      ph.setPointerCapture(e.pointerId);
-      var p = pt(e), t = e.target;
-      var vertex = t.closest('.sp-v'), zone = t.closest('.sp-mark'), walk = t.closest('.sp-walk');
-      if(vertex){
-        st.sel = +vertex.dataset.i;
-        st.drag = {kind: 'vertex', m: st.marks[st.sel], k: +vertex.dataset.k};
-      } else if(zone){
-        st.sel = +zone.dataset.i;
-        var z = st.marks[st.sel];
-        st.drag = t.classList.contains('sp-h') ? {kind: 'size', m: z} : {kind: 'move', m: z, dx: p[0] - z.r[0], dy: p[1] - z.r[1]};
-      } else if(walk && !st.draft){
-        st.sel = +walk.dataset.i;
-        var w = st.marks[st.sel];
-        st.drag = {kind: 'walk', m: w, start: p, orig: w.p.map(function(q){ return q.slice(); })};
-      } else if(st.mode === 'zone'){
+      el.setPointerCapture(e.pointerId);
+      var p = pt(e), d = {cx: e.clientX, cy: e.clientY, a: p, moved: false};
+      if(st.tool === 'select'){
+        var v = e.target.closest('[data-v]'), m = e.target.closest('[data-m]');
+        if(v && st.sel != null){ d.kind = 'vertex'; d.k = +v.dataset.v; d.before = JSON.stringify(st.marks); }
+        else if(m){ st.sel = +m.dataset.m; d.kind = 'move'; d.orig = JSON.parse(JSON.stringify(st.marks[st.sel].p)); d.before = JSON.stringify(st.marks); }
+        else { st.sel = null; d = null; }
+      } else {
+        var shape = KINDS[st.tool].shape;
         st.sel = null;
-        st.drag = {kind: 'draw', start: p, m: {t: 'zone', r: [p[0], p[1], 0, 0]}};
-        st.marks.push(st.drag.m);
-        st.sel = st.marks.length - 1;
-      } else {
-        if(!st.draft){ st.draft = {t: 'walk', p: []}; st.marks.push(st.draft); }
-        st.draft.p.push(p);
-        st.sel = st.marks.indexOf(st.draft);
+        if(shape === 'pin'){ commit({t: st.tool, p: [p]}); d = null; }
+        else if(shape === 'arrow'){ d.kind = 'arrow'; st.draft = {t: st.tool, p: [p, p]}; }
+        // A drag draws by hand (or a box with Shift); a plain click adds a corner.
+        else { d.kind = 'trace'; d.path = [p]; d.box = shape === 'area' && e.shiftKey; d.clicking = !!st.draft; }
       }
-      renderMarks();
+      st.drag = d;
+      paint();
     });
-    ph.addEventListener('pointermove', function(e){
-      var d = st && st.drag;
-      if(!d) return;
-      var p = pt(e), m = d.m;
-      if(d.kind === 'draw'){
-        m.r[0] = Math.min(p[0], d.start[0]); m.r[1] = Math.min(p[1], d.start[1]);
-        m.r[2] = Math.abs(p[0] - d.start[0]); m.r[3] = Math.abs(p[1] - d.start[1]);
-      } else if(d.kind === 'move'){
-        m.r[0] = Math.min(1 - m.r[2], Math.max(0, p[0] - d.dx));
-        m.r[1] = Math.min(1 - m.r[3], Math.max(0, p[1] - d.dy));
-      } else if(d.kind === 'size'){
-        m.r[2] = Math.max(.01, p[0] - m.r[0]); m.r[3] = Math.max(.01, p[1] - m.r[1]);
-      } else if(d.kind === 'vertex'){
-        m.p[d.k] = p;
-      } else {
-        var dx = p[0] - d.start[0], dy = p[1] - d.start[1];
-        m.p = d.orig.map(function(q){ return [clamp(q[0] + dx), clamp(q[1] + dy)]; });
+    el.addEventListener('pointermove', function(e){
+      if(!st) return;
+      var d = st.drag, p = pt(e);
+      if(!d){ if(st.draft){ st.hover = p; paint(); } return; }
+      if(d.kind === 'move'){
+        if(far(e, d, 2)) d.moved = true;
+        st.marks[st.sel].p = d.orig.map(function(q){ return [clamp(q[0] + p[0] - d.a[0]), clamp(q[1] + p[1] - d.a[1])]; });
+      } else if(d.kind === 'vertex'){ st.marks[st.sel].p[d.k] = p; d.moved = true; }
+      else if(d.kind === 'arrow') st.draft.p[1] = p;
+      else if(!d.clicking && (d.moved || far(e, d, 8))){
+        d.moved = true;
+        d.path.push(p);
+        st.draft = d.box ? {t: st.tool, closed: true, p: [d.a, [p[0], d.a[1]], p, [d.a[0], p[1]]]} : {t: st.tool, p: d.path};
+        st.hover = null;
       }
-      renderMarks();
+      paint();
     });
-    ph.addEventListener('pointerup', function(){
-      var d = st.drag;
+    el.addEventListener('pointerup', function(e){
+      var d = st.drag, p = pt(e);
       st.drag = null;
-      // A click on bare photo draws nothing: drop the zero-size box it started.
-      if(d && d.kind === 'draw' && (d.m.r[2] < .01 || d.m.r[3] < .01)){
-        st.marks.splice(st.marks.indexOf(d.m), 1);
-        st.sel = null;
+      if(!d) return;
+      if(d.kind === 'move' || d.kind === 'vertex'){ if(d.moved){ st.undo.push(d.before); st.redo = []; st.dirty = true; } }
+      else if(d.kind === 'arrow'){
+        var a = st.draft;
+        st.draft = null;
+        if(far(e, d, 14)) commit({t: a.t, p: a.p});
+      } else if(d.moved){
+        var drawn = st.draft, need = NEED[KINDS[drawn.t].shape];
+        st.draft = null;
+        var path = d.box ? drawn.p : simplify(d.path);
+        if(path.length >= need) commit({t: drawn.t, p: path});
+      } else {
+        // a click: one more corner; clicking the first corner again closes an outline
+        if(!st.draft) st.draft = {t: st.tool, p: []};
+        var first = st.draft.p[0], r = el.getBoundingClientRect();
+        if(first && KINDS[st.tool].shape === 'area' && st.draft.p.length >= 3 && Math.hypot((p[0] - first[0]) * r.width, (p[1] - first[1]) * r.height) < 14) finish();
+        else st.draft.p.push(p);
       }
-      renderMarks();
+      paint();
     });
-    ph.addEventListener('dblclick', function(e){ e.preventDefault(); finishWalk(); });
+    el.addEventListener('dblclick', function(e){ e.preventDefault(); finish(); paint(); });
   }
 
   // A new photo: shrink it to print size as a JPEG, show it, and offer to clear
@@ -256,17 +426,20 @@ window.WinterSitePlan = (function(){
     URL.revokeObjectURL(img.src);
     st.blob = await new Promise(function(res){ c.toBlob(res, 'image/jpeg', .85); });
     st.url = URL.createObjectURL(st.blob);
-    finishWalk();
-    if(st.marks.length && await JWG.jwgConfirm({title: 'New photo', message: 'The drop zones and sidewalks were drawn on the old photo and may not line up with this one.', confirmLabel: 'Clear the marks'})){
+    st.dirty = true;
+    finish();
+    if(st.marks.length && await JWG.jwgConfirm({title: 'New photo', message: 'The marks were drawn on the old photo and may not line up with this one.', confirmLabel: 'Clear the marks'})){
+      remember();
       st.marks = [];
       st.sel = null;
     }
+    st.zoom = 1;
     renderStage();
   }
 
   // goNext: after saving, open the next site in route order in the same editor.
   async function save(goNext){
-    finishWalk();
+    finish();
     var btns = document.querySelectorAll('#sp-save,#sp-save-next');
     btns.forEach(function(b){ b.disabled = true; });
     var next = st.next;
@@ -279,16 +452,19 @@ window.WinterSitePlan = (function(){
         if(up.error) throw up.error;
       }
       var marks = st.marks.map(function(m){
-        return m.t === 'zone' ? {t: 'zone', r: m.r.map(r4)} : {t: 'walk', p: m.p.map(function(q){ return q.map(r4); })};
+        var out = {t: m.t, p: m.p.map(function(q){ return q.map(r4); })};
+        if(m.n && m.n.trim()) out.n = m.n.trim();
+        return out;
       });
       await JWG.sbF('PATCH', 'jwg_service_locations?id=eq.' + loc.id, {site_marks: marks, photo_path: path, updated_at: new Date().toISOString()});
       if(st.blob && oldPath){
         var rm = await db.storage.from(BUCKET).remove([oldPath]);
         if(rm.error) console.warn('old site photo not removed', oldPath, rm.error.message);
       }
+      loc.site_marks = marks; loc.photo_path = path;
       JWG.toast('Site plan saved');
       if(goNext){ await open(next); return; }
-      JWG.closeModal();
+      close();
       await JWG.reloadWinter();
     } catch(e){
       btns.forEach(function(b){ b.disabled = false; });
@@ -297,5 +473,5 @@ window.WinterSitePlan = (function(){
     }
   }
 
-  return {open: open, signedUrl: signedUrl};
+  return {open: open, close: close, signedUrl: signedUrl, svg: svg, tally: tally, notes: notes, KINDS: KINDS};
 })();
