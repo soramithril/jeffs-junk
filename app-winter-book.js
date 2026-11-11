@@ -142,18 +142,19 @@ window.WinterBook = (function(){
     // editor cannot disagree about what a mark looks like.
     var zones = photo && marks.length ? WinterSitePlan.svg(marks, photo.ar, {size: 1.25}).replace('<svg ', '<svg class="mk" ') : '';
     var used = WinterSitePlan.tally(marks), said = WinterSitePlan.notes(marks);
-    return '<section class="page">'
+    // The page wears its area's colour (Jake, 2026-11-11), so a loose sheet says
+    // which run it belongs to: a band down the edge, the site number, the area name.
+    return '<section class="page site" style="--g:' + g.color + '">'
       + '<div class="class">WINTER OPS // CREW EYES ONLY // SEASON ' + season(today) + '</div>'
       + '<div class="hdr"><img src="' + new URL('assets/jwg-logo.png', location.href).href + '" alt="">'
       + '<div class="org"><b>JEFF WHITE GROUP</b><span>WINTER OPERATIONS · SITE BRIEF</span></div>'
-      + '<div class="file"><div><span>FILE</span><b>JWG-W-' + code + '</b></div><div><span>SECTOR</span><b>' + esc(g.name.toUpperCase()) + '</b></div><div><span>INTEL</span><b>' + isoDay(today) + '</b></div></div></div>'
+      + '<div class="file"><div><span>FILE</span><b>JWG-W-' + code + '</b></div><div class="sector"><span>SECTOR</span><b>' + esc(g.name.toUpperCase()) + '</b></div><div><span>INTEL</span><b>' + isoDay(today) + '</b></div></div></div>'
       + '<div class="title"><div class="num"><small>SITE</small>' + code + '</div>'
       // Long multi-number addresses step the type down so they stay on two lines.
       + '<dl class="kv"><dt>TARGET</dt><dd class="addr' + (l.address.length > 32 ? ' long' : l.address.length > 24 ? ' mid' : '') + '">' + esc(l.address) + '</dd>'
-      + '<dt>LOCATION</dt><dd>' + esc((l.city || '').toUpperCase()) + ' · ' + esc(g.name.toUpperCase()) + '</dd>'
+      + '<dt>LOCATION</dt><dd>' + esc((l.city || '').toUpperCase()) + ' · <span class="area">' + esc(g.name.toUpperCase()) + '</span></dd>'
       + '<dt>CALLSIGN</dt><dd>' + (nick ? '<span class="call">' + esc(nick.toUpperCase()) + '</span>' : 'NONE ASSIGNED') + '</dd></dl>'
-      + '<div class="stamp">AUTHORIZED</div></div>'
-      + '<div class="sect"><span>MISSION ORDERS</span><span>CHECKED = DO IT</span></div>'
+      + '</div>'
       + '<div class="svc" style="grid-template-columns:repeat(' + svc.length + ',1fr)">' + svc.map(function(s){
           return '<div class="' + (s.on ? 'yes' : 'no') + '"><span class="box">' + (s.on ? TICK : '') + '</span>' + esc(s.name.toUpperCase()) + '</div>';
         }).join('') + '</div>'
@@ -164,7 +165,7 @@ window.WinterBook = (function(){
           : '<div class="nophoto">No photo yet. Add one on Snow &amp; Ice under Site plan.</div>') + '</div>'
       + '<div class="credit">Imagery © Google</div>'
       + '<div class="lower"><div><div class="h">Map key</div><div class="legend">'
-      + used.map(function(u){ return '<div><i style="background:' + u.kind.color + '"></i><span><b>' + esc(u.kind.name) + ' (' + u.kind.code + ').</b> ' + u.kind.key + ' ' + u.n + ' on this site.</span></div>'; }).join('')
+      + used.map(function(u){ return '<div><i style="background:' + u.kind.color + ';border-color:' + u.kind.color + '"></i><span><b>' + esc(u.kind.name) + ' (' + u.kind.code + ').</b> ' + u.kind.key + ' ' + u.n + ' on this site.</span></div>'; }).join('')
       + '<div><i class="x"></i><span><b>Never pile</b> on hydrants, doors, drains or neighbours\' lots.</span></div></div></div>'
       + '<div class="notes"><div class="h">Field notes</div>' + (l.notes ? '<p>' + esc(l.notes) + '</p>' : '')
       + said.map(function(n){ return '<p><b>' + n.code + '</b> ' + esc(n.text) + '</p>'; }).join('')
@@ -201,7 +202,7 @@ window.WinterBook = (function(){
     '.hdr>img{width:10.5cqw;height:10.5cqw}',
     '.org{font-family:var(--mono);color:var(--deep);line-height:1.3}.org b{display:block;font-family:var(--ui);font-weight:800;font-size:2.6cqw;letter-spacing:.16em}.org span{display:block;font-size:1.35cqw;letter-spacing:.22em;color:var(--forest)}',
     '.file{border:.25cqw solid var(--deep);font-family:var(--mono);font-size:1.2cqw;color:var(--deep);letter-spacing:.12em}.file div{padding:.5cqw 1.2cqw;display:flex;justify-content:space-between;gap:2cqw}.file div+div{border-top:.18cqw solid var(--deep)}.file b{font-weight:600}',
-    '.title{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:3cqw;align-items:center;padding:2.4cqw 5.5cqw 2.2cqw}',
+    '.title{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3cqw;align-items:center;padding:2.4cqw 5.5cqw 2.2cqw}',
     '.num{border:.45cqw solid var(--deep);color:var(--deep);font-family:var(--stencil);font-size:6cqw;line-height:1;padding:.6cqw 1.4cqw .4cqw;text-align:center;white-space:nowrap}',
     '.num small{display:block;font-family:var(--ui);font-weight:700;font-size:1.25cqw;letter-spacing:.24em;border-bottom:.3cqw solid var(--deep);padding-bottom:.4cqw;margin-bottom:.5cqw}',
     '.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.5cqw 1.8cqw;align-items:baseline;min-width:0}',
@@ -210,9 +211,13 @@ window.WinterBook = (function(){
     '.kv dd.addr{font-family:var(--ui);font-weight:800;font-size:3.7cqw;line-height:1.05;letter-spacing:-.01em;color:var(--deep);text-wrap:balance}',
     '.kv dd.addr.mid{font-size:3.3cqw}.kv dd.addr.long{font-size:2.8cqw}',
     '.call{font-weight:600;background:var(--wash);color:var(--forest);border:1px solid var(--mint);padding:.1cqw 1cqw;letter-spacing:.06em}',
-    '.stamp{align-self:start;margin-top:1cqw;border:.45cqw solid var(--logo);color:var(--logo);font-family:var(--stencil);font-size:2.4cqw;letter-spacing:.14em;padding:.4cqw 1.4cqw;transform:rotate(-8deg);opacity:.85;white-space:nowrap}',
-    '.sect{display:flex;justify-content:space-between;margin:0 5.5cqw .8cqw;font-family:var(--mono);font-weight:600;font-size:1.25cqw;letter-spacing:.24em;color:var(--forest)}',
     '.svc{display:grid;margin:0 5.5cqw;border:.25cqw solid var(--deep)}',
+    // a site page in its area's colour
+    '.site{border-left:2.2cqw solid var(--g)}',
+    '.site .num{background:var(--g);border-color:var(--g);color:#fff}.site .num small{border-bottom-color:rgba(255,255,255,.7)}',
+    '.site .area{background:var(--g);color:#fff;font-weight:600;padding:.1cqw 1cqw;letter-spacing:.06em}',
+    '.site .sector{background:var(--g);color:#fff}',
+    '.site .foot span:last-child{color:var(--g)}',
     '.svc div{display:flex;align-items:center;gap:1cqw;padding:1cqw 1.2cqw;font-family:var(--mono);font-weight:600;font-size:1.2cqw;letter-spacing:.04em;line-height:1.2}',
     '.svc div+div{border-left:.25cqw solid var(--deep)}',
     '.svc .box{width:2.6cqw;height:2.6cqw;flex:none;border:.3cqw solid var(--deep);display:grid;place-items:center}',
