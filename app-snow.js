@@ -130,7 +130,7 @@ window.SnowDesk = (function(){
     if(!img || st.sel !== loc.id) return;
     // The marks need the photo's shape, which is only known once it has loaded.
     img.onload = function(){
-      if(st.sel === loc.id) root.querySelector('#sx-photo-mk').innerHTML = WinterSitePlan.svg(loc.site_marks, img.naturalWidth / img.naturalHeight, {labels: false});
+      if(st.sel === loc.id) root.querySelector('#sx-photo-mk').innerHTML = WinterSitePlan.svg(loc.site_marks, img.naturalWidth / img.naturalHeight, {labels: false, size: 2.2});
     };
     img.src = hit.url;
   }

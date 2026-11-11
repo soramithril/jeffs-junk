@@ -140,7 +140,7 @@ window.WinterBook = (function(){
     var w = photo ? Math.min(86, 50 * photo.ar) : 86;
     // The marks are drawn by the site plan editor's own draw(), so the book and the
     // editor cannot disagree about what a mark looks like.
-    var zones = photo && marks.length ? WinterSitePlan.svg(marks, photo.ar, {size: 1.25}).replace('<svg ', '<svg class="mk" ') : '';
+    var zones = photo && marks.length ? WinterSitePlan.svg(marks, photo.ar, {size: 1.1}).replace('<svg ', '<svg class="mk" ') : '';
     var used = WinterSitePlan.tally(marks), said = WinterSitePlan.notes(marks);
     // The page wears its area's colour (Jake, 2026-11-11), so a loose sheet says
     // which run it belongs to: a band down the edge, the site number, the area name.
