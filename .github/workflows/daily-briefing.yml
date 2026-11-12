@@ -36,9 +36,9 @@ on:
           are already out in the field. There are 2 junk removals on the book.
           Have a good one.
       voice:
-        description: 'Kokoro voice — bm_daniel, bm_george, bm_fable, bm_lewis'
+        description: 'Kokoro voice — af_heart (ROSE), bm_daniel, bm_george, bm_fable, bm_lewis'
         required: false
-        default: bm_daniel
+        default: af_heart
   # Touching .github/briefing-run triggers a REAL run (build from live data,
   # publish to the board's release). Exists because the "Run workflow" button
   # needs a signed-in GitHub session, and pushing is something Claude can do

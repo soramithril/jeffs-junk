@@ -30,8 +30,8 @@ SUPABASE_URL = "https://okoqzbdyfjfgcdgmcamq.supabase.co"
 # Authorization carries the signed-in user's token and nothing else.
 ANON_KEY = "sb_publishable_zN3Npl7I-6qUjilF_fhLnQ_5aMtilJk"
 
-VOICE = "bm_daniel"     # British male — Jake picked it by ear over george/fable/lewis
-LANG = "b"              # British English
+VOICE = "af_heart"      # ROSE's voice (American female) — Jake 2026-11-12, replaces bm_daniel
+# Kokoro's accent is the voice name's first letter: a = American, b = British
 SPEED = 0.9             # a touch slower than Kokoro's 1.0 — Jake found 1.0 fast on the TV (2026-10-16)
 
 # Truck -> regular driver, mirroring AUTO_ASSIGNMENTS in app-leaderboard.js and
@@ -218,7 +218,7 @@ def speak(text, out_wav):
 
     voice = os.environ.get("BRIEFING_VOICE", "").strip() or VOICE
     print("voice: %s" % voice)
-    pipeline = KPipeline(lang_code=LANG)
+    pipeline = KPipeline(lang_code=voice[0])
     chunks = [audio for _, _, audio in pipeline(text, voice=voice, speed=SPEED)]
     if not chunks:
         sys.exit("Kokoro produced no audio")
