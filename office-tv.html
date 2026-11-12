@@ -917,6 +917,10 @@
     // screen - about 3.5 minutes a lap. Today at HQ replays the day in 14s, then
     // holds on right now while the day's new bookings are walked to the booking room.
     var PANEL_MS   = { bins: 40000, kpis: 30000, liveops: 45000, hq: 90000 };
+    // Jake, 2026-11-12: the 8-bit Today at HQ scene was on too long - every lap.
+    // Now it comes up once an hour; the laps in between skip it.
+    var HQ_EVERY_MS = 3600000;
+    var _hqShownAt = 0;                  // 0 = not yet, so it shows on the first lap
     function panelMs(name){ return PANEL_MS[name] || ROTATE_MS; }
     var REFRESH_MS = 900000;  // how often data is refetched (15 min — keeps Supabase egress low; panels still rotate every 20s so the board stays lively)
     // The weekly crew schedule came off the wall on 2026-09-06 (Jake: "we don't
@@ -2718,7 +2722,7 @@
       if(wrapped) _lap++;
       var name = PANELS[panelIdx];
       // Today at HQ animates only while it is the screen up
-      if(name === 'hq') JJHQ.show(hqSnapshot());
+      if(name === 'hq'){ _hqShownAt = Date.now(); JJHQ.show(hqSnapshot()); }
       else if(_hqMounted) JJHQ.hide();
       renderCurrent();
       syncFooter();
@@ -2760,7 +2764,8 @@
     function nextPanel(){
       try {
         var n = panelIdx+1;
-        if(PANELS[n % PANELS.length] === 'hq' && !DATA.hq) n++;   // HQ data missing - skip that screen this lap
+        // HQ skipped this lap when its data is missing or it was up within the hour
+        if(PANELS[n % PANELS.length] === 'hq' && (!DATA.hq || Date.now() - _hqShownAt < HQ_EVERY_MS)) n++;
         showPanel(n);
       }
       catch(e){ console.error('panel render failed', e); }
@@ -2829,7 +2834,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-09-pixel-back';
+    var TV_BUILD = '2026-11-12-hq-hourly';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
