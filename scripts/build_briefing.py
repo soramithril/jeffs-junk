@@ -335,78 +335,54 @@ def holiday_name(d):
     return ontario_holidays(d.year).get(d)
 
 
-JOKES = [
-    "{n}, the dump will still be there if you get there two minutes later.",
-    "Easy, {n}. It's a junk truck, not a race car.",
-    "{n}, the bins aren't going to run away.",
-    "Slow down, {n}. The couch in the back would like to arrive in one piece.",
-    "{n}, we haul junk, not lap records.",
-    "{n}, the speed limit signs are not suggestions.",
-    "{n}, if the truck had a lap timer you'd be winning. It doesn't.",
-    "Easy on the gas, {n}. The fuel bill has feelings too.",
+JOKES = [   # short, said right after a name, so a call-out lands kindly
+    "the dump will still be there.",
+    "it's a junk truck, not a race car.",
+    "the bins aren't going to run away.",
+    "we haul junk, not lap records.",
+    "speed limit signs aren't suggestions.",
+    "the couch in the back wants to arrive in one piece.",
+    "easy on the gas, the fuel bill has feelings.",
 ]
 
 
-def joke(name, key, day_step):
-    return pick(JOKES, key, day_step).format(n=name)
-
-
-def per100(x, short=False):
-    return "about %d per 100" % round(x) if short else "about %d per 100 kilometres" % round(x)
+def joke(name, day_step):
+    return "%s, %s" % (name, pick(JOKES, "joke", day_step))
 
 
 def last_week_lines(rows, today, day_step):
-    """Mondays: last week's driving, people first (Jake, 2026-11-13)."""
+    """Mondays: last week's best driver and the one who sped most per kilometre."""
     mon = week_start(today) - datetime.timedelta(days=7)
     t = totals(rows, mon, mon + datetime.timedelta(days=6))
-    fleet = sum(v["km"] for v in t.values())
-    if fleet < 1:
-        return []
     named = {n: v for n, v in t.items() if v["km"] >= MIN_KM}
-    lines = ["Last week's driving: %d kilometres." % round(fleet)]
     if not named:
-        return lines
+        return []
     best = min(named, key=lambda n: named[n]["rate"])
-    lines.append("Best driver: %s, %d kilometres with %s speeding alerts per 100. %s, %s."
-                 % (best, round(named[best]["km"]), "about %d" % round(named[best]["rate"]),
-                    pick(["Great job", "Nice work", "Keep it up"], "best", day_step), best))
-    most = max(named, key=lambda n: named[n]["speeding"])
-    if most != best:
-        lines.append("Most speeding alerts: %s, with %d. %s" % (most, named[most]["speeding"], joke(most, "most", day_step)))
     worst = max(named, key=lambda n: named[n]["rate"])
-    if worst not in (best, most):
-        lines.append("Needs a reminder: %s, %s speeding alerts per 100 kilometres. %s"
-                     % (worst, "about %d" % round(named[worst]["rate"]), joke(worst, "worst", day_step + 3)))
-    idler = max(named, key=lambda n: named[n]["idle"])
-    if named[idler]["idle"] >= 180:
-        lines.append("Idling: %s's trucks sat running for %s. Shut it off when you're parked." % (idler, spoken_minutes(named[idler]["idle"])))
+    lines = ["Last week's best driver: %s. Nice work." % best]
+    if worst != best:
+        lines.append("Most speeding: %s. %s" % (worst, joke(worst, day_step)))
     return lines
 
 
 def this_week_lines(rows, today, day_step):
-    """Tuesday to Friday: this week so far, against last week (Jake, 2026-11-13)."""
+    """Tuesday to Friday: who is speeding less than last week, and who more."""
     mon = week_start(today)
     now = totals(rows, mon, today - datetime.timedelta(days=1))
     then = totals(rows, mon - datetime.timedelta(days=7), mon - datetime.timedelta(days=1))
-    fleet = sum(v["km"] for v in now.values())
-    if fleet < 1:
-        return []
-    lines = ["This week so far: %d kilometres." % round(fleet)]
     both = {n: now[n]["rate"] - then[n]["rate"] for n in now
             if now[n]["km"] >= MIN_KM and then[n]["km"] >= MIN_KM}
-    better = sorted((n for n in both if both[n] <= -2), key=lambda n: both[n])
-    worse = sorted((n for n in both if both[n] >= 2), key=lambda n: -both[n])
-    for i, n in enumerate(better):
-        lead = "Most improved: %s, down to" % n if i == 0 else "%s too, down to" % n
-        lines.append("%s %s, from %d last week.%s" % (lead, per100(now[n]["rate"], i > 0), round(then[n]["rate"]),
-                     " %s, %s." % (pick(["Nice work", "Great job", "Keep it up"], "imp", day_step), n) if i == 0 else ""))
-    for i, n in enumerate(worse):
-        lead = "Needs a reminder: %s, up to" % n if i == 0 else "%s is up too, to" % n
-        lines.append("%s %s, from %d last week. %s" % (lead, per100(now[n]["rate"], bool(better) or i > 0), round(then[n]["rate"]),
-                     joke(n, "up%d" % i, day_step + i * 3)))
-    if not better and not worse and both:
-        best = min(both, key=lambda n: now[n]["rate"])
-        lines.append("Cleanest so far: %s, %s." % (best, per100(now[best]["rate"])))
+    if not both:
+        return []
+    better = min(both, key=lambda n: both[n])
+    worse = max(both, key=lambda n: both[n])
+    lines = []
+    if both[better] <= -2:
+        lines.append("Most improved this week: %s. Nice work." % better)
+    if both[worse] >= 2:
+        lines.append("Speeding is up for %s. %s" % (worse, joke(worse, day_step)))
+    else:
+        lines.append("Nobody is speeding more than last week. Good job, team.")
     return lines
 
 
@@ -416,21 +392,13 @@ def driving_lines(rows, today, day_step):
     return last_week_lines(rows, today, day_step) if today.weekday() == 0 else this_week_lines(rows, today, day_step)
 
 
-REPORT_OPEN = ["Afternoon, team. Time for the driving report.",
-               "Quick one, everyone. Here's the driving report.",
-               "Hi team, it's driving report time."]
-REPORT_CLOSE = ["That's the driving report. Drive safe.", "That's it. Drive safe out there.",
-                "Thanks, everyone. Drive safe."]
-
-
 def write_driving_report(rows, today):
-    """The driving report on its own, played in the afternoon (Jake, 2026-11-13).
-    Mondays cover last week; Tuesday to Friday cover this week so far."""
-    day_step = today.toordinal()
-    body = driving_lines(rows, today, day_step)
+    """The driving report on its own, about 15 seconds (Jake, 2026-11-13): the best or most
+    improved driver, the one to slow down with a joke, and nothing else."""
+    body = driving_lines(rows, today, today.toordinal())
     if not body:
         return None
-    return " ".join([pick(REPORT_OPEN, "ropen", day_step)] + body + [pick(REPORT_CLOSE, "rclose", day_step)])
+    return " ".join(["Driving report."] + body + ["Drive safe."])
 
 
 def remark(s, today, day_step):
