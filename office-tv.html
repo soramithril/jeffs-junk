@@ -2904,7 +2904,7 @@
       // reviewer pin a panel (window.__tv.show(i)) without the rotation moving on.
       if(/[?&]debug\b/.test(location.search)){
         window.__tv = { show:function(i){ clearTimeout(rotTimer); showPanel(i); }, next:nextPanel,
-                        look:function(name, l){ JJTVLooks.force[name] = l; }, DATA:DATA, render:renderCurrent, brief:checkBriefing, play:playBriefing };
+                        look:function(name, l){ JJTVLooks.force[name] = l; }, DATA:DATA, render:renderCurrent, brief:checkBriefing, play:playBriefing, played:_played };
       }
     }
 
@@ -2948,7 +2948,14 @@
     // It plays when someone ARRIVES (Jake, 2026-11-13), from the tv_arrivals table:
     // Barb walking in, seen by the office camera, counts from 7 AM; Kelly signing in
     // to the app counts from 8 AM. The first arrival that counts opens the window.
-    var ARRIVAL_FROM = { camera:7, 'sign-in':8 };
+    // Two announcements share this machinery (Jake, 2026-11-13). The morning briefing
+    // opens on an arrival; the driving report opens once Kelly has left the dashboard
+    // idle for 15 minutes after 1 PM (app-tv-idle.js -> tv_kelly_idle()). Each source
+    // counts from its own hour.
+    var ANNOUNCE = {
+      briefing: { asset:'briefing.mp3', from:{ camera:7, 'sign-in':8 } },
+      driving:  { asset:'driving.mp3',  from:{ idle:13 } }
+    };
     var BRIEF_SHOW_MS = 45000;
 
     // ── wall telemetry ──────────────────────────────────────────────────────
@@ -2957,7 +2964,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-13-routes-satellite';
+    var TV_BUILD = '2026-11-13-driving-report';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
@@ -2975,23 +2982,29 @@
     // it played. Its own update reloads carry that forward in the URL hash (#b=);
     // a Yodeck restart inside the window is the one case that plays it twice.
     var BRIEF_WINDOW_MS = 30 * 60 * 1000;
-    var _briefPlayed = new URLSearchParams((location.hash||'').replace(/^#/,'')).get('b') || '';
+    var _hashArgs = new URLSearchParams((location.hash||'').replace(/^#/,''));
+    var _played = { briefing:_hashArgs.get('b') || '', driving:_hashArgs.get('d') || '' };
 
     // When today's briefing may start: the first arrival, each held back to its
     // source's opening hour (a Kelly sign-in at 7:40 opens at 8:00). Null = nobody yet.
     async function arrivalOpens(){
       var r = await db.from('tv_arrivals').select('who,source,at').eq('day', todayStr());
       if(r.error) throw new Error('arrivals: ' + r.error.message);
-      var best = null;
+      var best = {};
       (r.data || []).forEach(function(a){
-        var from = new Date(); from.setHours(ARRIVAL_FROM[a.source], 0, 0, 0);
-        var t = Math.max(Date.parse(a.at), from.getTime());
-        if(!best || t < best.t) best = { t:t, who:a.who };
+        Object.keys(ANNOUNCE).forEach(function(kind){
+          var hour = ANNOUNCE[kind].from[a.source];
+          if(hour === undefined) return;
+          var from = new Date(); from.setHours(hour, 0, 0, 0);
+          var t = Math.max(Date.parse(a.at), from.getTime());
+          if(!best[kind] || t < best[kind].t) best[kind] = { t:t, who:a.who };
+        });
       });
       return best;
     }
 
-    async function playBriefing(arrival){
+    async function playBriefing(kind, arrival){
+      var asset = ANNOUNCE[kind].asset;
       try{
         // Release METADATA must come from api.github.com — the only GitHub host
         // that answers cross-origin fetches. The plain release-download URL does
@@ -3004,26 +3017,26 @@
                               { cache:'no-store' })
           .then(function(r){ return r.ok ? r.json() : null; });
         if(!rel){ tvLog('brief-api-fail'); return; }
-        var mp3 = (rel.assets || []).filter(function(a){ return a.name === 'briefing.mp3'; })[0];
+        var mp3 = (rel.assets || []).filter(function(a){ return a.name === asset; })[0];
         // The asset's upload time IS the freshness check — published today
         // (local) means today's briefing. Refuse anything else: better silent
         // than announcing yesterday's work as today's. NOT marked as played —
         // the Action may simply not have published yet; next minute-tick retries.
-        if(!mp3){ tvLog('brief-no-asset'); return; }
+        if(!mp3){ tvLog('brief-no-asset', kind); return; }
         if(ymd(new Date(mp3.updated_at)) !== todayStr()){ tvLog('brief-stale', mp3.updated_at); return; }
-        if(mp3.updated_at === _briefPlayed) return;
+        if(mp3.updated_at === _played[kind]) return;
         var opens = Math.max(new Date(mp3.updated_at).getTime(), arrival.t);
         if(Date.now() >= opens + BRIEF_WINDOW_MS){ tvLog('brief-window-passed', mp3.updated_at); return; }
 
         // Mark played ONLY now that a today-dated briefing is in hand. Marking
         // before the fetch (as first shipped) burned the day at 9:00 while the
         // Action was still rendering, so the wall would never have spoken at all.
-        _briefPlayed = mp3.updated_at;
+        _played[kind] = mp3.updated_at;
 
         // Voice-over only (Jake): the board keeps rotating, nothing on screen.
         // The one exception is a refusal — if autoplay is blocked, a silent
         // failure would be invisible, so a small note names the fix.
-        var audio = new Audio(BRIEF_URL + 'briefing.mp3?t=' + Date.now());
+        var audio = new Audio(BRIEF_URL + asset + '?t=' + Date.now());
         // The element's error event catches what play() can't: a media that
         // starts, then dies on the redirect chain or a decode fault mid-stream.
         audio.addEventListener('error', function(){
@@ -3031,7 +3044,7 @@
         });
         audio.addEventListener('playing', function(){ tvLog('brief-playing'); });
         audio.addEventListener('ended', function(){ tvLog('brief-ended'); });
-        tvLog('brief-attempt', arrival.who);
+        tvLog('brief-attempt', kind + ' ' + arrival.who);
         audio.play().then(function(){
           tvLog('brief-play-accepted');
         }).catch(function(err){
@@ -3039,7 +3052,7 @@
           // Diagnostic probe: many kiosks allow MUTED autoplay only. If muted
           // playback is accepted, the blocker is precisely the audible-autoplay
           // policy — worth knowing before touching Yodeck settings blind.
-          var probe = new Audio(BRIEF_URL + 'briefing.mp3?t=' + Date.now());
+          var probe = new Audio(BRIEF_URL + asset + '?t=' + Date.now());
           probe.muted = true;
           probe.play().then(function(){ probe.pause(); tvLog('brief-blocked-muted-ok', String(err && err.name)); })
                       .catch(function(e2){ tvLog('brief-blocked-fully', String(err && err.name) + '/' + String(e2 && e2.name)); });
@@ -3053,11 +3066,13 @@
 
     // Ticks every minute. Once someone has arrived it keeps trying until a
     // today-dated briefing is found, then plays it once inside its window (see
-    // _briefPlayed). Nobody arrived = no briefing that day.
+    // _played). Nobody arrived = no announcement that day.
     function checkBriefing(){
       if(inQuietHours()) return;
-      arrivalOpens().then(function(arrival){
-        if(arrival && Date.now() >= arrival.t) playBriefing(arrival);
+      arrivalOpens().then(function(due){
+        Object.keys(due).forEach(function(kind){
+          if(Date.now() >= due[kind].t) playBriefing(kind, due[kind]);
+        });
       }).catch(function(e){ tvLog('brief-arrival-error', String(e)); });
     }
 
@@ -3091,7 +3106,7 @@
           // reload — without this the board stranded on the "needs display link"
           // gate after every update until someone reloaded it by hand.
           var frag = _tvCreds ? ('#e='+encodeURIComponent(_tvCreds.email)+'&p='+encodeURIComponent(_tvCreds.pass)
-                                 +'&b='+encodeURIComponent(_briefPlayed)) : '';
+                                 +'&b='+encodeURIComponent(_played.briefing)+'&d='+encodeURIComponent(_played.driving)) : '';
           tvLog('reload-for-update');
           location.replace(location.pathname + '?r=' + Date.now() + frag);
         }

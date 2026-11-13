@@ -335,6 +335,22 @@ def holiday_name(d):
     return ontario_holidays(d.year).get(d)
 
 
+JOKES = [
+    "{n}, the dump will still be there if you get there two minutes later.",
+    "Easy, {n}. It's a junk truck, not a race car.",
+    "{n}, the bins aren't going to run away.",
+    "Slow down, {n}. The couch in the back would like to arrive in one piece.",
+    "{n}, we haul junk, not lap records.",
+    "{n}, the speed limit signs are not suggestions.",
+    "{n}, if the truck had a lap timer you'd be winning. It doesn't.",
+    "Easy on the gas, {n}. The fuel bill has feelings too.",
+]
+
+
+def joke(name, key, day_step):
+    return pick(JOKES, key, day_step).format(n=name)
+
+
 def per100(x, short=False):
     return "about %d per 100" % round(x) if short else "about %d per 100 kilometres" % round(x)
 
@@ -356,11 +372,11 @@ def last_week_lines(rows, today, day_step):
                     pick(["Great job", "Nice work", "Keep it up"], "best", day_step), best))
     most = max(named, key=lambda n: named[n]["speeding"])
     if most != best:
-        lines.append("Most speeding alerts: %s, with %d. Ease off a bit, %s." % (most, named[most]["speeding"], most))
+        lines.append("Most speeding alerts: %s, with %d. %s" % (most, named[most]["speeding"], joke(most, "most", day_step)))
     worst = max(named, key=lambda n: named[n]["rate"])
     if worst not in (best, most):
-        lines.append("Needs a reminder: %s, %s speeding alerts per 100 kilometres. Slow it down, %s."
-                     % (worst, "about %d" % round(named[worst]["rate"]), worst))
+        lines.append("Needs a reminder: %s, %s speeding alerts per 100 kilometres. %s"
+                     % (worst, "about %d" % round(named[worst]["rate"]), joke(worst, "worst", day_step + 3)))
     idler = max(named, key=lambda n: named[n]["idle"])
     if named[idler]["idle"] >= 180:
         lines.append("Idling: %s's trucks sat running for %s. Shut it off when you're parked." % (idler, spoken_minutes(named[idler]["idle"])))
@@ -386,7 +402,8 @@ def this_week_lines(rows, today, day_step):
                      " %s, %s." % (pick(["Nice work", "Great job", "Keep it up"], "imp", day_step), n) if i == 0 else ""))
     for i, n in enumerate(worse):
         lead = "Needs a reminder: %s, up to" % n if i == 0 else "%s is up too, to" % n
-        lines.append("%s %s, from %d last week. Let's ease off, %s." % (lead, per100(now[n]["rate"], bool(better) or i > 0), round(then[n]["rate"]), n))
+        lines.append("%s %s, from %d last week. %s" % (lead, per100(now[n]["rate"], bool(better) or i > 0), round(then[n]["rate"]),
+                     joke(n, "up%d" % i, day_step + i * 3)))
     if not better and not worse and both:
         best = min(both, key=lambda n: now[n]["rate"])
         lines.append("Cleanest so far: %s, %s." % (best, per100(now[best]["rate"])))
@@ -397,6 +414,23 @@ def driving_lines(rows, today, day_step):
     if not rows:
         return []
     return last_week_lines(rows, today, day_step) if today.weekday() == 0 else this_week_lines(rows, today, day_step)
+
+
+REPORT_OPEN = ["Afternoon, team. Time for the driving report.",
+               "Quick one, everyone. Here's the driving report.",
+               "Hi team, it's driving report time."]
+REPORT_CLOSE = ["That's the driving report. Drive safe.", "That's it. Drive safe out there.",
+                "Thanks, everyone. Drive safe."]
+
+
+def write_driving_report(rows, today):
+    """The driving report on its own, played in the afternoon (Jake, 2026-11-13).
+    Mondays cover last week; Tuesday to Friday cover this week so far."""
+    day_step = today.toordinal()
+    body = driving_lines(rows, today, day_step)
+    if not body:
+        return None
+    return " ".join([pick(REPORT_OPEN, "ropen", day_step)] + body + [pick(REPORT_CLOSE, "rclose", day_step)])
 
 
 def remark(s, today, day_step):
@@ -477,8 +511,6 @@ def write_script(s, today):
     if w:
         lines.append("%d degrees%s." % (w["high"], " and " + w["sky"] if w["sky"] else ""))
 
-    lines += driving_lines(s.get("driving"), today, day_step)
-
     r = remark(s, today, day_step)
     if r:
         lines.append(r)
@@ -507,23 +539,32 @@ def main():
     # BRIEFING_TEXT bypasses the database entirely, so the voice can be auditioned
     # before the Supabase secrets exist — and so the pipeline (model download,
     # phonemiser, encode, publish) is proven separately from the data side.
+    # BRIEFING_KIND picks which announcement this run makes: the morning briefing, or
+    # the afternoon driving report. Each is its own file on the release.
+    kind = os.environ.get("BRIEFING_KIND", "").strip() or "briefing"
+    if kind not in ("briefing", "driving"):
+        sys.exit("BRIEFING_KIND must be briefing or driving, not %r" % kind)
     override = os.environ.get("BRIEFING_TEXT", "").strip()
     if override:
         print("BRIEFING_TEXT set — speaking that instead of today's numbers.")
         stats, text = {"sample": True}, override
-    else:
+    elif kind == "briefing":
         token = sign_in()
         stats = collect(token, today.isoformat())
-        stats["driving"] = collect_driving(token, today)
         text = write_script(stats, today)
+    else:
+        rows = collect_driving(sign_in(), today)
+        stats, text = {"rows": len(rows)}, write_driving_report(rows, today)
+        if not text:
+            sys.exit("No driving to report for %s" % today)
 
-    print("--- briefing script ---")
+    print("--- %s script ---" % kind)
     print(text)
     print("-----------------------")
 
-    speak(text, "briefing.wav")
+    speak(text, kind + ".wav")
 
-    with open("briefing.json", "w", encoding="utf-8") as f:
+    with open(kind + ".json", "w", encoding="utf-8") as f:
         json.dump({"date": today.isoformat(), "text": text, "stats": stats}, f, indent=1)
 
 
