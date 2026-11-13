@@ -1964,11 +1964,10 @@
         center:{ lat:YARD.lat, lng:YARD.lng }, zoom:10,
         disableDefaultUI:true, gestureHandling:'none', keyboardShortcuts:false,
         clickableIcons:false,
-        // The road map in MAP_STYLE's dark palette (Jake, 2026-11-13, "Route lines"):
-        // the satellite photo fought the coloured route lines, so the map goes
-        // quiet and the trucks' lines are the brightest thing on it. Traffic and
-        // street names stay.
-        mapTypeId:'roadmap', styles:MAP_STYLE,
+        // Satellite imagery with roads and place names over it (Jake, 2026-11-13: keep
+        // the satellite background under the route lines). MAP_STYLE is kept but is
+        // INERT while this is 'hybrid' - Google does not let styles touch imagery.
+        mapTypeId:'hybrid', styles:MAP_STYLE,
         // Google paints its own ground under the tiles while they load, and its
         // default is near-white — so building the map flashed white across a dark
         // board. This is the panel's own ground (#tvmap in the CSS), so there is
@@ -2958,7 +2957,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-13-routes-arrival';
+    var TV_BUILD = '2026-11-13-routes-satellite';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
