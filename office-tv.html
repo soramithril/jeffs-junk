@@ -230,6 +230,32 @@
   /* Jake, 2026-11-13: the slide was too laggy on the TV - moving a whole 1920x1080
      screen (the map one especially) is more than the Fire TV's chip can do smoothly.
      Screens now cross-fade: only opacity changes, which the TV composites cheaply. */
+  /* Screen transitions (Jake, 2026-11-13: "make it random every time"). Each change
+     of screen picks one of three covers at random; the screens swap underneath while
+     the cover is closed. From Codrops' page-transition demos: a pixel grid, layers
+     sweeping across with the logo, and a diagonal blade. Only transform moves, which
+     the Fire TV animates smoothly. The iris from the mock-up is left out: it clips the
+     whole screen, map included, which is the kind of work that lagged on the TV. */
+  #tvFx{position:absolute; inset:0; z-index:50; pointer-events:none; overflow:hidden}
+  #tvFx .px{position:absolute; width:121px; height:121px; transform:scale(0)}
+  #tvFx .px.cover{animation:fxPxIn .32s cubic-bezier(.5,0,.3,1.4) both}
+  #tvFx .px.uncover{transform:scale(1); animation:fxPxOut .3s cubic-bezier(.6,0,.4,1) both}
+  @keyframes fxPxIn{from{transform:scale(0) rotate(45deg)} to{transform:scale(1) rotate(0)}}
+  @keyframes fxPxOut{from{transform:scale(1)} to{transform:scale(0) rotate(-45deg)}}
+  #tvFx .layer{position:absolute; inset:0; transform:translateX(-102%)}
+  #tvFx .layer.cover{animation:fxLyIn .55s cubic-bezier(.7,0,.2,1) both}
+  #tvFx .layer.uncover{transform:none; animation:fxLyOut .55s cubic-bezier(.7,0,.2,1) both}
+  @keyframes fxLyIn{to{transform:none}}
+  @keyframes fxLyOut{to{transform:translateX(102%)}}
+  #tvFx .layer img{position:absolute; left:50%; top:50%; width:520px; margin:-117px 0 0 -260px; opacity:0; transform:scale(.85)}
+  #tvFx .layer.cover img{animation:fxLogoIn .45s .35s cubic-bezier(.2,.9,.3,1.3) both}
+  #tvFx .layer.uncover img{opacity:1; transform:none; animation:fxLogoOut .3s both}
+  @keyframes fxLogoIn{to{opacity:1; transform:none}}
+  @keyframes fxLogoOut{to{opacity:0; transform:scale(1.1)}}
+  #tvFx .blade{position:absolute; top:-60%; left:0; width:3200px; height:220%; transform:translateX(-3300px) rotate(18deg);
+    background:linear-gradient(90deg, var(--gold) 0 26px, #17402a 26px calc(100% - 26px), var(--gold) calc(100% - 26px))}
+  #tvFx .blade.go{animation:fxBlade 1.15s cubic-bezier(.75,0,.25,1) both}
+  @keyframes fxBlade{from{transform:translateX(-3300px) rotate(18deg)} to{transform:translateX(2200px) rotate(18deg)}}
   .panel{position:absolute; inset:0; display:flex; flex-direction:column; gap:24px; min-height:0;
     opacity:0; visibility:hidden; transition:opacity .6s ease, visibility .6s}
   .panel.on{opacity:1; visibility:visible}
@@ -836,6 +862,7 @@
       </div>
 
 
+      <div id="tvFx" aria-hidden="true"></div>
       <div id="stage">
         <!-- Screen 1 · Bin Work Today -->
         <section class="panel" data-panel="bins">
@@ -2833,7 +2860,52 @@
     }
 
     // ── rotation ─────────────────────────────────────────────────────────────
+    // Change screen under a random cover (see #tvFx in the CSS). The swap runs at the
+    // moment the cover is fully closed. The very first screen, and a hidden tab (where
+    // animations stall), swap straight away.
+    var FX_KINDS = ['pixels', 'layers', 'blade'];
+    function coverSwap(swap){
+      var fx = el('tvFx');
+      if(!fx || document.hidden || !document.querySelector('.panel.on')){ swap(); return; }
+      var kind = FX_KINDS[Math.floor(Math.random() * FX_KINDS.length)];
+      fx.innerHTML = '';
+      if(kind === 'pixels'){
+        var cols = 16, rows = 9, tiles = [];
+        for(var r = 0; r < rows; r++) for(var c = 0; c < cols; c++){
+          var t = document.createElement('i'); t.className = 'px';
+          t.style.left = (c * 120) + 'px'; t.style.top = (r * 120) + 'px';
+          t.style.background = (r * 7 + c * 3) % 11 === 0 ? 'var(--gold)' : (r + c) % 2 ? '#183322' : '#1f3d2a';
+          t.style.animationDelay = ((c + r) * 22) + 'ms';
+          fx.appendChild(t); tiles.push(t);
+        }
+        tiles.forEach(function(t){ t.classList.add('cover'); });
+        setTimeout(function(){
+          swap();
+          tiles.forEach(function(t){ t.classList.remove('cover'); void t.offsetWidth; t.classList.add('uncover'); });
+          setTimeout(function(){ fx.innerHTML = ''; }, 300 + 24 * 22);
+        }, 320 + 24 * 22);
+      } else if(kind === 'layers'){
+        fx.innerHTML = '<div class="layer" style="background:var(--gold)"></div><div class="layer" style="background:#17402a"></div>'
+          + '<div class="layer" style="background:#0d140f"><img src="assets/jeffs-junk-logo.png" alt=""></div>';
+        var ls = Array.prototype.slice.call(fx.children);
+        ls.forEach(function(l, i){ l.style.animationDelay = (i * 90) + 'ms'; l.classList.add('cover'); });
+        setTimeout(function(){
+          swap();
+          ls.reverse().forEach(function(l, i){ l.style.animationDelay = (i * 90) + 'ms'; l.classList.remove('cover'); void l.offsetWidth; l.classList.add('uncover'); });
+          setTimeout(function(){ fx.innerHTML = ''; }, 550 + 180);
+        }, 550 + 180 + 450);
+      } else {
+        fx.innerHTML = '<div class="blade"></div>';
+        fx.firstChild.classList.add('go');
+        setTimeout(swap, 560);
+        setTimeout(function(){ fx.innerHTML = ''; }, 1180);
+      }
+    }
+
     function showPanel(i){
+      coverSwap(function(){ swapPanel(i); });
+    }
+    function swapPanel(i){
       var wrapped = (i+PANELS.length)%PANELS.length === 0 && !!document.querySelector('.panel.on');
       panelIdx = (i+PANELS.length)%PANELS.length;
       if(wrapped) _lap++;
@@ -2876,20 +2948,22 @@
     // throws, the re-arm never runs and the wall freezes on one screen forever. The
     // old setInterval kept firing regardless; the chain has to match that.
     function nextPanel(){
+      var n = panelIdx+1;
       try {
-        var n = panelIdx+1;
         // HQ skipped this lap when its data is missing or it was up within the hour
         if(PANELS[n % PANELS.length] === 'hq' && (!DATA.hq || Date.now() - _hqShownAt < HQ_EVERY_MS)) n++;
         showPanel(n);
       }
       catch(e){ console.error('panel render failed', e); }
-      finally { armRotation(); }
+      finally { armRotation(n); }
     }
     // A setTimeout chain rather than one setInterval, so each panel can hold the
     // screen for its own length of time.
-    function armRotation(){
+    // Timed from the screen being SHOWN, not panelIdx: under a transition cover the
+    // swap (which sets panelIdx) lands a moment later than this call.
+    function armRotation(showing){
       clearTimeout(rotTimer);
-      rotTimer = setTimeout(nextPanel, panelMs(PANELS[panelIdx]));
+      rotTimer = setTimeout(nextPanel, panelMs(PANELS[(showing === undefined ? panelIdx : showing) % PANELS.length]));
     }
     function startRotation(){
       showPanel(0);
@@ -2958,7 +3032,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-13-zoom-fade-trails';
+    var TV_BUILD = '2026-11-13-random-fx';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
