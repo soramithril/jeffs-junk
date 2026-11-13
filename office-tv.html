@@ -291,6 +291,12 @@
   #loRail .card .rw span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   #loRail .card .rw b{margin-left:auto; flex:0 0 auto; font:900 19px/1 Inter; color:var(--cream)}
   #loRail .card .rw.sm{font-size:15px}
+  /* where a stopped truck is: the job's street address, or the nearest town */
+  #loRail .card .rw.ad span{color:var(--cream); font-weight:800}
+  /* every truck parked at the yard, as one line under the cards */
+  #loRail .yardrow{flex:0 0 auto; padding:10px 14px; border-radius:14px; background:rgba(13,20,15,.88);
+    border:1px solid var(--line); font:700 17px/1.3 Inter; color:var(--muted)}
+  #loRail .yardrow b{color:var(--gold); font-weight:900; margin-right:6px}
   #loRail .card .rw.sm b{font-size:16px}
   /* the truck the map is currently sitting on */
   #loRail .card.on{box-shadow:0 0 0 3px var(--gold), 0 12px 30px rgba(0,0,0,.55)}
@@ -679,6 +685,11 @@
   .lo-tk.sel{width:26px; height:26px}
   .lo-tk.sel .bub{font-size:32px}
   .lo-tk.sel .ph{width:76px}
+  /* Route lines (Jake, 2026-11-13): the ring on the town a truck is driving to, in its driver's colour */
+  .lo-stop{width:30px; height:30px; border-radius:50%; background:var(--plate); border:7px solid var(--c);
+    box-shadow:0 0 0 3px rgba(0,0,0,.35), 0 4px 10px rgba(0,0,0,.45)}
+  /* snow or rain over the map, only when the forecast says so */
+  #loWx{position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3}
   .lo-yard{position:relative; width:22px; height:22px; border-radius:50%; background:var(--gold);
     box-shadow:0 0 0 4px var(--plate), 0 4px 10px rgba(0,0,0,.35)}
   /* "54 in the yard": hangs off the right of the gold dot, so the dot stays on the yard */
@@ -858,7 +869,7 @@
             <span class="tag" id="loTag"></span><span class="status" id="loCount"></span>
             <span class="spacer"></span><span class="status" id="loMeta"></span></div>
           <div class="p-body"><div id="opsWrap">
-            <div class="lo-card"><div id="tvmap"></div><div id="loLegend"></div>
+            <div class="lo-card"><div id="tvmap"></div><canvas id="loWx" aria-hidden="true"></canvas><div id="loLegend"></div>
               <div id="loTown"></div><div id="loRail"></div><div id="loDay"></div></div>
           </div></div>
         </section>
@@ -1953,12 +1964,11 @@
         center:{ lat:YARD.lat, lng:YARD.lng }, zoom:10,
         disableDefaultUI:true, gestureHandling:'none', keyboardShortcuts:false,
         clickableIcons:false,
-        // Satellite imagery with roads and place names over it. A drawn map never
-        // looked like the photograph the rest of the board is built on; this is
-        // the same kind of picture, and it is aligned to the metre for free.
-        // MAP_STYLE is kept below but is INERT while this is 'hybrid' - Google
-        // does not let styles touch imagery at all.
-        mapTypeId:'hybrid', styles:MAP_STYLE,
+        // The road map in MAP_STYLE's dark palette (Jake, 2026-11-13, "Route lines"):
+        // the satellite photo fought the coloured route lines, so the map goes
+        // quiet and the trucks' lines are the brightest thing on it. Traffic and
+        // street names stay.
+        mapTypeId:'roadmap', styles:MAP_STYLE,
         // Google paints its own ground under the tiles while they load, and its
         // default is near-white — so building the map flashed white across a dark
         // board. This is the panel's own ground (#tvmap in the CSS), so there is
@@ -2121,6 +2131,20 @@
     function isShopTruck(t){
       return /darrin/i.test(String(t.name || '')) || driverFor(t) === 'Darrin';
     }
+    function siteFor(t){
+      var visits = ((DATA.hq || {}).visits || []).filter(function(v){ return v.device_id === t.id && v.inside; })
+        .sort(function(a, b){ return String(b.entered_at).localeCompare(String(a.entered_at)); });
+      var job = visits.length ? (DATA.jobs || []).filter(function(j){ return j.job_id === visits[0].job_id; })[0] : null;
+      if(job && job.address) return 'At ' + job.address + (job.city ? ', ' + job.city : '');
+      return 'Near ' + nearestTown(t.lat, t.lng);
+    }
+    // Every truck at the yard, named in one line under the cards (Jake, 2026-11-13:
+    // "add all the vehicles"). On the map they would all sit on the yard's one pixel.
+    function yardRow(list){
+      var names = (list || []).filter(function(t){ return truckState(t) === 'yard'; })
+        .map(function(t){ return driverFor(t) || t.name; }).sort();
+      return names.length ? '<div class="yardrow"><b>In the yard</b>' + names.map(esc).join(' · ') + '</div>' : '';
+    }
     function railTrucks(list){
       return (list || []).filter(function(t){
         if(truckState(t) === 'yard') return false;
@@ -2238,6 +2262,13 @@
         rows += '<div class="rw nx"><span>Next: ' + esc(next.city || 'stop') + '</span><b>'
              +  (next.time ? fmt12(next.time) : 'Any time') + '</b></div>';
       }
+      // Stopped or idling: say where (Jake, 2026-11-13). Inside a job's zone that is
+      // the job's street address; otherwise the nearest town. The zone check runs every
+      // 15 minutes, so a truck that has just pulled in reads "Near" for a little while.
+      if(st === 'stopped' || st === 'idling'){
+        var site = siteFor(t);
+        rows += '<div class="rw ad"><span>' + esc(site) + '</span></div>';
+      }
       if(stops.length){
         var done = stops.filter(function(s){ return s.done; }).length;
         rows += '<div class="rw mk">' + stops.slice(0, 8).map(function(s){
@@ -2284,7 +2315,51 @@
       // and comes back blank. Re-centring after is what actually puts it right.
       google.maps.event.trigger(map, 'resize');
       drawTails(list);
+      drawRoutes(list);
       drawJobPins();
+    }
+
+    // Route lines (Jake, 2026-11-13, the "Route lines" mock-up): the road each truck
+    // still has to drive to its next stop, in its driver's colour, ending in a ring on
+    // that stop's town. Stops are TOWN-level for the same reason the job pins are (no
+    // geocoding addresses from the wall). Roads come from the free OSRM router that
+    // Dispatch already uses; a truck is only re-asked once it has moved 300 m or its
+    // next stop has changed, so a lap costs at most one call per truck.
+    var _routes = {}, _routeLines = [], _routeGen = 0;
+    function nextStopFor(t){
+      var driver = driverFor(t), crewId = driver ? crewIdByName(driver) : null;
+      if(!crewId) return null;
+      var next = null;
+      crewStops(crewId).forEach(function(s){ if(!next && !s.done) next = s; });
+      return next;
+    }
+    async function routeFor(t, town){
+      var c = _routes[t.id];
+      if(c && c.to === town[0] && kmBetween(c.lat, c.lng, t.lat, t.lng) < 0.3) return c.path;
+      var r = await fetch('https://router.project-osrm.org/route/v1/driving/' + t.lng + ',' + t.lat + ';'
+                          + town[2] + ',' + town[1] + '?overview=full&geometries=geojson');
+      var d = await r.json();
+      if(d.code !== 'Ok' || !d.routes || !d.routes[0]) throw new Error('OSRM: ' + (d.code || r.status));
+      var path = d.routes[0].geometry.coordinates.map(function(p){ return { lat:p[1], lng:p[0] }; });
+      _routes[t.id] = { to:town[0], lat:t.lat, lng:t.lng, path:path };
+      return path;
+    }
+    function drawRoutes(list){
+      var gen = ++_routeGen;
+      _routeLines.forEach(function(o){ o.setMap(null); });
+      _routeLines = [];
+      list.forEach(function(t){
+        var next = nextStopFor(t), town = next ? townOf(next.city) : null;
+        if(!town || kmBetween(t.lat, t.lng, town[1], town[2]) < 1) return;   // already there
+        var color = driverColor(crewIdByName(driverFor(t)));
+        routeFor(t, town).then(function(path){
+          if(gen !== _routeGen) return;   // a newer redraw has started; this one is stale
+          _routeLines.push(new google.maps.Polyline({ map:_map, path:path, clickable:false,
+            strokeColor:color, strokeOpacity:.95, strokeWeight:10, zIndex:2 }));
+          _routeLines.push(htmlMarker(new google.maps.LatLng(town[1], town[2]),
+            '<div class="lo-stop" style="--c:' + color + '"></div>', 'lo-mk-stop'));
+        }).catch(function(e){ console.warn('route line failed', e); });
+      });
     }
 
     // A short tail behind each truck: the last sixth of its 90-minute trail (about
@@ -2600,6 +2675,51 @@
       _cycleTimer = setTimeout(function(){ highlightStep(i + 1, gen); }, step);
     }
 
+    // Snow or rain over the map, only when the forecast's weather code says so
+    // (Jake, 2026-11-13: weather yes, clouds no). A small canvas of dots, drawn only
+    // while the map screen is up.
+    var _wxRaf = 0, _wxFlakes = [];
+    function wxKind(){
+      var c = DATA.wxCode;
+      if(c >= 71 && c <= 77 || c === 85 || c === 86) return 'snow';
+      if(c >= 51 && c <= 67 || c >= 80 && c <= 82 || c >= 95) return 'rain';
+      return null;
+    }
+    function startWeather(){
+      stopWeather();
+      var kind = wxKind(), cv = el('loWx');
+      if(!kind || !cv) return;
+      cv.width = 960; cv.height = 540;
+      var g = cv.getContext('2d'), n = kind === 'snow' ? 160 : 220, last = performance.now();
+      _wxFlakes = [];
+      for(var i = 0; i < n; i++) _wxFlakes.push({ x:Math.random()*960, y:Math.random()*540, s:.6 + Math.random()*1.6, d:Math.random()*6.28 });
+      function frame(now){
+        var dt = Math.min(.1, (now - last) / 1000); last = now;
+        g.clearRect(0, 0, 960, 540);
+        if(kind === 'snow'){
+          g.fillStyle = 'rgba(255,255,255,.8)';
+          _wxFlakes.forEach(function(f){
+            f.y += (12 + f.s*16) * dt; f.x += Math.sin(now/900 + f.d) * 10 * dt;
+            if(f.y > 545){ f.y = -5; f.x = Math.random()*960; }
+            g.beginPath(); g.arc(f.x, f.y, f.s, 0, 6.283); g.fill();
+          });
+        } else {
+          g.strokeStyle = 'rgba(190,215,255,.4)'; g.lineWidth = 1; g.beginPath();
+          _wxFlakes.forEach(function(f){
+            f.y += (260 + f.s*120) * dt; f.x -= 40 * dt;
+            if(f.y > 545){ f.y = -10; f.x = Math.random()*1000; }
+            g.moveTo(f.x, f.y); g.lineTo(f.x - 3, f.y + 10 + f.s*4);
+          });
+          g.stroke();
+        }
+        _wxRaf = requestAnimationFrame(frame);
+      }
+      _wxRaf = requestAnimationFrame(frame);
+    }
+    function stopWeather(){
+      cancelAnimationFrame(_wxRaf); _wxRaf = 0;
+      var cv = el('loWx'); if(cv) cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+    }
     function startCycle(){
       stopCycle();
       if(!_map) return;
@@ -2651,7 +2771,7 @@
 
       // Every truck that is out, as a card on the right (look A), or the day as a
       // timeline under the map (look C).
-      el('loRail').innerHTML = railTrucks(list).map(truckCard).join('');
+      el('loRail').innerHTML = railTrucks(list).map(truckCard).join('') + yardRow(list);
       el('loDay').innerHTML = lookOf('liveops') === 'c' ? JJTVLooks.dayLanes(looksCtx()) : '';
       // The periodic refresh calls renderCurrent, which lands here and rebuilds
       // the rail from scratch - so the highlight has to be put back or the lit card
@@ -2751,6 +2871,7 @@
       // Pull fresh truck positions as the map rotates in — once every lap rather
       // than on a timer of its own, so the pins are current exactly when they're
       // on screen and we spend nothing on Geotab's quota the rest of the time.
+      if(name === 'liveops') startWeather(); else stopWeather();
       if(name === 'liveops'){
         startCycle();                                   // begin with what we have
         if(!inQuietHours()) refreshTrucks();          // then restart on fresh data
@@ -2834,7 +2955,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-13-3d-off';
+    var TV_BUILD = '2026-11-13-route-lines';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
