@@ -169,48 +169,47 @@ def plural(n, one, many):
     return "%d %s" % (n, one if n == 1 else many)
 
 
-def previous_weekday(d):
-    """The last working day before d: Friday for a Monday."""
-    d -= datetime.timedelta(days=1)
-    while d.weekday() >= 5:
-        d -= datetime.timedelta(days=1)
-    return d
+def week_start(d):
+    return d - datetime.timedelta(days=d.weekday())
 
 
-def collect_driving(token, day):
+def collect_driving(token, today):
     """
-    One working day of Geotab driving, per truck, from driver_scores.
-    Only speeding, cornering, idling and distance are real there - hard braking,
-    fast starts, seatbelt, fuel and jobs_completed always read 0 (checked
-    2026-11-12), so they are never spoken. driver_name holds the TRUCK's name:
-    nobody logs who sat in the cab, so the briefing names trucks, never people.
-    Known gap: driver_scores has no Friday or Saturday rows, so Monday's
-    briefing usually has no driving to report and says nothing about it.
+    Geotab driving from driver_scores, from the Monday of LAST week up to yesterday.
+    driver_scores has one row per truck per day (driver_name holds the TRUCK's name);
+    only speeding, idling and distance are real there - braking, seatbelt, fuel and
+    jobs_completed always read 0 (checked 2026-11-12).
     """
-    rows = get("/rest/v1/driver_scores?period_date=eq.%s"
-               "&select=driver_name,speeding_events,idle_minutes,distance_km" % day, token)
-    trucks = [{"truck": truck_name(r["driver_name"]), "speeding": r["speeding_events"] or 0,
-               "idle": r["idle_minutes"] or 0, "km": round(r["distance_km"] or 0)}
-              for r in rows if (r["distance_km"] or 0) >= 1]
-    if not trucks:
-        return None
-    return {"day": day, "trucks": trucks}
+    since = week_start(today) - datetime.timedelta(days=7)
+    rows = get("/rest/v1/driver_scores?period_date=gte.%s&period_date=lt.%s"
+               "&select=period_date,driver_name,speeding_events,idle_minutes,distance_km"
+               % (since.isoformat(), today.isoformat()), token)
+    return [{"day": r["period_date"], "truck": r["driver_name"], "speeding": r["speeding_events"] or 0,
+             "idle": r["idle_minutes"] or 0, "km": r["distance_km"] or 0} for r in rows]
 
 
-def truck_name(raw):
-    """Geotab's device names, said the way the office says them."""
-    u = raw.strip().upper()
-    if "L7" in u:
-        return "the L7"
-    if "SILVERADO" in u:
-        return "the Silverado"
-    if "FURNITURE" in u:
-        return "the furniture van"
-    if u.startswith("TRACTOR"):
-        return "the tractor"
-    if u.startswith("HINO ") and u[5:].isdigit():
-        return "the %s Hino" % u[5:]
-    return "the " + raw.strip()
+# Who drives what (Jake, 2026-11-13). Max and Jordan share three trucks with no fixed
+# split, so they are reported as one pair. A truck not listed here is left out.
+PEOPLE = [
+    ("Kevin", ["Hino L7 2023"]),
+    ("Neil", ["Hino 2020"]),
+    ("Max and Jordan", ["Hino 2019", "Hino 2016", "Furniture Bank Van"]),
+    ("Tyler", ["2022 - 2500 SILVERADO"]),
+    ("Darrin", ["TRACTOR 4 - DARRIN"]),
+]
+MIN_KM = 50   # nobody is named off less driving than this in the period
+
+
+def totals(rows, d0, d1):
+    """Per person: km, speeding alerts, alerts per 100 km and idle minutes, days d0..d1 inclusive."""
+    out = {}
+    for name, trucks in PEOPLE:
+        mine = [r for r in rows if r["truck"] in trucks and d0.isoformat() <= r["day"] <= d1.isoformat()]
+        km = sum(r["km"] for r in mine)
+        sp = sum(r["speeding"] for r in mine)
+        out[name] = {"km": km, "speeding": sp, "idle": sum(r["idle"] for r in mine),
+                     "rate": (100.0 * sp / km) if km else 0.0}
+    return out
 
 
 # ---- Wording that changes every day (Jake 2026-11-12) ----
@@ -269,21 +268,6 @@ CLOSERS = {
 }
 WEEKEND_BACK = "Welcome back from the long weekend. It's {date}."
 
-KM_LINES = ["{when}, the trucks drove {km} kilometres.",
-            "{when}, the fleet covered {km} kilometres.",
-            "{when}, we put {km} kilometres on the trucks."]
-SPEED_LINES = ["{Truck} had the most speeding alerts, {n}.",
-               "Most speeding alerts went to {truck}, with {n}.",
-               "{Truck} picked up {n} speeding alerts, the most of any truck.",
-               "Let's ease off a bit. {Truck} had {n} speeding alerts."]
-NO_SPEEDING = ["No speeding alerts at all. Great driving.",
-               "Not one speeding alert. Nice work, everyone."]
-CLEAN_LINES = ["Cleanest driving: {truck}. Nice work.",
-               "Shout out to {truck} for the cleanest driving.",
-               "{Truck} drove the cleanest. Good job."]
-IDLE_LINES = ["{Truck} sat idling for {mins}.",
-              "{Truck} idled the longest, {mins}.",
-              "Watch the idling. {Truck} ran {mins} while parked."]
 WET = ["Mind the driveways.", "Wet one out there, take it easy on the lawns.",
        "Roads will be slick, give yourselves extra room."]
 SNOW = ["Snow on the way, take it slow out there.", "Snowy one today, mind the driveways.",
@@ -351,36 +335,68 @@ def holiday_name(d):
     return ontario_holidays(d.year).get(d)
 
 
-def driving_lines(drv, today, day_step):
-    """Yesterday's driving, by truck. Praise as well as call-outs, so it gets listened to."""
-    if not drv:
+def per100(x, short=False):
+    return "about %d per 100" % round(x) if short else "about %d per 100 kilometres" % round(x)
+
+
+def last_week_lines(rows, today, day_step):
+    """Mondays: last week's driving, people first (Jake, 2026-11-13)."""
+    mon = week_start(today) - datetime.timedelta(days=7)
+    t = totals(rows, mon, mon + datetime.timedelta(days=6))
+    fleet = sum(v["km"] for v in t.values())
+    if fleet < 1:
         return []
-    day = datetime.date.fromisoformat(drv["day"])
-    when = "Yesterday" if day == today - datetime.timedelta(days=1) else "On " + day.strftime("%A")
-    trucks = drv["trucks"]
-    lines = [pick(KM_LINES, "km", day_step).format(when=when, km=sum(t["km"] for t in trucks))]
-
-    top = max(trucks, key=lambda t: t["speeding"])
-    if top["speeding"] >= 5:
-        lines.append(pick(SPEED_LINES, "speed", day_step).format(
-            truck=top["truck"], Truck=cap(top["truck"]), n=top["speeding"]))
-    elif sum(t["speeding"] for t in trucks) == 0:
-        lines.append(pick(NO_SPEEDING, "nospeed", day_step))
-
-    extra = []
-    real = [t for t in trucks if t["km"] >= 50]
-    if real:
-        clean = min(real, key=lambda t: (t["speeding"], -t["km"]))
-        if clean is not top and clean["speeding"] <= 2:
-            extra.append(pick(CLEAN_LINES, "clean", day_step).format(
-                truck=clean["truck"], Truck=cap(clean["truck"])))
-    idler = max(trucks, key=lambda t: t["idle"])
-    if idler["idle"] >= 60:
-        extra.append(pick(IDLE_LINES, "idle", day_step).format(
-            truck=idler["truck"], Truck=cap(idler["truck"]), mins=spoken_minutes(idler["idle"])))
-    if extra:
-        lines.append(extra[day_step % len(extra)])
+    named = {n: v for n, v in t.items() if v["km"] >= MIN_KM}
+    lines = ["Last week's driving: %d kilometres." % round(fleet)]
+    if not named:
+        return lines
+    best = min(named, key=lambda n: named[n]["rate"])
+    lines.append("Best driver: %s, %d kilometres with %s speeding alerts per 100. %s, %s."
+                 % (best, round(named[best]["km"]), "about %d" % round(named[best]["rate"]),
+                    pick(["Great job", "Nice work", "Keep it up"], "best", day_step), best))
+    most = max(named, key=lambda n: named[n]["speeding"])
+    if most != best:
+        lines.append("Most speeding alerts: %s, with %d. Ease off a bit, %s." % (most, named[most]["speeding"], most))
+    worst = max(named, key=lambda n: named[n]["rate"])
+    if worst not in (best, most):
+        lines.append("Needs a reminder: %s, %s speeding alerts per 100 kilometres. Slow it down, %s."
+                     % (worst, "about %d" % round(named[worst]["rate"]), worst))
+    idler = max(named, key=lambda n: named[n]["idle"])
+    if named[idler]["idle"] >= 180:
+        lines.append("Idling: %s's trucks sat running for %s. Shut it off when you're parked." % (idler, spoken_minutes(named[idler]["idle"])))
     return lines
+
+
+def this_week_lines(rows, today, day_step):
+    """Tuesday to Friday: this week so far, against last week (Jake, 2026-11-13)."""
+    mon = week_start(today)
+    now = totals(rows, mon, today - datetime.timedelta(days=1))
+    then = totals(rows, mon - datetime.timedelta(days=7), mon - datetime.timedelta(days=1))
+    fleet = sum(v["km"] for v in now.values())
+    if fleet < 1:
+        return []
+    lines = ["This week so far: %d kilometres." % round(fleet)]
+    both = {n: now[n]["rate"] - then[n]["rate"] for n in now
+            if now[n]["km"] >= MIN_KM and then[n]["km"] >= MIN_KM}
+    better = sorted((n for n in both if both[n] <= -2), key=lambda n: both[n])
+    worse = sorted((n for n in both if both[n] >= 2), key=lambda n: -both[n])
+    for i, n in enumerate(better):
+        lead = "Most improved: %s, down to" % n if i == 0 else "%s too, down to" % n
+        lines.append("%s %s, from %d last week.%s" % (lead, per100(now[n]["rate"], i > 0), round(then[n]["rate"]),
+                     " %s, %s." % (pick(["Nice work", "Great job", "Keep it up"], "imp", day_step), n) if i == 0 else ""))
+    for i, n in enumerate(worse):
+        lead = "Needs a reminder: %s, up to" % n if i == 0 else "%s is up too, to" % n
+        lines.append("%s %s, from %d last week. Let's ease off, %s." % (lead, per100(now[n]["rate"], bool(better) or i > 0), round(then[n]["rate"]), n))
+    if not better and not worse and both:
+        best = min(both, key=lambda n: now[n]["rate"])
+        lines.append("Cleanest so far: %s, %s." % (best, per100(now[best]["rate"])))
+    return lines
+
+
+def driving_lines(rows, today, day_step):
+    if not rows:
+        return []
+    return last_week_lines(rows, today, day_step) if today.weekday() == 0 else this_week_lines(rows, today, day_step)
 
 
 def remark(s, today, day_step):
@@ -498,7 +514,7 @@ def main():
     else:
         token = sign_in()
         stats = collect(token, today.isoformat())
-        stats["driving"] = collect_driving(token, previous_weekday(today).isoformat())
+        stats["driving"] = collect_driving(token, today)
         text = write_script(stats, today)
 
     print("--- briefing script ---")
