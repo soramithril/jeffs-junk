@@ -635,7 +635,13 @@
      carries both — so the traffic lines cannot be dimmed or restyled separately.
      Fading them fades the whole map. Traffic is on or off, nothing in between. */
   #tvmap{flex:1 1 auto; min-height:0; background:#36432f; font-family:Inter,sans-serif;
-    transition:opacity .34s ease}
+    transition:opacity .34s ease;
+    /* Jake, 2026-11-13: the satellite photo looked flat on the wall. Google lets nothing
+       restyle its imagery, so the colour is lifted here: richer greens and blues, a
+       touch more contrast. It lifts the pins and lines with it, which only makes them
+       pop more. A static filter on one layer; if the TV ever stutters on the map,
+       this line is the first thing to try removing. */
+    filter:saturate(1.45) contrast(1.08) brightness(1.04)}
   /* A jump to a different zoom can't be tweened on this map, so it lands as a
      snap. .cut blacks the panel out instantly, the jump happens where nobody can
      see it, and removing the class fades the new view up — a deliberate cut
@@ -3032,7 +3038,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-13-random-fx';
+    var TV_BUILD = '2026-11-13-vibrant';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
