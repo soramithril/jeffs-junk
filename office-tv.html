@@ -2684,7 +2684,9 @@
     // a fly, which is what the office could not follow in September) to each working
     // truck close up for its share of the showing, and back to the overview after the
     // last one. The truck sits left of centre so the rail never covers it.
-    var OVERVIEW_MS = 12000, TRUCK_ZOOM = 14, TRUCK_MIN_MS = 6000;
+    // Zoom 16 is street level, close enough to read which street a truck is on
+    // (Jake, 2026-11-13: "zoom them in more"; 14 was a whole neighbourhood).
+    var OVERVIEW_MS = 12000, TRUCK_ZOOM = 16, TRUCK_MIN_MS = 6000;
     function zoomTo(t){
       cutTo(function(){
         _map.setZoom(TRUCK_ZOOM);
@@ -3038,7 +3040,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-13-vibrant';
+    var TV_BUILD = '2026-11-13-closer';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
