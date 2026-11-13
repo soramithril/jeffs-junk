@@ -18,6 +18,10 @@
 //                         a small sidewalk drawn as a line is hard to see in print)
 //   push                 an arrow, exactly two points (from, to)
 //   hazard, salt          a pin, one point
+//   site                  the site boundary, an outline; one per site, no code.
+//                         Everything outside it is faded, and the printed book shows
+//                         only the box round it (Jake, 2026-11-13: lots are odd
+//                         shapes, and a box crop cannot follow them)
 // Each kind numbers itself in saved order: DZ-01 is the first drop zone.
 //
 // The editor opens as a full page over Snow & Ice, not a pop-up, so the photo
@@ -34,6 +38,7 @@ window.WinterSitePlan = (function(){
     hazard: {name: 'Hazard',     code: 'HZ', color: '#fb923c', shape: 'pin',   key: 'Watch for this.', hint: 'Click on a hydrant, curb, speed bump or anything else to watch for.'},
     salt:   {name: 'Salt bin',   code: 'SB', color: '#c4b5fd', shape: 'pin',   key: 'The salt bin is here.', hint: 'Click where the salt bin sits.'}
   };
+  KINDS.site = {name: 'Site boundary', code: 'SITE', color: '#ffffff', shape: 'area', solo: true};
   var ORDER = ['zone', 'nopile', 'clear', 'walk', 'push', 'hazard', 'salt'];
   var NEED = {area: 3, line: 2, arrow: 2, pin: 1};
   var FONT = 'font-family="Inter,system-ui,sans-serif"';
@@ -62,6 +67,7 @@ window.WinterSitePlan = (function(){
   }
   function label(marks, i){
     var m = marks[i], n = 0;
+    if(kind(m).solo) return kind(m).code;
     for(var k = 0; k < i; k++) if(marks[k].t === m.t) n++;
     return kind(m).code + '-' + String(n + 1).padStart(2, '0');
   }
@@ -82,13 +88,16 @@ window.WinterSitePlan = (function(){
   function draw(marks, vh, o){
     o = o || {};
     var s = o.size || 1, h = '';
+    // the part of the drawing that is shown (the book shows only the box round a site
+    // boundary); codes stay inside it
+    var v = o.view || [0, 0, 1, 1], bx0 = v[0] * VW, bx1 = (v[0] + v[2]) * VW, by0 = v[1] * vh, by1 = (v[1] + v[3]) * vh;
     function P(q){ return [q[0] * VW, q[1] * vh]; }
     function pts(p){ return p.map(function(q){ var c = P(q); return f1(c[0]) + ',' + f1(c[1]); }).join(' '); }
     function chip(x, y, text, color){
       if(o.labels === false) return '';
       var w = (text.length * 8.6 + 12) * s, hh = 21 * s;
-      x = Math.min(VW - w / 2 - 2, Math.max(w / 2 + 2, x));
-      y = Math.min(vh - hh / 2 - 2, Math.max(hh / 2 + 2, y));
+      x = Math.min(bx1 - w / 2 - 2, Math.max(bx0 + w / 2 + 2, x));
+      y = Math.min(by1 - hh / 2 - 2, Math.max(by0 + hh / 2 + 2, y));
       return '<rect x="' + f1(x - w / 2) + '" y="' + f1(y - hh / 2) + '" width="' + f1(w) + '" height="' + f1(hh) + '" rx="' + f1(5 * s) + '" fill="' + color + '" stroke="#012b1f" stroke-width="' + f1(1.2 * s) + '"/>'
         + '<text x="' + f1(x) + '" y="' + f1(y + 4.8 * s) + '" text-anchor="middle" font-size="' + f1(13.5 * s) + '" font-weight="800" fill="#012b1f" ' + FONT + '>' + text + '</text>';
     }
@@ -99,6 +108,7 @@ window.WinterSitePlan = (function(){
     // beads along every line and arrow, and each code once it has its place.
     var busy = [];
     marks.forEach(function(m, j){
+      if(m.t === 'site') return;   // the boundary holds every other mark; it is not in their way
       var sh = m.c ? 'area' : kind(m).shape, q = m.p.map(P), r = 14 * s, bead = 5 * s;
       if(sh === 'pin') busy.push({i: j, x0: q[0][0] - r, y0: q[0][1] - r, x1: q[0][0] + r, y1: q[0][1] + r});
       else if(sh === 'area'){
@@ -117,7 +127,7 @@ window.WinterSitePlan = (function(){
     function spot(i, cw, ch, spots){
       var best = null;
       spots.forEach(function(c){
-        var x = Math.min(VW - cw / 2 - 2, Math.max(cw / 2 + 2, c[0])), y = Math.min(vh - ch / 2 - 2, Math.max(ch / 2 + 2, c[1])), cover = 0;
+        var x = Math.min(bx1 - cw / 2 - 2, Math.max(bx0 + cw / 2 + 2, c[0])), y = Math.min(by1 - ch / 2 - 2, Math.max(by0 + ch / 2 + 2, c[1])), cover = 0;
         busy.forEach(function(b){
           if(b.i === i) return;   // a code may sit on its own mark
           var ox = Math.min(x + cw / 2, b.x1) - Math.max(x - cw / 2, b.x0), oy = Math.min(y + ch / 2, b.y1) - Math.max(y - ch / 2, b.y0);
@@ -142,12 +152,19 @@ window.WinterSitePlan = (function(){
         var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
         var cw = (text.length * 8.6 + 12) * s, ch = 21 * s, gap = 7 * s, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
         var above = [cx, y0 - ch / 2 - gap], below = [cx, y1 + ch / 2 + gap];
-        var spots = (y0 - ch - gap < 0 ? [below, above] : [above, below]).concat([[x1 + cw / 2 + gap, cy], [x0 - cw / 2 - gap, cy]]);
+        var spots = (y0 - ch - gap < by0 ? [below, above] : [above, below]).concat([[x1 + cw / 2 + gap, cy], [x0 - cw / 2 - gap, cy]]);
         if(mid && x1 - x0 >= cw * 1.3 && y1 - y0 >= ch * 1.9) spots.unshift(mid);
         var at = spot(i, cw, ch, spots);
         return chip(at.x, at.y, text, c);
       }
-      if(K.shape === 'area' || m.c || m.closed){
+      if(m.t === 'site' && !(isDraft && !m.closed)){
+        // The site boundary: everything outside it faded toward white, and a thin
+        // line round it. Only the line can be clicked, so the photo inside still slides.
+        g += '<path pointer-events="none" fill-rule="evenodd" fill="#fff" fill-opacity=".72" d="M0 0H' + VW + 'V' + f1(vh) + 'H0Z M' + p.map(function(q){ var u = P(q); return f1(u[0]) + ' ' + f1(u[1]); }).join(' L') + 'Z"/>'
+          + '<polygon points="' + pts(p) + '" fill="none" stroke="transparent" stroke-width="' + w(16) + '"/>'
+          + '<polygon points="' + pts(p) + '" fill="none" stroke="#012b1f" stroke-width="' + w(on ? 4.6 : 3.4) + '" stroke-opacity=".8" stroke-linejoin="round"/>'
+          + '<polygon points="' + pts(p) + '" fill="none" stroke="#fff" stroke-width="' + w(1.6) + '" stroke-dasharray="' + w(10) + ' ' + w(7) + '" stroke-linejoin="round"/>';
+      } else if(K.shape === 'area' || m.c || m.closed){
         var solid = m.t === 'zone' || m.t === 'walk';
         var dash = solid ? '' : ' stroke-dasharray="' + w(11) + ' ' + w(7) + '"';
         if(isDraft && !m.closed) g += '<polyline points="' + pts(p) + '" fill="' + c + '" fill-opacity=".15" stroke="' + c + '" stroke-width="' + w(3) + '" stroke-dasharray="' + w(8) + ' ' + w(6) + '" stroke-linejoin="round"/>';
@@ -185,7 +202,9 @@ window.WinterSitePlan = (function(){
       if(on && K.shape !== 'pin') g += m.p.map(function(q, k){ var v = P(q); return '<circle data-v="' + k + '" cx="' + f1(v[0]) + '" cy="' + f1(v[1]) + '" r="' + w(k === o.vsel ? 8.5 : 7) + '" fill="' + (k === o.vsel ? '#22c55e' : '#fff') + '" stroke="#012b1f" stroke-width="' + w(2.2) + '" style="cursor:grab"/>'; }).join('');
       return isDraft ? '<g pointer-events="none">' + g + '</g>' : '<g data-m="' + i + '">' + g + '</g>';
     }
-    marks.forEach(function(m, i){ h += one(m, i, false); });
+    // the boundary first, so its fade lies under every other mark
+    marks.forEach(function(m, i){ if(m.t === 'site') h += one(m, i, false); });
+    marks.forEach(function(m, i){ if(m.t !== 'site') h += one(m, i, false); });
     if(o.draft) h += one(o.draft, -1, true);
     // the ring that says the next dot has caught on something
     if(o.snap){ var sn = P(o.snap); h += '<circle pointer-events="none" cx="' + f1(sn[0]) + '" cy="' + f1(sn[1]) + '" r="' + w(10) + '" fill="none" stroke="#012b1f" stroke-width="' + w(5) + '"/><circle pointer-events="none" cx="' + f1(sn[0]) + '" cy="' + f1(sn[1]) + '" r="' + w(10) + '" fill="none" stroke="#22c55e" stroke-width="' + w(2.6) + '"/>'; }
@@ -194,7 +213,18 @@ window.WinterSitePlan = (function(){
   // A finished overlay for a photo of the given shape (width / height).
   function svg(marks, ar, o){
     var vh = VW / ar;
-    return '<svg viewBox="0 0 ' + VW + ' ' + f1(vh) + '" preserveAspectRatio="none" aria-hidden="true">' + draw(marks || [], vh, o) + '</svg>';
+    var v = (o && o.view) || [0, 0, 1, 1];
+    return '<svg viewBox="' + f1(v[0] * VW) + ' ' + f1(v[1] * vh) + ' ' + f1(v[2] * VW) + ' ' + f1(v[3] * vh) + '" preserveAspectRatio="none" aria-hidden="true">' + draw(marks || [], vh, o) + '</svg>';
+  }
+  // The part of a photo worth printing: with a site boundary, the box round it with a
+  // little air; without one, the whole photo. [x, y, w, h] as shares of the photo.
+  function frame(marks, ar){
+    var b = (marks || []).find(function(m){ return m.t === 'site'; });
+    if(!b) return [0, 0, 1, 1];
+    var xs = b.p.map(function(q){ return q[0]; }), ys = b.p.map(function(q){ return q[1]; }), air = .025;
+    var x0 = clamp(Math.min.apply(null, xs) - air), x1 = clamp(Math.max.apply(null, xs) + air);
+    var y0 = clamp(Math.min.apply(null, ys) - air * ar), y1 = clamp(Math.max.apply(null, ys) + air * ar);
+    return [x0, y0, x1 - x0, y1 - y0];
   }
   // What the book's map key lists: each kind used on a site, with its count.
   function tally(marks){
@@ -247,6 +277,7 @@ window.WinterSitePlan = (function(){
       + '<aside class="sp-side"><div class="sp-side-h">Marks on this site</div><div id="sp-list"></div>'
       +   '<div class="sp-side-f"><label class="sp-tool sp-upload">' + (st.url ? 'Replace photo' : 'Upload photo') + '<input type="file" accept="image/*" id="sp-file" hidden></label>'
       +   '<button type="button" class="sp-tool" id="sp-crop">Crop photo</button>'
+      +   '<button type="button" class="sp-tool" data-tool="site" title="Outline the site. Everything outside it is faded, and the book prints only the part inside.">Site boundary</button>'
       +   '<button type="button" class="sp-tool" id="sp-clear">Clear all marks</button>'
       +   '<div class="sp-hint">You can also copy a Google Earth screenshot and press Ctrl+V. Notes print in the book.</div></div></aside></div>';
     var host = document.getElementById('win-page');
@@ -425,6 +456,8 @@ window.WinterSitePlan = (function(){
   }
   function commit(m){
     remember();
+    // a site has one boundary: a new one takes the old one's place
+    if(KINDS[m.t].solo) st.marks = st.marks.filter(function(x){ return x.t !== m.t; });
     st.marks.push(m);
     st.sel = st.marks.length - 1;
   }
@@ -823,5 +856,5 @@ window.WinterSitePlan = (function(){
     }
   }
 
-  return {open: open, close: close, signedUrl: signedUrl, svg: svg, tally: tally, notes: notes, KINDS: KINDS};
+  return {open: open, close: close, signedUrl: signedUrl, svg: svg, frame: frame, tally: tally, notes: notes, KINDS: KINDS};
 })();
