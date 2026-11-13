@@ -21,7 +21,8 @@ on:
   # winter, so this drifts to 7:45 AM in November — earlier is harmless, the
   # board still waits for 9.
   repository_dispatch:
-    types: [briefing]
+    # 'briefing' = the morning briefing; 'driving' = the afternoon driving report (Jake 2026-11-13).
+    types: [briefing, driving]
   workflow_dispatch:        # so it can be tested without waiting for 9 AM
     inputs:
       sample_text:
@@ -54,6 +55,8 @@ concurrency:
 jobs:
   speak:
     runs-on: ubuntu-latest
+    env:
+      KIND: ${{ github.event.action == 'driving' && 'driving' || 'briefing' }}
     permissions:
       contents: write       # to publish the Release asset
     steps:
@@ -89,10 +92,11 @@ jobs:
           # Only set on a manual run — the 8:45 dispatch carries no inputs, so it always speaks real numbers.
           BRIEFING_TEXT: ${{ github.event.inputs.sample_text }}
           BRIEFING_VOICE: ${{ github.event.inputs.voice }}
+          BRIEFING_KIND: ${{ github.event.action == 'driving' && 'driving' || 'briefing' }}
         run: python scripts/build_briefing.py
 
       - name: Encode to mp3
-        run: ffmpeg -hide_banner -loglevel error -y -i briefing.wav -codec:a libmp3lame -qscale:a 4 briefing.mp3
+        run: ffmpeg -hide_banner -loglevel error -y -i ${{ env.KIND }}.wav -codec:a libmp3lame -qscale:a 4 ${{ env.KIND }}.mp3
 
       # A sample run must NEVER reach the Release: the TV reads that URL, so
       # auditioning a voice would broadcast it to the office. Samples come back
@@ -103,8 +107,8 @@ jobs:
         with:
           name: briefing-sample
           path: |
-            briefing.mp3
-            briefing.json
+            ${{ env.KIND }}.mp3
+            ${{ env.KIND }}.json
 
       # A fixed tag we overwrite daily, so the TV can hardcode one URL.
       - name: Publish to the board
@@ -115,7 +119,7 @@ jobs:
           gh release view briefing >/dev/null 2>&1 \
             || gh release create briefing --title "Daily briefing" \
                  --notes "Audio briefing for the office TV. Overwritten each morning."
-          gh release upload briefing briefing.mp3 briefing.json --clobber
+          gh release upload briefing ${{ env.KIND }}.mp3 ${{ env.KIND }}.json --clobber
 
       - name: Show what was said
-        run: cat briefing.json
+        run: cat ${{ env.KIND }}.json
