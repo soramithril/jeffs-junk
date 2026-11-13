@@ -131,47 +131,56 @@ window.WinterBook = (function(){
       + '<div class="class">WINTER OPS // CREW EYES ONLY // DO NOT LEAVE ON DASH</div></section>';
   }
 
+  // Where the map goes on a site page, in printed inches: the slot's width is fixed by
+  // the page; its height moves a little with a long address, so this is a close guess
+  // used only to pick how heavy the marks are drawn (the CSS does the real fitting).
+  var SLOT_W = 5.24, SLOT_H = 9;
+
+  // Every sheet reads upright, like the cover and the dividers (Jake, 2026-11-13). The
+  // map takes the left of the page from header to footer; a photo that is wider than
+  // tall is turned a quarter turn clockwise so its long side runs down the sheet, which
+  // prints it about 70% bigger than the old across-the-middle slot. Services, key and
+  // notes sit in a column beside it.
   function sitePage(l, g, groupSize, photo, W, today){
     var code = WinterRoutes.code(l);
     var marks = l.site_marks || [];
     var svc = servicesOf(l, W);
     var nick = l.client_name && l.client_name !== l.address ? l.client_name : '';
-    // Photo box: as wide as the margins allow, never taller than the space left (cqw).
-    var w = photo ? Math.min(86, 50 * photo.ar) : 86;
+    var turned = !!photo && photo.ar > 1;
+    var r = photo ? (turned ? 1 / photo.ar : photo.ar) : 1;   // the photo box's shape on the page
+    // A turned photo's marks turn with it, point by point, so their codes still read
+    // upright: the picture's top edge becomes the box's right edge.
+    var placed = turned ? marks.map(function(m){ return Object.assign({}, m, {p: m.p.map(function(q){ return [1 - q[1], q[0]]; })}); }) : marks;
     // The marks are drawn by the site plan editor's own draw(), so the book and the
-    // editor cannot disagree about what a mark looks like.
-    var zones = photo && marks.length ? WinterSitePlan.svg(marks, photo.ar, {size: 1.1}).replace('<svg ', '<svg class="mk" ') : '';
+    // editor cannot disagree about what a mark looks like. size keeps them at one
+    // printed weight whatever the box's width (1.1 on the old 7.3in-wide photo).
+    var zones = photo && marks.length ? WinterSitePlan.svg(placed, r, {size: 8 / Math.min(SLOT_W, SLOT_H * r)}).replace('<svg ', '<svg class="mk" ') : '';
     var used = WinterSitePlan.tally(marks), said = WinterSitePlan.notes(marks);
+    var letters = function(cls, list){ return '<div class="' + cls + '">' + list.map(function(c){ return '<span>' + c + '</span>'; }).join('') + '</div>'; };
     // The page wears its area's colour (Jake, 2026-11-11), so a loose sheet says
     // which run it belongs to: a band down the edge, the site number, the area name.
     return '<section class="page site" style="--g:' + g.color + '">'
       + '<div class="class">WINTER OPS // CREW EYES ONLY // SEASON ' + season(today) + '</div>'
-      + '<div class="hdr"><img src="' + new URL('assets/jwg-logo.png', location.href).href + '" alt="">'
-      + '<div class="org"><b>JEFF WHITE GROUP</b><span>WINTER OPERATIONS · SITE BRIEF</span></div>'
-      + '<div class="file"><div><span>FILE</span><b>JWG-W-' + code + '</b></div><div class="sector"><span>SECTOR</span><b>' + esc(g.name.toUpperCase()) + '</b></div><div><span>INTEL</span><b>' + isoDay(today) + '</b></div></div></div>'
-      + '<div class="title"><div class="num"><small>SITE</small>' + code + '</div>'
+      + '<div class="shd"><div class="num"><small>SITE</small>' + code + '</div>'
       // Long multi-number addresses step the type down so they stay on two lines.
-      + '<dl class="kv"><dt>TARGET</dt><dd class="addr' + (l.address.length > 32 ? ' long' : l.address.length > 24 ? ' mid' : '') + '">' + esc(l.address) + '</dd>'
-      + '<dt>LOCATION</dt><dd>' + esc((l.city || '').toUpperCase()) + ' · <span class="area">' + esc(g.name.toUpperCase()) + '</span></dd>'
-      + '<dt>CALLSIGN</dt><dd>' + (nick ? '<span class="call">' + esc(nick.toUpperCase()) + '</span>' : 'NONE ASSIGNED') + '</dd></dl>'
-      + '</div>'
-      + '<div class="svc" style="grid-template-columns:repeat(' + svc.length + ',1fr)">' + svc.map(function(s){
-          return '<div class="' + (s.on ? 'yes' : 'no') + '"><span class="box">' + (s.on ? TICK : '') + '</span>' + esc(s.name.toUpperCase()) + '</div>';
-        }).join('') + '</div>'
-      + '<div class="photo-wrap">' + (photo
-          ? '<div class="grid"><div class="gx">' + 'ABCDEFGH'.split('').map(function(c){ return '<span>' + c + '</span>'; }).join('') + '</div>'
-            + '<div class="gy">' + [1, 2, 3, 4, 5, 6].map(function(c){ return '<span>' + c + '</span>'; }).join('') + '</div>'
-            + '<div class="photo" style="width:' + w + 'cqw;aspect-ratio:' + photo.ar + '"><img src="' + photo.url + '" alt="">' + zones + '<i class="brk"></i></div></div>'
+      + '<div class="sad"><b' + (l.address.length > 32 ? ' class="long"' : '') + '>' + esc(l.address) + '</b>'
+      + '<span>' + esc((l.city || '').toUpperCase()) + ' · <span class="area">' + esc(g.name.toUpperCase()) + '</span>' + (nick ? ' · ' + esc(nick.toUpperCase()) : '') + '</span></div>'
+      + '<div class="sfile"><b>FILE</b> JWG-W-' + code + '<br><b>STOP</b> ' + l.winter_stop + ' OF ' + groupSize + ' · ' + g.code + '<br><b>INTEL</b> ' + isoDay(today) + '</div></div>'
+      + '<div class="sbody"><div class="smap">' + (photo
+          ? '<div class="grid">' + letters('gx', 'ABCDEF'.split('')) + letters('gy', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            + '<div class="photo' + (turned ? ' turned' : '') + '" style="--r:' + r + '"><img src="' + photo.url + '" alt="">' + zones + '<i class="brk"></i></div></div>'
           : '<div class="nophoto">No photo yet. Add one on Snow &amp; Ice under Site plan.</div>') + '</div>'
-      + '<div class="credit">Imagery © Google</div>'
-      + '<div class="lower"><div><div class="h">Map key</div><div class="legend">'
+      + '<div class="side"><div><div class="h">Services</div><div class="sv">' + svc.map(function(s){
+          return '<div class="' + (s.on ? 'yes' : 'no') + '"><span class="box">' + (s.on ? TICK : '') + '</span>' + esc(s.name.toUpperCase()) + '</div>';
+        }).join('') + '</div></div>'
+      + '<div><div class="h">Map key</div><div class="legend">'
       + used.map(function(u){ return '<div><i style="background:' + u.kind.color + ';border-color:' + u.kind.color + '"></i><span><b>' + esc(u.kind.name) + ' (' + u.kind.code + ').</b> ' + u.kind.key + ' ' + u.n + ' on this site.</span></div>'; }).join('')
       + '<div><i class="x"></i><span><b>Never pile</b> on hydrants, doors, drains or neighbours\' lots.</span></div></div></div>'
       + '<div class="notes"><div class="h">Field notes</div>' + (l.notes ? '<p>' + esc(l.notes) + '</p>' : '')
       + said.map(function(n){ return '<p><b>' + n.code + '</b> ' + esc(n.text) + '</p>'; }).join('')
-      + '<div class="lines">' + new Array(Math.max(1, 6 - said.length) + 1).join('<i></i>') + '</div></div></div>'
-      + '<div class="foot"><span>File JWG-W-' + code + '</span><span>Base: 92 Davidson St</span><span>Stop ' + l.winter_stop + ' of ' + groupSize + ' · ' + g.code + '</span></div>'
-      + '<div class="class">WINTER OPS // CREW EYES ONLY // DO NOT LEAVE ON DASH</div></section>';
+      + '<div class="lines">' + new Array(11).join('<i></i>') + '</div></div>'
+      + (photo ? '<div class="credit">Imagery © Google</div>' : '') + '</div></div>'
+      + '<div class="foot"><span>File JWG-W-' + code + '</span><span>Base: 92 Davidson St</span><span>Stop ' + l.winter_stop + ' of ' + groupSize + ' · ' + g.code + '</span></div></section>';
   }
 
   // The book opens as a preview; the bar on top prints it and never prints itself.
@@ -198,54 +207,50 @@ window.WinterBook = (function(){
     '.bar button{font:700 14px var(--ui);background:#22c55e;color:#012b1f;border:0;border-radius:8px;padding:9px 22px;cursor:pointer}',
     '@media print{html,body{background:#fff}.page{margin:0;box-shadow:none}.bar{display:none}}',
     '.class{flex:none;background:var(--deep);color:#e6f2ea;font-family:var(--mono);font-weight:600;font-size:1.35cqw;letter-spacing:.32em;text-align:center;padding:.9cqw 2cqw;white-space:nowrap;overflow:hidden}',
-    '.hdr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2.6cqw;align-items:center;padding:2.6cqw 5.5cqw 2cqw;border-bottom:.5cqw double var(--forest)}',
-    '.hdr>img{width:10.5cqw;height:10.5cqw}',
-    '.org{font-family:var(--mono);color:var(--deep);line-height:1.3}.org b{display:block;font-family:var(--ui);font-weight:800;font-size:2.6cqw;letter-spacing:.16em}.org span{display:block;font-size:1.35cqw;letter-spacing:.22em;color:var(--forest)}',
-    '.file{border:.25cqw solid var(--deep);font-family:var(--mono);font-size:1.2cqw;color:var(--deep);letter-spacing:.12em}.file div{padding:.5cqw 1.2cqw;display:flex;justify-content:space-between;gap:2cqw}.file div+div{border-top:.18cqw solid var(--deep)}.file b{font-weight:600}',
-    '.title{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3cqw;align-items:center;padding:2.4cqw 5.5cqw 2.2cqw}',
-    '.num{border:.45cqw solid var(--deep);color:var(--deep);font-family:var(--stencil);font-size:6cqw;line-height:1;padding:.6cqw 1.4cqw .4cqw;text-align:center;white-space:nowrap}',
-    '.num small{display:block;font-family:var(--ui);font-weight:700;font-size:1.25cqw;letter-spacing:.24em;border-bottom:.3cqw solid var(--deep);padding-bottom:.4cqw;margin-bottom:.5cqw}',
-    '.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.5cqw 1.8cqw;align-items:baseline;min-width:0}',
-    '.kv dt{font-family:var(--mono);font-size:1.2cqw;letter-spacing:.2em;color:var(--forest);font-weight:600}',
-    '.kv dd{font-family:var(--mono);font-size:1.7cqw;color:#26332c;letter-spacing:.04em}',
-    '.kv dd.addr{font-family:var(--ui);font-weight:800;font-size:3.7cqw;line-height:1.05;letter-spacing:-.01em;color:var(--deep);text-wrap:balance}',
-    '.kv dd.addr.mid{font-size:3.3cqw}.kv dd.addr.long{font-size:2.8cqw}',
-    '.call{font-weight:600;background:var(--wash);color:var(--forest);border:1px solid var(--mint);padding:.1cqw 1cqw;letter-spacing:.06em}',
-    '.svc{display:grid;margin:0 5.5cqw;border:.25cqw solid var(--deep)}',
+    // ── site page (Jake, 2026-11-13): a compact header, then the map as big as the sheet
+    // allows with services, key and notes in a column beside it ──
+    '.shd{flex:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2.6cqw;align-items:center;padding:1.5cqw 3.6cqw 1.2cqw}',
+    '.num{border:.39cqw solid var(--deep);color:var(--deep);font-family:var(--stencil);font-size:4.66cqw;line-height:1;padding:.52cqw 1.3cqw .26cqw;text-align:center;white-space:nowrap}',
+    '.num small{display:block;font-family:var(--ui);font-weight:700;font-size:1.1cqw;letter-spacing:.24em;border-bottom:.26cqw solid var(--deep);padding-bottom:.32cqw;margin-bottom:.39cqw}',
+    '.sad{min-width:0}.sad b{display:block;font-weight:800;font-size:3.24cqw;line-height:1.05;letter-spacing:-.01em;color:var(--deep);text-wrap:balance}.sad b.long{font-size:2.59cqw}',
+    '.sad>span{display:block;margin-top:.58cqw;font-family:var(--mono);font-size:1.36cqw;letter-spacing:.05em;color:#26332c}',
+    '.sfile{font-family:var(--mono);font-size:1.16cqw;letter-spacing:.12em;color:var(--deep);border:.23cqw solid var(--deep);padding:.58cqw 1.3cqw;line-height:1.55;white-space:nowrap}.sfile b{font-weight:600}',
     // a site page in its area's colour
     '.site{border-left:2.2cqw solid var(--g)}',
     '.site .num{background:var(--g);border-color:var(--g);color:#fff}.site .num small{border-bottom-color:rgba(255,255,255,.7)}',
     '.site .area{background:var(--g);color:#fff;font-weight:600;padding:.1cqw 1cqw;letter-spacing:.06em}',
-    '.site .sector{background:var(--g);color:#fff}',
     '.site .foot span:last-child{color:var(--g)}',
-    '.svc div{display:flex;align-items:center;gap:1cqw;padding:1cqw 1.2cqw;font-family:var(--mono);font-weight:600;font-size:1.2cqw;letter-spacing:.04em;line-height:1.2}',
-    '.svc div+div{border-left:.25cqw solid var(--deep)}',
-    '.svc .box{width:2.6cqw;height:2.6cqw;flex:none;border:.3cqw solid var(--deep);display:grid;place-items:center}',
-    '.svc .yes .box{background:var(--forest);border-color:var(--forest)}.svc .no{color:#8a958f}.svc .no .box{border-color:#b5bfba}',
-    '.photo-wrap{flex:none;display:flex;justify-content:center;padding:1.6cqw 5.5cqw .6cqw}',
-    '.grid{display:grid;grid-template-columns:2cqw auto;grid-template-rows:2cqw auto;gap:.6cqw}',
-    '.gx,.gy{display:flex;justify-content:space-around;font-family:var(--mono);font-size:1.05cqw;font-weight:600;color:var(--forest)}',
+    '.sbody{flex:1;min-height:0;display:flex;gap:2.4cqw;padding-right:3.6cqw}',
+    // The map's slot is a size container, so inside it cqw and cqh mean the SLOT and the
+    // photo can take min(slot width, slot height x its shape). Lengths in there are in
+    // inches (the page is always 8.5in wide) because cqw no longer means the page. If
+    // the side column or the margins change, SLOT_W in sitePage changes with them.
+    '.smap{flex:1;min-width:0;min-height:0;margin:.4cqw 0 .6cqw 3.6cqw;container-type:size;display:flex;justify-content:center;align-items:center}',
+    '.grid{display:grid;grid-template-columns:.17in auto;grid-template-rows:.17in auto;gap:.05in}',
+    '.gx,.gy{display:flex;justify-content:space-around;font-family:var(--mono);font-size:.095in;font-weight:600;color:var(--forest)}',
     '.gy{flex-direction:column;align-items:center}.gx{grid-column:2;grid-row:1}.gy{grid-column:1;grid-row:2}.grid .photo{grid-column:2;grid-row:2}',
-    '.photo{position:relative;max-width:100%;overflow:hidden;outline:.25cqw solid var(--deep);outline-offset:.5cqw}',
+    '.photo{position:relative;overflow:hidden;container-type:size;aspect-ratio:var(--r);width:min(100cqw - .3in,(100cqh - .3in)*var(--r));outline:.02in solid var(--deep);outline-offset:.04in}',
     '.photo img{display:block;width:100%;height:100%;object-fit:cover}',
+    // a wide photo lies on its side: the picture is as wide as its box is tall
+    '.photo.turned img{position:absolute;left:50%;top:50%;width:100cqh;height:100cqw;max-width:none;transform:translate(-50%,-50%) rotate(90deg)}',
     '.mk{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}',
-    // sidewalks: blue line with a white casing so it reads over grey pavement; its label sits at the first point
-    '.brk{position:absolute;inset:0;pointer-events:none;--l:3cqw;--w:.5cqw;background:',
+    '.brk{position:absolute;inset:0;pointer-events:none;--l:.24in;--w:.04in;background:',
     '  linear-gradient(var(--logo),var(--logo)) 0 0/var(--l) var(--w) no-repeat,linear-gradient(var(--logo),var(--logo)) 0 0/var(--w) var(--l) no-repeat,',
     '  linear-gradient(var(--logo),var(--logo)) 100% 0/var(--l) var(--w) no-repeat,linear-gradient(var(--logo),var(--logo)) 100% 0/var(--w) var(--l) no-repeat,',
     '  linear-gradient(var(--logo),var(--logo)) 0 100%/var(--l) var(--w) no-repeat,linear-gradient(var(--logo),var(--logo)) 0 100%/var(--w) var(--l) no-repeat,',
     '  linear-gradient(var(--logo),var(--logo)) 100% 100%/var(--l) var(--w) no-repeat,linear-gradient(var(--logo),var(--logo)) 100% 100%/var(--w) var(--l) no-repeat}',
-    '.nophoto{width:86cqw;height:40cqw;border:.3cqw dashed #b5bfba;display:grid;place-items:center;color:#7d8984;font-size:1.8cqw}',
-    '.credit{text-align:right;padding:0 5.5cqw 1.2cqw;font-size:1cqw;color:#7d8984}',
-    '.lower{flex:1;min-height:0;overflow:hidden;display:grid;grid-template-columns:1.1fr 1fr;gap:3cqw;padding:0 5.5cqw 2cqw}',
+    '.nophoto{width:calc(100cqw - .3in);height:calc(100cqh - .3in);border:.03in dashed #b5bfba;display:grid;place-items:center;text-align:center;padding:.3in;color:#7d8984;font-size:.15in}',
+    '.side{flex:none;width:23cqw;display:flex;flex-direction:column;gap:2.4cqw;padding:2.4cqw 0 1cqw;min-height:0}',
     '.h{font-family:var(--mono);font-weight:600;font-size:1.25cqw;letter-spacing:.24em;text-transform:uppercase;color:var(--forest);border-bottom:.2cqw solid var(--forest);padding-bottom:.4cqw;margin-bottom:.9cqw}',
-    '.legend{display:grid;gap:.8cqw;font-size:1.6cqw}.legend div{display:flex;align-items:center;gap:1.2cqw}',
-    '.legend i{width:3.2cqw;height:2cqw;flex:none;background:rgba(255,214,10,.55);border:.3cqw solid var(--pile);box-shadow:0 0 0 1px rgba(1,43,31,.55)}',
-    '.legend i.w{background:#fff;border:0;box-shadow:none;position:relative}',
-    '.legend i.w::after{content:"";position:absolute;left:0;right:0;top:50%;height:.6cqw;transform:translateY(-50%) rotate(-12deg);background:var(--walk);border-radius:.3cqw;box-shadow:0 0 0 .25cqw #fff,0 0 0 .4cqw rgba(1,43,31,.45)}',
+    '.sv{display:grid;gap:.52cqw;font-family:var(--mono);font-weight:600;font-size:1.23cqw;letter-spacing:.03em}',
+    '.sv div{display:flex;align-items:center;gap:.9cqw}.sv .box{width:2.07cqw;height:2.07cqw;flex:none;border:.26cqw solid var(--deep);display:grid;place-items:center}',
+    '.sv .yes .box{background:var(--forest);border-color:var(--forest)}.sv .no{color:#8a958f}.sv .no .box{border-color:#b5bfba}',
+    '.legend{display:grid;gap:.6cqw;font-size:1.42cqw}.legend div{display:flex;align-items:flex-start;gap:1cqw}',
+    '.legend i{width:2.85cqw;height:1.75cqw;flex:none;margin-top:.1cqw;background:rgba(255,214,10,.55);border:.26cqw solid var(--pile);box-shadow:0 0 0 1px rgba(1,43,31,.55)}',
     '.legend i.x{background:#fff;border:.3cqw solid #c53030;box-shadow:none;position:relative}',
     '.legend i.x::after{content:"";position:absolute;inset:0;background:linear-gradient(45deg,transparent 45%,#c53030 45% 55%,transparent 55%),linear-gradient(-45deg,transparent 45%,#c53030 45% 55%,transparent 55%)}',
-    '.notes p{margin-bottom:.8cqw;font-size:1.65cqw}.lines{display:grid;gap:2.6cqw;margin-top:1.4cqw}.lines i{display:block;border-bottom:1px solid #b9c4be}',
+    '.notes{flex:1;min-height:0;overflow:hidden}.notes p{margin-bottom:.65cqw;font-size:1.42cqw}.lines{display:grid;gap:2.6cqw;margin-top:1.9cqw}.lines i{display:block;border-bottom:1px solid #b9c4be}',
+    '.credit{flex:none;font-size:1cqw;color:#7d8984}',
     '.foot{display:flex;justify-content:space-between;gap:2cqw;padding:1.1cqw 5.5cqw;border-top:.5cqw double var(--forest);color:var(--forest);font-family:var(--mono);font-size:1.15cqw;letter-spacing:.16em;text-transform:uppercase;font-weight:600}',
     // group divider page: the group's colour as a wide band, its stops listed in order
     '.divider .dv-body{flex:1;padding:10cqw 8cqw 4cqw;border-left:5cqw solid var(--g)}',
