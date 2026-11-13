@@ -93,19 +93,59 @@ window.WinterSitePlan = (function(){
         + '<text x="' + f1(x) + '" y="' + f1(y + 4.8 * s) + '" text-anchor="middle" font-size="' + f1(13.5 * s) + '" font-weight="800" fill="#012b1f" ' + FONT + '>' + text + '</text>';
     }
     function w(n){ return f1(n * s); }
+    // A code must not sit on another mark or on another code (Jake, 2026-11-13: at 92
+    // Davidson DZ-01's code landed on a hydrant pin, and the pin's code on the zone).
+    // busy is everything a code should stay off: every pin, every outline's bounds,
+    // beads along every line and arrow, and each code once it has its place.
+    var busy = [];
+    marks.forEach(function(m, j){
+      var sh = m.c ? 'area' : kind(m).shape, q = m.p.map(P), r = 14 * s, bead = 5 * s;
+      if(sh === 'pin') busy.push({i: j, x0: q[0][0] - r, y0: q[0][1] - r, x1: q[0][0] + r, y1: q[0][1] + r});
+      else if(sh === 'area'){
+        var xs = q.map(function(v){ return v[0]; }), ys = q.map(function(v){ return v[1]; });
+        busy.push({i: j, x0: Math.min.apply(null, xs), y0: Math.min.apply(null, ys), x1: Math.max.apply(null, xs), y1: Math.max.apply(null, ys)});
+      } else for(var k = 0; k < q.length - 1; k++){
+        var n = Math.max(1, Math.ceil(Math.hypot(q[k + 1][0] - q[k][0], q[k + 1][1] - q[k][1]) / (12 * s)));
+        for(var t = 0; t <= n; t++){
+          var bx = q[k][0] + (q[k + 1][0] - q[k][0]) * t / n, by = q[k][1] + (q[k + 1][1] - q[k][1]) * t / n;
+          busy.push({i: j, x0: bx - bead, y0: by - bead, x1: bx + bead, y1: by + bead});
+        }
+      }
+    });
+    // Where mark i's code goes: the first of its usual spots (given in order of
+    // preference) that covers nothing, or failing that the one that covers least.
+    function spot(i, cw, ch, spots){
+      var best = null;
+      spots.forEach(function(c){
+        var x = Math.min(VW - cw / 2 - 2, Math.max(cw / 2 + 2, c[0])), y = Math.min(vh - ch / 2 - 2, Math.max(ch / 2 + 2, c[1])), cover = 0;
+        busy.forEach(function(b){
+          if(b.i === i) return;   // a code may sit on its own mark
+          var ox = Math.min(x + cw / 2, b.x1) - Math.max(x - cw / 2, b.x0), oy = Math.min(y + ch / 2, b.y1) - Math.max(y - ch / 2, b.y0);
+          if(ox > 0 && oy > 0) cover += ox * oy;
+        });
+        if(!best || cover < best.cover - .5) best = {x: x, y: y, cover: cover};
+      });
+      busy.push({i: -1, x0: best.x - cw / 2, y0: best.y - ch / 2, x1: best.x + cw / 2, y1: best.y + ch / 2});
+      return best;
+    }
     function one(m, i, isDraft){
       var K = kind(m), c = K.color, on = !isDraft && o.sel === i, g = '';
       var p = isDraft && o.hover && K.shape !== 'arrow' && !m.closed ? m.p.concat([o.hover]) : m.p;
       if(!p.length) return '';
       var a = P(p[0]);
       // Where a mark's code goes: in its middle if the mark can hold it, otherwise just
-      // above it (below, at the photo's top edge), so a code never hides its own mark.
+      // above it (below, at the photo's top edge), so a code never hides its own mark;
+      // then below, right or left of it when that spot is taken.
       function tag(mid){
+        if(o.labels === false) return '';
         var text = label(marks, i), xs = p.map(function(q){ return q[0] * VW; }), ys = p.map(function(q){ return q[1] * vh; });
         var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
-        var cw = (text.length * 8.6 + 12) * s, ch = 21 * s, gap = 7 * s;
-        if(mid && x1 - x0 >= cw * 1.3 && y1 - y0 >= ch * 1.9) return chip(mid[0], mid[1], text, c);
-        return chip((x0 + x1) / 2, y0 - ch - gap < 0 ? y1 + ch / 2 + gap : y0 - ch / 2 - gap, text, c);
+        var cw = (text.length * 8.6 + 12) * s, ch = 21 * s, gap = 7 * s, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+        var above = [cx, y0 - ch / 2 - gap], below = [cx, y1 + ch / 2 + gap];
+        var spots = (y0 - ch - gap < 0 ? [below, above] : [above, below]).concat([[x1 + cw / 2 + gap, cy], [x0 - cw / 2 - gap, cy]]);
+        if(mid && x1 - x0 >= cw * 1.3 && y1 - y0 >= ch * 1.9) spots.unshift(mid);
+        var at = spot(i, cw, ch, spots);
+        return chip(at.x, at.y, text, c);
       }
       if(K.shape === 'area' || m.c || m.closed){
         var solid = m.t === 'zone' || m.t === 'walk';
@@ -135,7 +175,12 @@ window.WinterSitePlan = (function(){
       } else {
         g += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="' + w(on ? 15 : 13) + '" fill="' + c + '" stroke="' + (on ? '#fff' : '#012b1f') + '" stroke-width="' + w(on ? 4 : 2) + '"/>'
           + '<text x="' + f1(a[0]) + '" y="' + f1(a[1] + 5.2 * s) + '" text-anchor="middle" font-size="' + w(14.5) + '" font-weight="800" fill="#012b1f" ' + FONT + '>' + (m.t === 'hazard' ? '!' : 'S') + '</text>';
-        if(!isDraft) g += chip(a[0], a[1] + 27 * s, label(marks, i), c);
+        if(!isDraft && o.labels !== false){
+          // a pin's code sits under it, or over it or beside it when that spot is taken
+          var pt = label(marks, i), pw = (pt.length * 8.6 + 12) * s, side = 21 * s + pw / 2;
+          var pat = spot(i, pw, 21 * s, [[a[0], a[1] + 27 * s], [a[0], a[1] - 27 * s], [a[0] + side, a[1]], [a[0] - side, a[1]]]);
+          g += chip(pat.x, pat.y, pt, c);
+        }
       }
       if(on && K.shape !== 'pin') g += m.p.map(function(q, k){ var v = P(q); return '<circle data-v="' + k + '" cx="' + f1(v[0]) + '" cy="' + f1(v[1]) + '" r="' + w(k === o.vsel ? 8.5 : 7) + '" fill="' + (k === o.vsel ? '#22c55e' : '#fff') + '" stroke="#012b1f" stroke-width="' + w(2.2) + '" style="cursor:grab"/>'; }).join('');
       return isDraft ? '<g pointer-events="none">' + g + '</g>' : '<g data-m="' + i + '">' + g + '</g>';
