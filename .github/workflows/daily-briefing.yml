@@ -11,7 +11,7 @@ name: daily-briefing
 
 on:
   # Started by Supabase, not by a GitHub schedule. pg_cron job daily-briefing-trigger
-  # sends repository_dispatch "briefing" at 8:45 AM Toronto time, Mon-Fri (Jake 2026-11-12) (8:45 AM EDT —
+  # sends repository_dispatch "briefing" at 6:45 AM Toronto time, Mon-Fri (Jake 2026-11-13: ready before anyone arrives; the TV plays it on arrival) (8:45 AM EDT —
   # deliberately BEFORE the board's 9 AM slot; the render takes a few minutes and
   # the board plays the file on its first minute-tick after 9 that finds a
   # today-dated briefing). GitHub's own scheduler queued this job by hours — it
