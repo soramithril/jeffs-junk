@@ -227,11 +227,13 @@
      settles rather than stops dead. Duration stays inside the .7s that showPanel
      waits before stripping .was. UNCHANGED by the restyle — the rotation is
      load-bearing and tuned; only colour-level things moved. */
+  /* Jake, 2026-11-13: the slide was too laggy on the TV - moving a whole 1920x1080
+     screen (the map one especially) is more than the Fire TV's chip can do smoothly.
+     Screens now cross-fade: only opacity changes, which the TV composites cheaply. */
   .panel{position:absolute; inset:0; display:flex; flex-direction:column; gap:24px; min-height:0;
-    opacity:0; visibility:hidden; transform:translateX(103%) scale(.94);
-    transition:transform .6s cubic-bezier(.3,1.12,.4,1), opacity .55s ease, visibility .6s}
-  .panel.on{opacity:1; visibility:visible; transform:translateX(0) scale(1)}
-  .panel.was{opacity:0; visibility:visible; transform:translateX(-103%) scale(.94)}
+    opacity:0; visibility:hidden; transition:opacity .6s ease, visibility .6s}
+  .panel.on{opacity:1; visibility:visible}
+  .panel.was{opacity:0; visibility:visible}
   /* The per-panel heading is gone from the design: its title and tag are mirrored
      into .brand-sub and #toppill by the page script, and a second heading under
      the wordmark just repeated it. Hidden rather than deleted because the
@@ -469,18 +471,6 @@
   /* The heading's own entrance (pHeadBar / pHeadIn) is gone with .p-head — there
      is no per-panel heading left to animate in. The top block it moved into is
      permanent chrome and holds still between screens on purpose. */
-  /* Truck wipe, once per full lap. It drives RIGHT TO LEFT because the artwork
-     faces left — flipping it would mirror the JEFF'S JUNK.ca sign into gibberish
-     — and that happens to run with the outgoing panel, which rides off left too.
-     Two elements: .rig drives, the img bobs, because one element cannot animate
-     transform two ways at once. */
-  #tvWipe{position:absolute; inset:0; z-index:40; pointer-events:none; overflow:hidden; display:none}
-  #tvWipe.go{display:block}
-  #tvWipe .rig{position:absolute; bottom:7%; left:100%;
-    animation:truckWipe 1.7s cubic-bezier(.42,0,.4,1) both}
-  #tvWipe .rig img{display:block; width:360px; animation:bob .45s ease-in-out infinite;
-    filter:drop-shadow(0 12px 18px rgba(0,0,0,.5))}
-  @keyframes truckWipe{ from{transform:translateX(0)} to{transform:translateX(-128vw)} }
   /* crew grid is a fixed 7-column grid (name + Mon–Sat) — stagger columns L→R */
   #schedWrap > :nth-child(7n+2){--i:1} #schedWrap > :nth-child(7n+3){--i:2}
   #schedWrap > :nth-child(7n+4){--i:3} #schedWrap > :nth-child(7n+5){--i:4}
@@ -885,7 +875,6 @@
 
         <!-- Once-a-lap truck wipe. Same artwork as the ambient #tvtruck, so it is
              already cached and costs no extra download. -->
-        <div id="tvWipe" aria-hidden="true"><span class="rig"><img src="assets/tv-truck.png" alt=""></span></div>
       </div>
 
       <!-- Bottom strip. Bins out and trucks rolling are true whichever screen is
@@ -2366,7 +2355,10 @@
     // from there" and not as where the truck is. The full 90-minute path came off the
     // wall on 2026-09-09 because the office read it as the truck's position; Jake
     // asked for the short tail with the new looks (2026-11-06).
-    var TAIL_FRACTION = 1/6, _tails = [];
+    // Jake, 2026-11-13: on the satellite map it was hard to see where trucks had been,
+    // so the tail is the last HALF of the trail (about 45 minutes) with a white edge
+    // under the colour, the way a highlighter reads on a photo.
+    var TAIL_FRACTION = 1/2, _tails = [];
     function drawTails(list){
       _tails.forEach(function(p){ p.setMap(null); });
       _tails = [];
@@ -2380,9 +2372,11 @@
         var color = crewId ? driverColor(crewId) : '#f5efde';
         // three pieces, faintest first, overlapping by a point so the line is unbroken
         var n = tail.length, cut = [0, Math.floor(n/3), Math.floor(2*n/3), n - 1];
-        [.22, .5, .9].forEach(function(op, i){
+        [.45, .75, 1].forEach(function(op, i){
           var seg = tail.slice(cut[i], cut[i+1] + 1);
           if(seg.length < 2) return;
+          _tails.push(new google.maps.Polyline({ map:_map, path:seg, clickable:false,
+            strokeColor:'#ffffff', strokeOpacity:op * .8, strokeWeight:12, zIndex:1 }));
           _tails.push(new google.maps.Polyline({ map:_map, path:seg, clickable:false,
             strokeColor:color, strokeOpacity:op, strokeWeight:7, zIndex:1 }));
         });
@@ -2652,25 +2646,42 @@
     // any kind in here — that is the whole change. `gen` is the same generation
     // guard the cycle has always carried: a chain the panel has already replaced
     // must not keep lighting pins under the one that replaced it.
+    // Zoom-ins (Jake, 2026-11-13: "hard to see who's where, there's no zoom ins"). The
+    // overview holds for OVERVIEW_MS, then the map CUTS (fade out, move, fade in - never
+    // a fly, which is what the office could not follow in September) to each working
+    // truck close up for its share of the showing, and back to the overview after the
+    // last one. The truck sits left of centre so the rail never covers it.
+    var OVERVIEW_MS = 12000, TRUCK_ZOOM = 14, TRUCK_MIN_MS = 6000;
+    function zoomTo(t){
+      cutTo(function(){
+        _map.setZoom(TRUCK_ZOOM);
+        _map.setCenter(new google.maps.LatLng(t.lat, t.lng));
+        _map.panBy(190, -60);
+      });
+    }
     function highlightStep(i, gen){
       if(gen !== _cycleGen) return;
       var list = tourTrucks();           // parked trucks keep their pin, just aren't walked
-      if(!list.length){
+      if(!list.length || i >= list.length){
         unfocus();
         el('loTown').classList.remove('on');
         highlightRail(null);
+        if(!list.length) return;
+        frameAll();
+        _cycleTimer = setTimeout(function(){ highlightStep(0, gen); }, OVERVIEW_MS);
         return;
       }
-      var t = list[i % list.length];
+      var t = list[i];
       unfocus();
+      zoomTo(t);
       _focusId = t.id;
       if(_markers[t.id]) _markers[t.id].setContent(truckIcon(t, true));
       var town = el('loTown');
       town.innerHTML = '<span class="k">In</span><span class="v">'+esc(nearestTown(t.lat, t.lng))+'</span>';
       town.classList.add('on');
       highlightRail(t.id);
-      var step = Math.max(HIGHLIGHT_MIN_MS,
-                          Math.floor(panelMs('liveops') / list.length));
+      var step = Math.max(TRUCK_MIN_MS,
+                          Math.floor((panelMs('liveops') - OVERVIEW_MS) / list.length));
       _cycleTimer = setTimeout(function(){ highlightStep(i + 1, gen); }, step);
     }
 
@@ -2727,7 +2738,8 @@
       // still holds them, nobody is highlighted, and the next data refresh starts
       // the walk again the moment somebody moves.
       frameAll();
-      if(tourTrucks().length) highlightStep(0, _cycleGen);
+      var gen = _cycleGen;
+      if(tourTrucks().length) _cycleTimer = setTimeout(function(){ highlightStep(0, gen); }, OVERVIEW_MS);
     }
 
     function renderLiveOps(){
@@ -2821,20 +2833,6 @@
     }
 
     // ── rotation ─────────────────────────────────────────────────────────────
-    // Send the truck across. Hidden tabs are skipped — CSS animations stall while
-    // the tab is hidden, so it would otherwise sit frozen mid-screen and then jump
-    // across the moment someone wakes the board.
-    var _wipeTimer = null;
-    function truckWipe(){
-      var w = el('tvWipe');
-      if(!w || document.hidden) return;
-      clearTimeout(_wipeTimer);
-      w.classList.remove('go');
-      void w.offsetWidth;               // reflow, so the animation restarts from the top
-      w.classList.add('go');
-      _wipeTimer = setTimeout(function(){ w.classList.remove('go'); }, 1800);
-    }
-
     function showPanel(i){
       var wrapped = (i+PANELS.length)%PANELS.length === 0 && !!document.querySelector('.panel.on');
       panelIdx = (i+PANELS.length)%PANELS.length;
@@ -2863,10 +2861,6 @@
         prev.classList.add('was');
         setTimeout(function(){ prev.classList.remove('was'); }, 700);
       }
-      // Truck runs the change once per full lap. Every panel would be every 20s,
-      // which stops being a treat by the second hour; a lap is about 2.5 minutes.
-      // `prev` guards the very first paint, where nothing is being replaced yet.
-      if(panelIdx === 0 && prev) truckWipe();
       // Pull fresh truck positions as the map rotates in — once every lap rather
       // than on a timer of its own, so the pins are current exactly when they're
       // on screen and we spend nothing on Geotab's quota the rest of the time.
@@ -2964,7 +2958,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-13-driving-report';
+    var TV_BUILD = '2026-11-13-zoom-fade-trails';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
