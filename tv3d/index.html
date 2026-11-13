@@ -361,17 +361,15 @@ body { background: var(--ground); color: var(--cream); font-family: var(--font);
   </div>
 </div>
 
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
-</script>
-<script type="module">
-import * as THREE from 'three';
-import { Line2 } from 'three/addons/lines/Line2.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+<script>
+// A plain script, not a module with an import map, so the pre-push check can parse it.
+// jsDelivr's +esm builds point the line add-ons at the same three.js file, so there is one copy.
+(async () => {
+'use strict';
+const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/+esm');
+const { Line2 } = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/lines/Line2.js/+esm');
+const { LineMaterial } = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/lines/LineMaterial.js/+esm');
+const { LineGeometry } = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/lines/LineGeometry.js/+esm');
 
 const $ = (id) => document.getElementById(id);
 const D2R = Math.PI / 180;
@@ -1622,6 +1620,7 @@ measure();
 requestAnimationFrame((t) => { last = t; loop(t); requestAnimationFrame(() => { measure(); boot.classList.add('gone'); }); });
 window.__ready = true;
 report({ booted: Math.round(performance.now() / 1000), gpu: GPU, gl2: renderer.capabilities.isWebGL2 });
+})();
 </script>
 
 </body></html>
