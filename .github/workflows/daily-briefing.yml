@@ -11,7 +11,7 @@ name: daily-briefing
 
 on:
   # Started by Supabase, not by a GitHub schedule. pg_cron job daily-briefing-trigger
-  # sends repository_dispatch "briefing" at 12:45 UTC Mon-Sat (8:45 AM EDT —
+  # sends repository_dispatch "briefing" at 8:45 AM Toronto time, Mon-Fri (Jake 2026-11-12) (8:45 AM EDT —
   # deliberately BEFORE the board's 9 AM slot; the render takes a few minutes and
   # the board plays the file on its first minute-tick after 9 that finds a
   # today-dated briefing). GitHub's own scheduler queued this job by hours — it
@@ -36,9 +36,9 @@ on:
           are already out in the field. There are 2 junk removals on the book.
           Have a good one.
       voice:
-        description: 'Kokoro voice — bm_daniel, bm_george, bm_fable, bm_lewis'
+        description: 'Kokoro voice — af_heart (ROSE), bm_daniel, bm_george, bm_fable, bm_lewis'
         required: false
-        default: bm_daniel
+        default: af_heart
   # Touching .github/briefing-run triggers a REAL run (build from live data,
   # publish to the board's release). Exists because the "Run workflow" button
   # needs a signed-in GitHub session, and pushing is something Claude can do
