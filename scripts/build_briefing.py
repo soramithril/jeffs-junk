@@ -18,6 +18,7 @@ The voice is a licensed open model, NOT a clone of any real person.
 import datetime
 import json
 import os
+import random
 import sys
 import urllib.request
 
@@ -168,13 +169,269 @@ def plural(n, one, many):
     return "%d %s" % (n, one if n == 1 else many)
 
 
+def previous_weekday(d):
+    """The last working day before d: Friday for a Monday."""
+    d -= datetime.timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= datetime.timedelta(days=1)
+    return d
+
+
+def collect_driving(token, day):
+    """
+    One working day of Geotab driving, per truck, from driver_scores.
+    Only speeding, cornering, idling and distance are real there - hard braking,
+    fast starts, seatbelt, fuel and jobs_completed always read 0 (checked
+    2026-11-12), so they are never spoken. driver_name holds the TRUCK's name:
+    nobody logs who sat in the cab, so the briefing names trucks, never people.
+    Known gap: driver_scores has no Friday or Saturday rows, so Monday's
+    briefing usually has no driving to report and says nothing about it.
+    """
+    rows = get("/rest/v1/driver_scores?period_date=eq.%s"
+               "&select=driver_name,speeding_events,idle_minutes,distance_km" % day, token)
+    trucks = [{"truck": truck_name(r["driver_name"]), "speeding": r["speeding_events"] or 0,
+               "idle": r["idle_minutes"] or 0, "km": round(r["distance_km"] or 0)}
+              for r in rows if (r["distance_km"] or 0) >= 1]
+    if not trucks:
+        return None
+    return {"day": day, "trucks": trucks}
+
+
+def truck_name(raw):
+    """Geotab's device names, said the way the office says them."""
+    u = raw.strip().upper()
+    if "L7" in u:
+        return "the L7"
+    if "SILVERADO" in u:
+        return "the Silverado"
+    if "FURNITURE" in u:
+        return "the furniture van"
+    if u.startswith("TRACTOR"):
+        return "the tractor"
+    if u.startswith("HINO ") and u[5:].isdigit():
+        return "the %s Hino" % u[5:]
+    return "the " + raw.strip()
+
+
+# ---- Wording that changes every day (Jake 2026-11-12) ----
+# The numbers are always said plainly and in the same order; only the greeting,
+# the sign-off and the remarks around them change. Each list is walked in a fixed
+# shuffled order, one step per week for the weekday lists and one per day for
+# the others, so a line only comes back after every other line in its list has
+# had a turn. Nothing is stored: the date alone picks the line.
+
+OPENERS = {
+    0: ["Good morning, it's {date}. Fresh week, let's set the pace.",
+        "Morning, team. It's {date}, a brand new week.",
+        "Happy Monday, everyone. It's {date}.",
+        "Good morning. It's {date}, and the week starts now.",
+        "Morning, all. It's {date}. Let's start the week strong.",
+        "Good morning, team. New week, it's {date}.",
+        "Rise and shine, it's {date}.",
+        "Morning, everyone. It's {date}, let's get the week rolling."],
+    1: ["Good morning, it's {date}.",
+        "Morning, team. It's {date}, day two of the week.",
+        "Good morning, everyone. {date} is here.",
+        "Morning, all. It's {date}, let's keep it going.",
+        "Happy Tuesday. It's {date}.",
+        "Good morning, team. It's {date}, here's the day."],
+    2: ["Good morning, it's {date}. Halfway there.",
+        "Morning, team. It's {date}, the middle of the week.",
+        "Happy Wednesday, everyone. It's {date}.",
+        "Good morning. It's {date}, hump day.",
+        "Morning, all. It's {date}, the week is half done.",
+        "Good morning, team. It's {date}, over the hump we go."],
+    3: ["Good morning, it's {date}. Almost Friday.",
+        "Morning, team. It's {date}, one more after this.",
+        "Happy Thursday, everyone. It's {date}.",
+        "Good morning. It's {date}, the weekend is in sight.",
+        "Morning, all. It's {date}, let's have a good one.",
+        "Good morning, team. It's {date}, the home stretch."],
+    4: ["Happy Friday! It's {date}.",
+        "Good morning, it's {date}. Last push before the weekend.",
+        "Morning, team. It's {date}, the weekend is almost here.",
+        "Good morning, everyone. Friday is finally here, it's {date}.",
+        "Morning, all. It's {date}, let's finish the week strong.",
+        "Happy Friday, team. It's {date}, one more day."],
+}
+CLOSERS = {
+    0: ["Have a great Monday.", "Let's make it a good week.", "Have a good one.",
+        "Let's get after it.", "Good luck out there."],
+    1: ["Have a good one.", "Have a great Tuesday.", "Let's keep it rolling.",
+        "Good luck out there.", "Drive safe."],
+    2: ["Have a good one.", "Have a great Wednesday.", "Downhill from here.",
+        "Drive safe out there.", "Let's keep it moving."],
+    3: ["Have a good one.", "Have a great Thursday.", "One more day after this.",
+        "Drive safe out there.", "Finish strong."],
+    4: ["Have a great weekend.", "Finish strong and enjoy the weekend.",
+        "Drive safe, and have a good weekend.", "Last one of the week, let's make it count.",
+        "Enjoy the weekend, everyone."],
+}
+WEEKEND_BACK = "Welcome back from the long weekend. It's {date}."
+
+KM_LINES = ["{when}, the trucks drove {km} kilometres.",
+            "{when}, the fleet covered {km} kilometres.",
+            "{when}, we put {km} kilometres on the trucks."]
+SPEED_LINES = ["{Truck} had the most speeding alerts, {n}.",
+               "Most speeding alerts went to {truck}, with {n}.",
+               "{Truck} picked up {n} speeding alerts, the most of any truck.",
+               "Let's ease off a bit. {Truck} had {n} speeding alerts."]
+NO_SPEEDING = ["No speeding alerts at all. Great driving.",
+               "Not one speeding alert. Nice work, everyone."]
+CLEAN_LINES = ["Cleanest driving: {truck}. Nice work.",
+               "Shout out to {truck} for the cleanest driving.",
+               "{Truck} drove the cleanest. Good job."]
+IDLE_LINES = ["{Truck} sat idling for {mins}.",
+              "{Truck} idled the longest, {mins}.",
+              "Watch the idling. {Truck} ran {mins} while parked."]
+WET = ["Mind the driveways.", "Wet one out there, take it easy on the lawns.",
+       "Roads will be slick, give yourselves extra room."]
+SNOW = ["Snow on the way, take it slow out there.", "Snowy one today, mind the driveways.",
+        "Watch the roads, it's a snowy one."]
+COLD = ["Bundle up, it's a cold one.", "Dress warm out there."]
+HOT = ["Hot one today, drink lots of water.", "Stay hydrated out there."]
+BUSY = ["Big day on the board.", "Busy one, let's stay ahead of it.",
+        "Full board today, let's keep it moving."]
+QUIET = ["Nice and light today.", "Easy board today, a good day to catch up.",
+         "Light one today."]
+
+
+def pick(lines, key, step):
+    order = list(lines)
+    random.Random(key).shuffle(order)
+    return order[step % len(order)]
+
+
+def cap(s):
+    return s[0].upper() + s[1:]
+
+
+def spoken_minutes(m):
+    h, mm = divmod(int(m), 60)
+    if not h:
+        return plural(mm, "minute", "minutes")
+    hours = "an hour" if h == 1 else "%d hours" % h
+    return hours + ("" if mm < 5 else " and %s" % plural(mm, "minute", "minutes"))
+
+
+def easter(y):
+    a, b, c = y % 19, y // 100, y % 100
+    d, e = b // 4, b % 4
+    g = (8 * b + 13) // 25
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = c // 4, c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 19 * l) // 433
+    month = (h + l - 7 * m + 90) // 25
+    return datetime.date(y, month, (h + l - 7 * m + 33 * month + 19) % 32)
+
+
+def nth_monday(y, month, n):
+    first = datetime.date(y, month, 1)
+    return first + datetime.timedelta(days=(0 - first.weekday()) % 7 + 7 * (n - 1))
+
+
+def ontario_holidays(y):
+    may24 = datetime.date(y, 5, 24)
+    return {
+        datetime.date(y, 1, 1): "New Year's Day",
+        nth_monday(y, 2, 3): "Family Day",
+        easter(y) - datetime.timedelta(days=2): "Good Friday",
+        may24 - datetime.timedelta(days=may24.weekday()): "Victoria Day",
+        datetime.date(y, 7, 1): "Canada Day",
+        nth_monday(y, 8, 1): "the Civic Holiday",
+        nth_monday(y, 9, 1): "Labour Day",
+        nth_monday(y, 10, 2): "Thanksgiving",
+        datetime.date(y, 12, 25): "Christmas Day",
+        datetime.date(y, 12, 26): "Boxing Day",
+    }
+
+
+def holiday_name(d):
+    return ontario_holidays(d.year).get(d)
+
+
+def driving_lines(drv, today, day_step):
+    """Yesterday's driving, by truck. Praise as well as call-outs, so it gets listened to."""
+    if not drv:
+        return []
+    day = datetime.date.fromisoformat(drv["day"])
+    when = "Yesterday" if day == today - datetime.timedelta(days=1) else "On " + day.strftime("%A")
+    trucks = drv["trucks"]
+    lines = [pick(KM_LINES, "km", day_step).format(when=when, km=sum(t["km"] for t in trucks))]
+
+    top = max(trucks, key=lambda t: t["speeding"])
+    if top["speeding"] >= 5:
+        lines.append(pick(SPEED_LINES, "speed", day_step).format(
+            truck=top["truck"], Truck=cap(top["truck"]), n=top["speeding"]))
+    elif sum(t["speeding"] for t in trucks) == 0:
+        lines.append(pick(NO_SPEEDING, "nospeed", day_step))
+
+    extra = []
+    real = [t for t in trucks if t["km"] >= 50]
+    if real:
+        clean = min(real, key=lambda t: (t["speeding"], -t["km"]))
+        if clean is not top and clean["speeding"] <= 2:
+            extra.append(pick(CLEAN_LINES, "clean", day_step).format(
+                truck=clean["truck"], Truck=cap(clean["truck"])))
+    idler = max(trucks, key=lambda t: t["idle"])
+    if idler["idle"] >= 60:
+        extra.append(pick(IDLE_LINES, "idle", day_step).format(
+            truck=idler["truck"], Truck=cap(idler["truck"]), mins=spoken_minutes(idler["idle"])))
+    if extra:
+        lines.append(extra[day_step % len(extra)])
+    return lines
+
+
+def remark(s, today, day_step):
+    """At most one extra line: whatever matters most today."""
+    nxt = today + datetime.timedelta(days=1)
+    monday = today + datetime.timedelta(days=3)
+    if today.weekday() == 4 and holiday_name(monday):
+        return "Long weekend coming up. Monday is %s." % holiday_name(monday)
+    if nxt.weekday() < 5 and holiday_name(nxt):
+        return "Heads up, tomorrow is %s." % holiday_name(nxt)
+
+    w = s.get("weather")
+    if w:
+        if w["sky"] == "snowy":
+            return pick(SNOW, "snow", day_step)
+        if w["sky"] in ("drizzly", "rainy", "wet", "showery", "stormy"):
+            return pick(WET, "wet", day_step)
+        if w["high"] <= -10:
+            return pick(COLD, "cold", day_step)
+        if w["high"] >= 28:
+            return pick(HOT, "hot", day_step)
+
+    movements = s["drops"] + s["picks"]
+    if movements >= 12:
+        return pick(BUSY, "busy", day_step)
+    if 1 <= movements <= 3:
+        return pick(QUIET, "quiet", day_step)
+
+    xmas = datetime.date(today.year, 12, 25)
+    if datetime.date(today.year, 11, 1) <= today < xmas and (today.month == 12 or today.weekday() == 4):
+        return "%s till Christmas." % plural((xmas - today).days, "day", "days")
+    return None
+
+
 def write_script(s, today):
     """
-    Plain short sentences, read aloud once across a room. Only the numbers a
-    driver is listening for — Jake found the longer, wittier version too much
-    (2026-10-16). Singular/plural still matters: "1 bins" is jarring out loud.
+    Read aloud once across a room. The numbers are always said plainly and in
+    the same order - they are what people listen for, and Jake found the long
+    witty version too much (2026-10-16). Around them, the greeting, sign-off
+    and remarks change every day so it never sounds like a recording
+    (Jake 2026-11-12). Singular/plural still matters: "1 bins" is jarring out loud.
     """
-    lines = ["Good morning, %s." % spoken_date(today)]
+    wd = min(today.weekday(), 4)
+    week_step, day_step = today.toordinal() // 7, today.toordinal()
+    date = spoken_date(today)
+
+    yesterday = today - datetime.timedelta(days=1)
+    if today.weekday() == 1 and holiday_name(yesterday):
+        lines = [WEEKEND_BACK.format(date=date)]
+    else:
+        lines = [pick(OPENERS[wd], "open%d" % wd, week_step).format(date=date)]
 
     movements = s["drops"] + s["picks"]
     if movements:
@@ -203,11 +460,14 @@ def write_script(s, today):
     w = s.get("weather")
     if w:
         lines.append("%d degrees%s." % (w["high"], " and " + w["sky"] if w["sky"] else ""))
-        # Advice rather than colour, so it's the one remark worth keeping.
-        if w["sky"] in ("drizzly", "rainy", "wet", "snowy", "showery", "stormy"):
-            lines.append("Mind the driveways.")
 
-    lines.append("Have a good one.")
+    lines += driving_lines(s.get("driving"), today, day_step)
+
+    r = remark(s, today, day_step)
+    if r:
+        lines.append(r)
+
+    lines.append(pick(CLOSERS[wd], "close%d" % wd, week_step))
     return " ".join(lines)
 
 
@@ -238,6 +498,7 @@ def main():
     else:
         token = sign_in()
         stats = collect(token, today.isoformat())
+        stats["driving"] = collect_driving(token, previous_weekday(today).isoformat())
         text = write_script(stats, today)
 
     print("--- briefing script ---")
