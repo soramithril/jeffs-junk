@@ -13,8 +13,10 @@
 // any size. Every mark is {t: kind, p: [[x, y], ...], n: 'optional note'}
 // (Jake, 2026-11-11 - before that a drop zone was a box, {t:'zone', r:[x,y,w,h]}):
 //   zone, nopile, clear   an outline, three points or more
-//   walk                  a line, two points or more
-//   push                  an arrow, exactly two points (from, to)
+//   walk                  a line, two points or more; with c:1 it is a filled
+//                         shape instead, three points or more (Jake, 2026-11-13:
+//                         a small sidewalk drawn as a line is hard to see in print)
+//   push                 an arrow, exactly two points (from, to)
 //   hazard, salt          a pin, one point
 // Each kind numbers itself in saved order: DZ-01 is the first drop zone.
 //
@@ -23,12 +25,11 @@
 // the book and the site panel call it too.
 window.WinterSitePlan = (function(){
   var BUCKET = 'winter-sites', MAX_W = 3200, VW = 1000;
-  var AREA_HINT = 'Drag to draw the outline by hand, or click each corner for straight edges. Hold Shift and drag for a box. Double-click to finish.';
   var KINDS = {
-    zone:   {name: 'Drop zone',  code: 'DZ', color: '#ffd60a', shape: 'area',  key: 'Pile snow here.', hint: AREA_HINT},
-    nopile: {name: 'Don’t pile', code: 'NP', color: '#ef4444', shape: 'area',  key: 'Never pile snow here.', hint: AREA_HINT},
-    clear:  {name: 'Keep clear', code: 'KC', color: '#22d3ee', shape: 'area',  key: 'Entrances, fire routes and doors stay open.', hint: AREA_HINT},
-    walk:   {name: 'Sidewalk',   code: 'SW', color: '#2f80ed', shape: 'line',  key: 'Plow and salt the walk.', hint: 'Drag along the sidewalk to trace it by hand, or click point to point for straight runs. Double-click to finish.'},
+    zone:   {name: 'Drop zone',  code: 'DZ', color: '#ffd60a', shape: 'area',  key: 'Pile snow here.'},
+    nopile: {name: 'Don’t pile', code: 'NP', color: '#ef4444', shape: 'area',  key: 'Never pile snow here.'},
+    clear:  {name: 'Keep clear', code: 'KC', color: '#22d3ee', shape: 'area',  key: 'Entrances, fire routes and doors stay open.'},
+    walk:   {name: 'Sidewalk',   code: 'SW', color: '#2f80ed', shape: 'line',  key: 'Plow and salt the walk.'},
     push:   {name: 'Push arrow', code: 'PA', color: '#ffffff', shape: 'arrow', key: 'Push the snow this way.', hint: 'Drag from where the plow starts to where the snow ends up.'},
     hazard: {name: 'Hazard',     code: 'HZ', color: '#fb923c', shape: 'pin',   key: 'Watch for this.', hint: 'Click on a hydrant, curb, speed bump or anything else to watch for.'},
     salt:   {name: 'Salt bin',   code: 'SB', color: '#c4b5fd', shape: 'pin',   key: 'The salt bin is here.', hint: 'Click where the salt bin sits.'}
@@ -37,6 +38,21 @@ window.WinterSitePlan = (function(){
   var NEED = {area: 3, line: 2, arrow: 2, pin: 1};
   var FONT = 'font-family="Inter,system-ui,sans-serif"';
   var st = null;   // the site being edited
+  // How outlines and sidewalks get drawn (Jake, 2026-11-13: one switch on screen, not
+  // a drag-or-click guess). It stays as picked from one site to the next.
+  //   points  click dot to dot, straight lines between; dots catch on nearby marks
+  //   box     drag a rectangle
+  //   free    drag to trace by hand
+  var STYLES = {points: 'Point to point', box: 'Box', free: 'Free hand'};
+  var HINTS = {
+    area: {points: 'Click each corner. Click the first dot again, or double-click, to finish. A dot catches on a mark close by; hold Alt to stop that.',
+           box: 'Drag a box.',
+           free: 'Drag to trace the outline by hand.'},
+    line: {points: 'Click point to point along the sidewalk; double-click to finish a line. Click the first dot again instead to make a filled shape.',
+           box: 'Drag a box over the sidewalk.',
+           free: 'Drag along the sidewalk to trace a line. End where you started to make a filled shape.'}
+  };
+  var style = 'points';
 
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
   function kind(m){
@@ -49,6 +65,10 @@ window.WinterSitePlan = (function(){
     for(var k = 0; k < i; k++) if(marks[k].t === m.t) n++;
     return kind(m).code + '-' + String(n + 1).padStart(2, '0');
   }
+  // A sidewalk drawn as a filled shape behaves like an outline everywhere.
+  function shapeOf(m){ return m.c ? 'area' : kind(m).shape; }
+  // A new mark; only a sidewalk needs telling that it is a filled shape.
+  function made(t, p, closed){ return closed && KINDS[t].shape === 'line' ? {t: t, c: 1, p: p} : {t: t, p: p}; }
   function clamp(v){ return Math.min(1, Math.max(0, v)); }
   function f1(v){ return v.toFixed(1); }
 
@@ -56,7 +76,7 @@ window.WinterSitePlan = (function(){
   // Marks as SVG, in a 1000-wide box as tall as the photo's shape makes it, so
   // labels, pins and arrowheads are never stretched. o: sel (index picked in the
   // editor), vsel (the dot picked on that mark), draft (a mark still being drawn), hover (where the next point would
-  // go), labels (false to leave the codes off), size (how heavy everything is drawn:
+  // go), snap (the spot the next dot has caught on), labels (false to leave the codes off), size (how heavy everything is drawn:
   // line widths, codes, pins and handles all scale with it. The editor lowers it as
   // you zoom in, so the photo grows and the marks stay as fine as they were).
   function draw(marks, vh, o){
@@ -87,10 +107,11 @@ window.WinterSitePlan = (function(){
         if(mid && x1 - x0 >= cw * 1.3 && y1 - y0 >= ch * 1.9) return chip(mid[0], mid[1], text, c);
         return chip((x0 + x1) / 2, y0 - ch - gap < 0 ? y1 + ch / 2 + gap : y0 - ch / 2 - gap, text, c);
       }
-      if(K.shape === 'area'){
-        var dash = m.t === 'zone' ? '' : ' stroke-dasharray="' + w(11) + ' ' + w(7) + '"';
+      if(K.shape === 'area' || m.c || m.closed){
+        var solid = m.t === 'zone' || m.t === 'walk';
+        var dash = solid ? '' : ' stroke-dasharray="' + w(11) + ' ' + w(7) + '"';
         if(isDraft && !m.closed) g += '<polyline points="' + pts(p) + '" fill="' + c + '" fill-opacity=".15" stroke="' + c + '" stroke-width="' + w(3) + '" stroke-dasharray="' + w(8) + ' ' + w(6) + '" stroke-linejoin="round"/>';
-        else g += '<polygon points="' + pts(p) + '" fill="' + c + '" fill-opacity="' + (m.t === 'zone' ? .4 : .28) + '" stroke="#012b1f" stroke-width="' + w(on ? 6.5 : 5) + '" stroke-linejoin="round" stroke-opacity=".7"/>'
+        else g += '<polygon points="' + pts(p) + '" fill="' + c + '" fill-opacity="' + (m.t === 'walk' ? .5 : solid ? .4 : .28) + '" stroke="#012b1f" stroke-width="' + w(on ? 6.5 : 5) + '" stroke-linejoin="round" stroke-opacity=".7"/>'
           + '<polygon points="' + pts(p) + '" fill="none" stroke="' + (on ? '#fff' : c) + '" stroke-width="' + w(3) + '"' + dash + ' stroke-linejoin="round"/>';
         if(!isDraft){
           var cx = 0, cy = 0;
@@ -121,6 +142,8 @@ window.WinterSitePlan = (function(){
     }
     marks.forEach(function(m, i){ h += one(m, i, false); });
     if(o.draft) h += one(o.draft, -1, true);
+    // the ring that says the next dot has caught on something
+    if(o.snap){ var sn = P(o.snap); h += '<circle pointer-events="none" cx="' + f1(sn[0]) + '" cy="' + f1(sn[1]) + '" r="' + w(10) + '" fill="none" stroke="#012b1f" stroke-width="' + w(5) + '"/><circle pointer-events="none" cx="' + f1(sn[0]) + '" cy="' + f1(sn[1]) + '" r="' + w(10) + '" fill="none" stroke="#22c55e" stroke-width="' + w(2.6) + '"/>'; }
     return h;
   }
   // A finished overlay for a photo of the given shape (width / height).
@@ -150,7 +173,7 @@ window.WinterSitePlan = (function(){
     var loc = JWG.WIN.locations.find(function(l){ return l.id === id; });
     var run = JWG.WIN.locations.slice().sort(JWG.winterRouteSort);
     var pos = run.findIndex(function(l){ return l.id === id; });
-    st = {loc: loc, marks: JSON.parse(JSON.stringify(loc.site_marks || [])), tool: 'select', sel: null, vsel: null, ext: null, crop: null, draft: null, drag: null, hover: null,
+    st = {loc: loc, marks: JSON.parse(JSON.stringify(loc.site_marks || [])), tool: 'select', sel: null, vsel: null, ext: null, crop: null, draft: null, drag: null, hover: null, snap: null,
           zoom: 1, size: 1, labels: true, undo: [], redo: [], dirty: false, blob: null, ar: null,
           prev: run[pos - 1] ? run[pos - 1].id : null, next: run[pos + 1] ? run[pos + 1].id : null,
           url: loc.photo_path ? await signedUrl(loc.photo_path) : null};
@@ -171,7 +194,8 @@ window.WinterSitePlan = (function(){
       +   ORDER.map(function(t){ return '<button type="button" class="sp-tool" data-tool="' + t + '"><i style="background:' + KINDS[t].color + '"></i>' + KINDS[t].name + '</button>'; }).join('') + '</div>'
       + '<div class="sp-tools"><button type="button" class="sp-tool" id="sp-labels" title="Show or hide the codes on the photo">Labels</button><button type="button" class="sp-tool" id="sp-undo">↶ Undo</button><button type="button" class="sp-tool" id="sp-redo">↷ Redo</button>'
       +   '<button type="button" class="sp-tool" data-zoom="-1" aria-label="Zoom out">−</button><b id="sp-zl">100%</b><button type="button" class="sp-tool" data-zoom="1" aria-label="Zoom in">+</button></div></div>'
-      + '<div class="sp-note" id="sp-note"></div>'
+      // the Draw switch shares the hint's row, so it costs the photo no height
+      + '<div class="sp-noterow">' + '<div class="sp-styles" id="sp-styles"><span>Draw</span>' + Object.keys(STYLES).map(function(k){ return '<button type="button" class="sp-tool" data-style="' + k + '">' + STYLES[k] + '</button>'; }).join('') + '</div><div class="sp-note" id="sp-note"></div></div>'
       + '<div id="sp-cropbar" hidden><b>Cropping.</b><span>Drag a box around the part of the photo to keep. Your marks move with it; a mark left wholly outside the box is removed.</span>'
       +   '<button type="button" class="sp-btn primary" id="sp-crop-apply">Apply crop</button><button type="button" class="sp-btn" id="sp-crop-cancel">Cancel</button></div>'
       + '<div class="sp-body"><div class="sp-stage" id="sp-stage"></div>'
@@ -259,7 +283,8 @@ window.WinterSitePlan = (function(){
     if((b = t.closest('[data-go]'))){ leave(b.dataset.go); return; }
     if(t.closest('#sp-save')){ save(false); return; }
     if(t.closest('#sp-save-next')){ save(true); return; }
-    if((b = t.closest('[data-tool]'))){ finish(); st.tool = b.dataset.tool; st.vsel = null; st.ext = null; if(st.tool !== 'select') st.sel = null; paint(); return; }
+    if((b = t.closest('[data-tool]'))){ finish(); st.tool = b.dataset.tool; st.vsel = null; st.ext = null; st.snap = null; if(st.tool !== 'select') st.sel = null; paint(); return; }
+    if((b = t.closest('[data-style]'))){ finish(); style = b.dataset.style; st.snap = null; paint(); return; }
     if(t.closest('#sp-undo')){ finish(); step(st.undo, st.redo); return; }
     if(t.closest('#sp-redo')){ step(st.redo, st.undo); return; }
     if((b = t.closest('[data-zoom]'))){ zoomTo(st.zoom * (+b.dataset.zoom > 0 ? 1.5 : 1 / 1.5)); return; }
@@ -268,7 +293,7 @@ window.WinterSitePlan = (function(){
       finish();
       // The crop bar takes the place of the tools and the hint line, at exactly their
       // height, so the photo does not move when cropping starts.
-      if(!st.crop) document.getElementById('sp-cropbar').style.minHeight = (document.getElementById('sp-note').getBoundingClientRect().bottom - document.querySelector('#sp-page .sp-bar').getBoundingClientRect().top) + 'px';
+      if(!st.crop) document.getElementById('sp-cropbar').style.minHeight = (document.querySelector('#sp-page .sp-noterow').getBoundingClientRect().bottom - document.querySelector('#sp-page .sp-bar').getBoundingClientRect().top) + 'px';
       st.crop = st.crop ? null : {box: null}; st.tool = 'select'; st.sel = null; st.vsel = null; st.ext = null; paint(); return; }
     if(t.closest('#sp-crop-cancel')){ st.crop = null; paint(); return; }
     if(t.closest('#sp-crop-apply')){ applyCrop(); return; }
@@ -292,7 +317,7 @@ window.WinterSitePlan = (function(){
     else if(st.draft){
       // Still drawing: Enter ends it, Escape throws it away, Backspace takes back the last point.
       if(e.key === 'Enter'){ e.preventDefault(); finish(); paint(); }
-      else if(e.key === 'Escape'){ e.preventDefault(); st.draft = null; st.hover = null; st.ext = null; paint(); }
+      else if(e.key === 'Escape'){ e.preventDefault(); st.draft = null; st.hover = null; st.snap = null; st.ext = null; paint(); }
       else if(e.key === 'Backspace'){ e.preventDefault(); st.draft.p.pop(); if(!st.draft.p.length) st.draft = null; paint(); }
     }
     else if(e.key === 'Escape'){ if(st.ext) st.ext = null; else { st.sel = null; st.vsel = null; } paint(); }
@@ -308,7 +333,7 @@ window.WinterSitePlan = (function(){
     paint();
   }
   function removeDot(){
-    var m = st.marks[st.sel], shape = KINDS[m.t].shape;
+    var m = st.marks[st.sel], shape = shapeOf(m);
     if(shape === 'arrow' || m.p.length <= NEED[shape]){ JWG.toast('That mark has no dot to spare. Remove the whole mark instead.', 'error'); return; }
     remember();
     m.p.splice(st.vsel, 1);
@@ -323,8 +348,8 @@ window.WinterSitePlan = (function(){
   function finish(){
     var d = st.draft, ext = st.ext;
     if(!d) return;
-    st.draft = null; st.hover = null;
-    var p = d.p.filter(function(q, i){ return i === 0 || Math.abs(q[0] - d.p[i - 1][0]) > .004 || Math.abs(q[1] - d.p[i - 1][1]) > .004; });
+    st.draft = null; st.hover = null; st.snap = null;
+    var p = d.p.filter(function(q, i){ return i === 0 || apart(q, d.p[i - 1]) > 3; });
     if(ext){
       st.ext = null;
       var add = p.slice(1), m = st.marks[ext.i];
@@ -334,15 +359,33 @@ window.WinterSitePlan = (function(){
       st.sel = ext.i; st.vsel = null;
       return;
     }
-    if(p.length >= NEED[KINDS[d.t].shape]) commit({t: d.t, p: p});
+    var m2 = made(d.t, p, d.c);
+    if(p.length >= NEED[shapeOf(m2)]) commit(m2);
+  }
+  // How far apart two spots on the photo are on the screen, in pixels. Everything
+  // that asks "is this close?" asks it here, so zooming in really does give a finer hand
+  // (until 2026-11-13 these were shares of the photo, and a small sidewalk drawn at
+  // 800% lost its dots the same as one drawn at 100%).
+  function apart(a, b){
+    var r = document.getElementById('sp-svg').getBoundingClientRect();
+    return Math.hypot((a[0] - b[0]) * r.width, (a[1] - b[1]) * r.height);
+  }
+  // What the pointer draws with right now: 'points', 'box' or 'free'; '' when the
+  // tool in hand is not an outline or a sidewalk. Carrying a line on has no box.
+  function mode(){
+    if(st.ext) return style === 'free' ? 'free' : 'points';
+    if(st.tool === 'select') return '';
+    var sh = KINDS[st.tool].shape;
+    return sh === 'area' || sh === 'line' ? style : '';
   }
   function commit(m){
     remember();
     st.marks.push(m);
     st.sel = st.marks.length - 1;
   }
-  // A hand-drawn path keeps only the points that carry its shape (Ramer-Douglas-Peucker),
-  // measured on the 1000-wide drawing so "close enough" means the same on every photo.
+  // A hand-drawn path keeps only the points that carry its shape (Ramer-Douglas-Peucker).
+  // "Close enough" is about 3.6px on the screen (st.size turns that into drawing units),
+  // so a path traced zoomed in keeps the detail it was drawn with.
   function simplify(path){
     var vh = VW / st.ar, P = path.map(function(q){ return [q[0] * VW, q[1] * vh]; }), keep = [];
     (function rdp(a, b){
@@ -351,7 +394,7 @@ window.WinterSitePlan = (function(){
         var d = Math.abs(dy * (P[i][0] - ax) - dx * (P[i][1] - ay)) / len;
         if(d > far){ far = d; at = i; }
       }
-      if(far > 4){ rdp(a, at); keep.push(at); rdp(at, b); }
+      if(far > 4 * st.size){ rdp(a, at); keep.push(at); rdp(at, b); }
     })(0, P.length - 1);
     return [0].concat(keep, [P.length - 1]).map(function(i){ return path[i]; });
   }
@@ -401,9 +444,9 @@ window.WinterSitePlan = (function(){
   // The one line of help under the tools: what the pointer does right now.
   function note(){
     if(!st.url || st.crop) return '';
-    if(st.ext) return 'Carrying ' + label(st.marks, st.ext.i) + ' on from its end: click or drag to add to it. Double-click or press Enter to finish, Escape to stop.';
-    if(st.tool !== 'select') return KINDS[st.tool].hint + ' Scroll to zoom in.';
-    var m = st.sel != null ? st.marks[st.sel] : null, shape = m ? KINDS[m.t].shape : '';
+    if(st.ext) return 'Carrying ' + label(st.marks, st.ext.i) + ' on from its end: ' + (mode() === 'free' ? 'drag to trace more of it.' : 'click to add to it. Double-click or press Enter to finish.') + ' Escape to stop.';
+    if(st.tool !== 'select') return (mode() ? HINTS[KINDS[st.tool].shape][mode()] : KINDS[st.tool].hint) + ' Scroll to zoom in.';
+    var m = st.sel != null ? st.marks[st.sel] : null, shape = m ? shapeOf(m) : '';
     if(shape === 'line') return 'Drag a dot to reshape. Click an end dot to carry the line on. Double-click the line to add a dot; click a dot and press Delete to remove it.';
     if(shape === 'area') return 'Drag a dot to reshape. Double-click the outline to add a dot; click a dot and press Delete to remove it.';
     return 'Click a mark to select it: drag to move, drag a white dot to reshape, Delete to remove. Scroll to zoom in; drag the photo to slide it.';
@@ -411,13 +454,17 @@ window.WinterSitePlan = (function(){
   function paint(){
     var page = document.getElementById('sp-page'), el = document.getElementById('sp-svg');
     if(el && st.ar){
-      el.innerHTML = draw(st.marks, VW / st.ar, {sel: st.sel, vsel: st.vsel, draft: st.draft, hover: st.hover, size: st.size, labels: st.labels}) + cropShade();
+      el.innerHTML = draw(st.marks, VW / st.ar, {sel: st.sel, vsel: st.vsel, draft: st.draft, hover: st.hover, snap: st.snap, size: st.size, labels: st.labels}) + cropShade();
       el.style.cursor = st.tool === 'select' && !st.ext && !st.crop ? 'default' : 'crosshair';
     }
     page.querySelectorAll('[data-tool]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.tool === st.tool); b.disabled = !st.url; });
+    // The Draw switch keeps its place in the bar when it has nothing to say, so the photo never jumps.
+    var md = st.url ? mode() : '';
+    page.querySelector('#sp-styles').style.visibility = md ? '' : 'hidden';
+    page.querySelectorAll('[data-style]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.style === md); b.disabled = !!st.ext && b.dataset.style === 'box'; });
     page.querySelector('#sp-labels').setAttribute('aria-pressed', st.labels);
     page.querySelector('#sp-cropbar').hidden = !st.crop;
-    page.querySelector('.sp-bar').style.display = page.querySelector('#sp-note').style.display = st.crop ? 'none' : '';
+    page.querySelector('.sp-bar').style.display = page.querySelector('.sp-noterow').style.display = st.crop ? 'none' : '';
     page.querySelector('#sp-crop-apply').disabled = !(st.crop && st.crop.box);
     page.querySelector('#sp-crop').setAttribute('aria-pressed', !!st.crop);
     page.querySelector('#sp-crop').disabled = !st.url;
@@ -444,6 +491,36 @@ window.WinterSitePlan = (function(){
     function far(e, d, px){ return Math.hypot(e.clientX - d.cx, e.clientY - d.cy) > px; }
     // The end dot a line is being carried on from, and that line's kind.
     function anchor(){ var m = st.marks[st.ext.i]; return m.p[st.ext.atEnd ? m.p.length - 1 : 0]; }
+    // Point to point: a dot dropped close to something already drawn lands exactly on
+    // it, so marks meet with no gap or overlap. A dot of another mark (or the first dot
+    // of this one) wins within 10px; failing that, the nearest edge within 7px. Alt
+    // turns it off. Sets st.snap, which draw() shows as a ring. Returns where the dot goes.
+    function snapTo(p, e){
+      st.snap = null;
+      if(e.altKey) return p;
+      var r = el.getBoundingClientRect(), px = p[0] * r.width, py = p[1] * r.height, best = null;
+      var lines = st.marks.filter(function(m){ var sh = shapeOf(m); return sh === 'area' || sh === 'line'; });
+      var dots = [];
+      lines.forEach(function(m){ dots = dots.concat(m.p); });
+      if(st.draft && !st.ext && st.draft.p.length >= 3) dots.push(st.draft.p[0]);
+      dots.forEach(function(q){
+        var dist = Math.hypot(q[0] * r.width - px, q[1] * r.height - py);
+        if(dist < 10 && (!best || dist < best.dist)) best = {dist: dist, p: q};
+      });
+      if(!best) lines.forEach(function(m){
+        var n = m.p.length;
+        for(var i = 0; i < (shapeOf(m) === 'area' ? n : n - 1); i++){
+          var a = m.p[i], b = m.p[(i + 1) % n];
+          var ax = a[0] * r.width, ay = a[1] * r.height, dx = b[0] * r.width - ax, dy = b[1] * r.height - ay;
+          var t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy || 1)));
+          var dist = Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+          if(dist < 7 && (!best || dist < best.dist)) best = {dist: dist, p: [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]};
+        }
+      });
+      if(!best) return p;
+      st.snap = best.p.slice();
+      return best.p.slice();
+    }
     // Double-clicks are told apart here, not by the browser: every repaint swaps the
     // shapes under the pointer, and the browser drops a dblclick whose target has gone.
     var lastDown = null;
@@ -460,8 +537,8 @@ window.WinterSitePlan = (function(){
       if(st.tool === 'select' && v && st.sel != null){ d.kind = 'vertex'; d.k = +v.dataset.v; d.before = JSON.stringify(st.marks); }
       else if(st.tool === 'select' && st.ext && !st.draft && m && +m.dataset.m !== st.ext.i){ st.ext = null; st.vsel = null; st.sel = +m.dataset.m; d.kind = 'move'; d.orig = JSON.parse(JSON.stringify(st.marks[st.sel].p)); d.before = JSON.stringify(st.marks); }
       else if(st.tool === 'select' && st.ext){
-        // carrying a line on: a drag draws by hand from its end, a click adds a point
-        d.kind = 'trace'; d.t = st.marks[st.ext.i].t; d.path = [anchor(), p]; d.box = false; d.clicking = !!st.draft;
+        // carrying a line on from its end, in the draw style picked
+        d.kind = 'trace'; d.t = st.marks[st.ext.i].t; d.path = [anchor(), p]; d.mode = st.draft ? 'points' : mode();
       }
       else if(st.tool === 'select' && m){
         if(st.sel !== +m.dataset.m) st.vsel = null;
@@ -473,8 +550,9 @@ window.WinterSitePlan = (function(){
         st.sel = null; st.vsel = null;
         if(shape === 'pin'){ commit({t: st.tool, p: [p]}); d = null; }
         else if(shape === 'arrow'){ d.kind = 'arrow'; st.draft = {t: st.tool, p: [p, p]}; }
-        // A drag draws by hand (or a box with Shift); a plain click adds a corner.
-        else { d.kind = 'trace'; d.t = st.tool; d.path = [p]; d.box = shape === 'area' && e.shiftKey; d.clicking = !!st.draft; }
+        // An outline or a sidewalk, in the draw style picked. One begun dot to dot is
+        // finished dot to dot.
+        else { d.kind = 'trace'; d.t = st.tool; d.path = [p]; d.mode = st.draft ? 'points' : mode(); }
       }
       st.drag = d;
       paint();
@@ -482,7 +560,15 @@ window.WinterSitePlan = (function(){
     el.addEventListener('pointermove', function(e){
       if(!st) return;
       var d = st.drag, p = pt(e);
-      if(!d){ if(st.draft){ st.hover = p; paint(); } return; }
+      if(!d){
+        // Not pressed: show where the next dot would land, and whether it would catch.
+        if(st.draft || mode() === 'points'){
+          var was = st.snap, q = snapTo(p, e);
+          if(st.draft){ st.hover = q; paint(); }
+          else if(String(was) !== String(st.snap)) paint();
+        }
+        return;
+      }
       if(d.kind === 'pan'){ var sg = document.getElementById('sp-stage'); sg.scrollLeft = d.sx - (e.clientX - d.cx); sg.scrollTop = d.sy - (e.clientY - d.cy); return; }
       if(d.kind === 'crop'){ st.crop.box[1] = p; paint(); return; }
       if(d.kind === 'move'){
@@ -490,10 +576,12 @@ window.WinterSitePlan = (function(){
         st.marks[st.sel].p = d.orig.map(function(q){ return [clamp(q[0] + p[0] - d.a[0]), clamp(q[1] + p[1] - d.a[1])]; });
       } else if(d.kind === 'vertex'){ if(far(e, d, 3)){ d.moved = true; st.marks[st.sel].p[d.k] = p; } }
       else if(d.kind === 'arrow') st.draft.p[1] = p;
-      else if(!d.clicking && (d.moved || far(e, d, 8))){
+      // Point to point: the dot goes where the button comes up, so a shaky click is still a click.
+      else if(d.mode === 'points'){ var at = snapTo(p, e); if(st.draft) st.hover = at; }
+      else if(d.moved || far(e, d, d.mode === 'box' ? 4 : 8)){
         d.moved = true;
         d.path.push(p);
-        st.draft = d.box ? {t: d.t, closed: true, p: [d.a, [p[0], d.a[1]], p, [d.a[0], p[1]]]} : {t: d.t, p: d.path};
+        st.draft = d.mode === 'box' ? {t: d.t, closed: true, p: [d.a, [p[0], d.a[1]], p, [d.a[0], p[1]]]} : {t: d.t, p: d.path};
         st.hover = null;
       }
       paint();
@@ -517,25 +605,37 @@ window.WinterSitePlan = (function(){
           // a plain click picks the dot; on either end of a line it also starts carrying the line on
           var mk = st.marks[st.sel];
           st.vsel = d.k;
-          st.ext = KINDS[mk.t].shape === 'line' && (d.k === 0 || d.k === mk.p.length - 1) ? {i: st.sel, atEnd: d.k !== 0} : null;
+          st.ext = shapeOf(mk) === 'line' && (d.k === 0 || d.k === mk.p.length - 1) ? {i: st.sel, atEnd: d.k !== 0} : null;
         }
       }
       else if(d.kind === 'arrow'){
         var a = st.draft;
         st.draft = null;
         if(far(e, d, 14)) commit({t: a.t, p: a.p});
+      } else if(d.mode === 'points'){
+        // one more dot; on the first dot again it closes the shape (a sidewalk closed
+        // this way is a filled one)
+        var dot = snapTo(p, e);
+        if(!st.draft) st.draft = {t: d.t, p: st.ext ? [anchor()] : []};
+        var first = st.draft.p[0];
+        if(!st.ext && first && st.draft.p.length >= 3 && apart(p, first) < 12){ st.draft.c = 1; finish(); }
+        else { st.draft.p.push(dot); st.hover = dot; }
       } else if(d.moved){
         var drawn = st.draft;
         st.draft = null;
-        var path = d.box ? drawn.p : simplify(d.path);
-        if(st.ext){ st.draft = {t: d.t, p: path}; finish(); }
-        else if(path.length >= NEED[KINDS[d.t].shape]) commit({t: d.t, p: path});
-      } else {
-        // a click: one more corner; clicking the first corner again closes an outline
-        if(!st.draft) st.draft = {t: d.t, p: st.ext ? [anchor()] : []};
-        var first = st.draft.p[0], r = el.getBoundingClientRect();
-        if(!st.ext && first && KINDS[d.t].shape === 'area' && st.draft.p.length >= 3 && Math.hypot((p[0] - first[0]) * r.width, (p[1] - first[1]) * r.height) < 14) finish();
-        else st.draft.p.push(p);
+        if(d.mode === 'box'){
+          // a sliver is a slip of the hand, not a box
+          if(apart(drawn.p[0], drawn.p[1]) > 4 && apart(drawn.p[1], drawn.p[2]) > 4) commit(made(d.t, drawn.p, true));
+        } else {
+          var path = simplify(d.path);
+          if(st.ext){ st.draft = {t: d.t, p: path}; finish(); }
+          else {
+            // a sidewalk traced back round to its start is a filled shape
+            var loop = KINDS[d.t].shape === 'line' && path.length >= 4 && apart(path[0], path[path.length - 1]) < 14;
+            var mk2 = made(d.t, loop ? path.slice(0, -1) : path, loop);
+            if(mk2.p.length >= NEED[shapeOf(mk2)]) commit(mk2);
+          }
+        }
       }
       paint();
     });
@@ -543,7 +643,7 @@ window.WinterSitePlan = (function(){
     // so a straight stretch can be bent. True when it did.
     function addDot(c){
       if(st.tool !== 'select' || st.sel == null) return false;
-      var m = st.marks[st.sel], shape = KINDS[m.t].shape;
+      var m = st.marks[st.sel], shape = shapeOf(m);
       if(shape !== 'line' && shape !== 'area') return false;
       var r = el.getBoundingClientRect(), n = m.p.length, best = null;
       for(var i = 0; i < (shape === 'area' ? n : n - 1); i++){
@@ -657,6 +757,7 @@ window.WinterSitePlan = (function(){
       }
       var marks = st.marks.map(function(m){
         var out = {t: m.t, p: m.p.map(function(q){ return q.map(r4); })};
+        if(m.c) out.c = 1;
         if(m.n && m.n.trim()) out.n = m.n.trim();
         return out;
       });
