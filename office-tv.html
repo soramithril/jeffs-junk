@@ -2946,7 +2946,10 @@
     // autoplay — Chrome does, without a user gesture, and nobody touches a wall
     // display — the briefing still lands and we're told why it was silent.
     var BRIEF_URL = 'https://github.com/soramithril/jeffs-junk/releases/download/briefing/';
-    var BRIEF_HOUR = 9;
+    // It plays when someone ARRIVES (Jake, 2026-11-13), from the tv_arrivals table:
+    // Barb walking in, seen by the office camera, counts from 7 AM; Kelly signing in
+    // to the app counts from 8 AM. The first arrival that counts opens the window.
+    var ARRIVAL_FROM = { camera:7, 'sign-in':8 };
     var BRIEF_SHOW_MS = 45000;
 
     // ── wall telemetry ──────────────────────────────────────────────────────
@@ -2955,7 +2958,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-13-route-lines';
+    var TV_BUILD = '2026-11-13-routes-arrival';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
@@ -2968,14 +2971,28 @@
 
     // The Yodeck player has NO localStorage (2026-10-14: window.localStorage is
     // null there), so "already played" can't be saved on the device. Instead a
-    // briefing only plays inside a 30-minute window — from when it was published,
-    // or 9 AM if it went up earlier — and the page remembers in memory which file
+    // briefing only plays inside a 30-minute window — from the first arrival, or
+    // from when it was published if that came later — and the page remembers in memory which file
     // it played. Its own update reloads carry that forward in the URL hash (#b=);
     // a Yodeck restart inside the window is the one case that plays it twice.
     var BRIEF_WINDOW_MS = 30 * 60 * 1000;
     var _briefPlayed = new URLSearchParams((location.hash||'').replace(/^#/,'')).get('b') || '';
 
-    async function playBriefing(){
+    // When today's briefing may start: the first arrival, each held back to its
+    // source's opening hour (a Kelly sign-in at 7:40 opens at 8:00). Null = nobody yet.
+    async function arrivalOpens(){
+      var r = await db.from('tv_arrivals').select('who,source,at').eq('day', todayStr());
+      if(r.error) throw new Error('arrivals: ' + r.error.message);
+      var best = null;
+      (r.data || []).forEach(function(a){
+        var from = new Date(); from.setHours(ARRIVAL_FROM[a.source], 0, 0, 0);
+        var t = Math.max(Date.parse(a.at), from.getTime());
+        if(!best || t < best.t) best = { t:t, who:a.who };
+      });
+      return best;
+    }
+
+    async function playBriefing(arrival){
       try{
         // Release METADATA must come from api.github.com — the only GitHub host
         // that answers cross-origin fetches. The plain release-download URL does
@@ -2996,8 +3013,7 @@
         if(!mp3){ tvLog('brief-no-asset'); return; }
         if(ymd(new Date(mp3.updated_at)) !== todayStr()){ tvLog('brief-stale', mp3.updated_at); return; }
         if(mp3.updated_at === _briefPlayed) return;
-        var nine = new Date(); nine.setHours(BRIEF_HOUR, 0, 0, 0);
-        var opens = Math.max(new Date(mp3.updated_at).getTime(), nine.getTime());
+        var opens = Math.max(new Date(mp3.updated_at).getTime(), arrival.t);
         if(Date.now() >= opens + BRIEF_WINDOW_MS){ tvLog('brief-window-passed', mp3.updated_at); return; }
 
         // Mark played ONLY now that a today-dated briefing is in hand. Marking
@@ -3016,7 +3032,7 @@
         });
         audio.addEventListener('playing', function(){ tvLog('brief-playing'); });
         audio.addEventListener('ended', function(){ tvLog('brief-ended'); });
-        tvLog('brief-attempt');
+        tvLog('brief-attempt', arrival.who);
         audio.play().then(function(){
           tvLog('brief-play-accepted');
         }).catch(function(err){
@@ -3036,14 +3052,14 @@
       }catch(e){ tvLog('brief-error', String(e)); console.warn('briefing failed', e); }
     }
 
-    // Ticks every minute. From 9 AM it keeps trying until a today-dated briefing
-    // is found, then plays it once inside its window (see _briefPlayed).
-    // Retrying matters: the Action may publish after 9, so the first checks of
-    // the day can legitimately find nothing.
+    // Ticks every minute. Once someone has arrived it keeps trying until a
+    // today-dated briefing is found, then plays it once inside its window (see
+    // _briefPlayed). Nobody arrived = no briefing that day.
     function checkBriefing(){
-      if(new Date().getHours() < BRIEF_HOUR) return;
       if(inQuietHours()) return;
-      playBriefing();
+      arrivalOpens().then(function(arrival){
+        if(arrival && Date.now() >= arrival.t) playBriefing(arrival);
+      }).catch(function(e){ tvLog('brief-arrival-error', String(e)); });
     }
 
     // ── net status ───────────────────────────────────────────────────────────
