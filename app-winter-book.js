@@ -146,15 +146,26 @@ window.WinterBook = (function(){
     var marks = l.site_marks || [];
     var svc = servicesOf(l, W);
     var nick = l.client_name && l.client_name !== l.address ? l.client_name : '';
-    var turned = !!photo && photo.ar > 1;
-    var r = photo ? (turned ? 1 / photo.ar : photo.ar) : 1;   // the photo box's shape on the page
+    // With a site boundary drawn, the page shows only the box round it (fr, as shares of
+    // the photo), so the site itself fills the map. No boundary: the whole photo.
+    var fr = WinterSitePlan.frame(marks, photo ? photo.ar : 1);
+    var shown = photo ? photo.ar * fr[2] / fr[3] : 1;           // the shown part's shape
+    var turned = !!photo && shown > 1;
+    var r = turned ? 1 / shown : shown;                         // the photo box's shape on the page
     // A turned photo's marks turn with it, point by point, so their codes still read
     // upright: the picture's top edge becomes the box's right edge.
     var placed = turned ? marks.map(function(m){ return Object.assign({}, m, {p: m.p.map(function(q){ return [1 - q[1], q[0]]; })}); }) : marks;
     // The marks are drawn by the site plan editor's own draw(), so the book and the
     // editor cannot disagree about what a mark looks like. size keeps them at one
     // printed weight whatever the box's width (1.1 on the old 7.3in-wide photo).
-    var zones = photo && marks.length ? WinterSitePlan.svg(placed, r, {size: 8 / Math.min(SLOT_W, SLOT_H * r)}).replace('<svg ', '<svg class="mk" ') : '';
+    // view is the shown part, measured on the picture as it lies on the page.
+    var view = turned ? [1 - fr[1] - fr[3], fr[0], fr[3], fr[2]] : fr;
+    var zones = photo && marks.length ? WinterSitePlan.svg(placed, turned ? 1 / photo.ar : photo.ar, {view: view, size: 8 / Math.min(SLOT_W, SLOT_H * r) * view[2]}).replace('<svg ', '<svg class="mk" ') : '';
+    // The picture is sized and slid so the shown part exactly fills the box. Turned, it
+    // is as wide as the box is tall (cqw and cqh here are the photo box's own).
+    var pic = turned
+      ? 'width:calc(100cqh / ' + fr[2] + ');height:calc(100cqw / ' + fr[3] + ');left:' + (fr[1] + fr[3] - .5) / fr[3] * 100 + '%;top:' + (.5 - fr[0]) / fr[2] * 100 + '%'
+      : 'width:' + 100 / fr[2] + '%;height:' + 100 / fr[3] + '%;left:' + -fr[0] / fr[2] * 100 + '%;top:' + -fr[1] / fr[3] * 100 + '%';
     var used = WinterSitePlan.tally(marks), said = WinterSitePlan.notes(marks);
     var letters = function(cls, list){ return '<div class="' + cls + '">' + list.map(function(c){ return '<span>' + c + '</span>'; }).join('') + '</div>'; };
     // The page wears its area's colour (Jake, 2026-11-11), so a loose sheet says
@@ -168,7 +179,7 @@ window.WinterBook = (function(){
       + '<div class="sfile"><b>FILE</b> JWG-W-' + code + '<br><b>STOP</b> ' + l.winter_stop + ' OF ' + groupSize + ' · ' + g.code + '<br><b>INTEL</b> ' + isoDay(today) + '</div></div>'
       + '<div class="sbody"><div class="smap">' + (photo
           ? '<div class="grid">' + letters('gx', 'ABCDEF'.split('')) + letters('gy', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-            + '<div class="photo' + (turned ? ' turned' : '') + '" style="--r:' + r + '"><img src="' + photo.url + '" alt="">' + zones + '<i class="brk"></i></div></div>'
+            + '<div class="photo' + (turned ? ' turned' : '') + '" style="--r:' + r + '"><img src="' + photo.url + '" alt="" style="' + pic + '">' + zones + '<i class="brk"></i></div></div>'
           : '<div class="nophoto">No photo yet. Add one on Snow &amp; Ice under Site plan.</div>') + '</div>'
       + '<div class="side"><div><div class="h">Services</div><div class="sv">' + svc.map(function(s){
           return '<div class="' + (s.on ? 'yes' : 'no') + '"><span class="box">' + (s.on ? TICK : '') + '</span>' + esc(s.name.toUpperCase()) + '</div>';
@@ -230,9 +241,10 @@ window.WinterBook = (function(){
     '.gx,.gy{display:flex;justify-content:space-around;font-family:var(--mono);font-size:.095in;font-weight:600;color:var(--forest)}',
     '.gy{flex-direction:column;align-items:center}.gx{grid-column:2;grid-row:1}.gy{grid-column:1;grid-row:2}.grid .photo{grid-column:2;grid-row:2}',
     '.photo{position:relative;overflow:hidden;container-type:size;aspect-ratio:var(--r);width:min(100cqw - .3in,(100cqh - .3in)*var(--r));outline:.02in solid var(--deep);outline-offset:.04in}',
-    '.photo img{display:block;width:100%;height:100%;object-fit:cover}',
-    // a wide photo lies on its side: the picture is as wide as its box is tall
-    '.photo.turned img{position:absolute;left:50%;top:50%;width:100cqh;height:100cqw;max-width:none;transform:translate(-50%,-50%) rotate(90deg)}',
+    // the picture's size and place come from sitePage (it may show only part of the photo)
+    '.photo img{display:block;position:absolute;max-width:none}',
+    // a wide photo lies on its side, placed by its middle
+    '.photo.turned img{transform:translate(-50%,-50%) rotate(90deg)}',
     '.mk{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}',
     '.brk{position:absolute;inset:0;pointer-events:none;--l:.24in;--w:.04in;background:',
     '  linear-gradient(var(--logo),var(--logo)) 0 0/var(--l) var(--w) no-repeat,linear-gradient(var(--logo),var(--logo)) 0 0/var(--w) var(--l) no-repeat,',
