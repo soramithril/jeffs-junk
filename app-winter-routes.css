@@ -49,6 +49,8 @@
 #view-jwgscheduler .sp-tool:hover{background:var(--n3)}
 #view-jwgscheduler .sp-tool[aria-pressed="true"]{background:var(--n12);border-color:var(--n12);color:#fff}
 #view-jwgscheduler .sp-tool i{width:13px;height:13px;border-radius:4px;border:1px solid rgba(1,43,31,.6)}
+#view-jwgscheduler .sp-styles{display:flex;align-items:center;gap:6px;margin-left:6px;padding-left:12px;border-left:2px solid var(--n6)}
+#view-jwgscheduler .sp-styles span{font-size:12px;font-weight:700;color:var(--n11);text-transform:uppercase;letter-spacing:.06em}
 #view-jwgscheduler #sp-zl{min-width:46px;text-align:center;font-size:13px;font-variant-numeric:tabular-nums}
 #view-jwgscheduler .sp-note{font-size:13px;color:var(--n11);min-height:19px}
 #view-jwgscheduler #sp-cropbar{box-sizing:border-box;display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:#fff;border:1px solid var(--n6);border-radius:8px;padding:8px 12px;font-size:13.5px}
