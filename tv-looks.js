@@ -10,7 +10,9 @@
    The effects are plain-CSS versions of the React Bits ones in the mockup
    (tv-looks.css), so the Yodeck box gets no React and no canvas. */
 window.JJTVLooks = (function () {
-  var LOOKS = { bins:['a','b','c'], kpis:['lanes','a','b','c'], liveops:['a','c'] };
+  // Jake 2026-11-13: one look per screen - driver cards, the beat-last-year lanes,
+  // and the map with truck cards. The other looks are off the wall.
+  var LOOKS = { bins:['a'], kpis:['lanes'], liveops:['a'] };
   var SVG_NS = 'viewBox="0 0 36 36"';
 
   // ── the effects ──
