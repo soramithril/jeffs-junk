@@ -191,11 +191,11 @@ window.WinterSitePlan = (function(){
       +   '<button type="button" class="sp-btn primary" id="sp-save">Save</button>'
       +   (st.next ? '<button type="button" class="sp-btn primary" id="sp-save-next">Save &amp; next →</button>' : '') + '</div></div>'
       + '<div class="sp-bar"><div class="sp-tools"><button type="button" class="sp-tool" data-tool="select">Select &amp; move</button>'
-      +   ORDER.map(function(t){ return '<button type="button" class="sp-tool" data-tool="' + t + '"><i style="background:' + KINDS[t].color + '"></i>' + KINDS[t].name + '</button>'; }).join('')
-      +   '<div class="sp-styles" id="sp-styles"><span>Draw</span>' + Object.keys(STYLES).map(function(k){ return '<button type="button" class="sp-tool" data-style="' + k + '">' + STYLES[k] + '</button>'; }).join('') + '</div></div>'
+      +   ORDER.map(function(t){ return '<button type="button" class="sp-tool" data-tool="' + t + '"><i style="background:' + KINDS[t].color + '"></i>' + KINDS[t].name + '</button>'; }).join('') + '</div>'
       + '<div class="sp-tools"><button type="button" class="sp-tool" id="sp-labels" title="Show or hide the codes on the photo">Labels</button><button type="button" class="sp-tool" id="sp-undo">↶ Undo</button><button type="button" class="sp-tool" id="sp-redo">↷ Redo</button>'
       +   '<button type="button" class="sp-tool" data-zoom="-1" aria-label="Zoom out">−</button><b id="sp-zl">100%</b><button type="button" class="sp-tool" data-zoom="1" aria-label="Zoom in">+</button></div></div>'
-      + '<div class="sp-note" id="sp-note"></div>'
+      // the Draw switch shares the hint's row, so it costs the photo no height
+      + '<div class="sp-noterow">' + '<div class="sp-styles" id="sp-styles"><span>Draw</span>' + Object.keys(STYLES).map(function(k){ return '<button type="button" class="sp-tool" data-style="' + k + '">' + STYLES[k] + '</button>'; }).join('') + '</div><div class="sp-note" id="sp-note"></div></div>'
       + '<div id="sp-cropbar" hidden><b>Cropping.</b><span>Drag a box around the part of the photo to keep. Your marks move with it; a mark left wholly outside the box is removed.</span>'
       +   '<button type="button" class="sp-btn primary" id="sp-crop-apply">Apply crop</button><button type="button" class="sp-btn" id="sp-crop-cancel">Cancel</button></div>'
       + '<div class="sp-body"><div class="sp-stage" id="sp-stage"></div>'
@@ -293,7 +293,7 @@ window.WinterSitePlan = (function(){
       finish();
       // The crop bar takes the place of the tools and the hint line, at exactly their
       // height, so the photo does not move when cropping starts.
-      if(!st.crop) document.getElementById('sp-cropbar').style.minHeight = (document.getElementById('sp-note').getBoundingClientRect().bottom - document.querySelector('#sp-page .sp-bar').getBoundingClientRect().top) + 'px';
+      if(!st.crop) document.getElementById('sp-cropbar').style.minHeight = (document.querySelector('#sp-page .sp-noterow').getBoundingClientRect().bottom - document.querySelector('#sp-page .sp-bar').getBoundingClientRect().top) + 'px';
       st.crop = st.crop ? null : {box: null}; st.tool = 'select'; st.sel = null; st.vsel = null; st.ext = null; paint(); return; }
     if(t.closest('#sp-crop-cancel')){ st.crop = null; paint(); return; }
     if(t.closest('#sp-crop-apply')){ applyCrop(); return; }
@@ -464,7 +464,7 @@ window.WinterSitePlan = (function(){
     page.querySelectorAll('[data-style]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.style === md); b.disabled = !!st.ext && b.dataset.style === 'box'; });
     page.querySelector('#sp-labels').setAttribute('aria-pressed', st.labels);
     page.querySelector('#sp-cropbar').hidden = !st.crop;
-    page.querySelector('.sp-bar').style.display = page.querySelector('#sp-note').style.display = st.crop ? 'none' : '';
+    page.querySelector('.sp-bar').style.display = page.querySelector('.sp-noterow').style.display = st.crop ? 'none' : '';
     page.querySelector('#sp-crop-apply').disabled = !(st.crop && st.crop.box);
     page.querySelector('#sp-crop').setAttribute('aria-pressed', !!st.crop);
     page.querySelector('#sp-crop').disabled = !st.url;
