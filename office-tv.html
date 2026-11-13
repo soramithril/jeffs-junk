@@ -241,16 +241,12 @@
   .p-body{flex:1 1 auto; min-height:0}
 
   /* ── Today at HQ (screen 4): the pixel scene from app-hq.js IS the screen (Jake,
-     2026-11-02). While it is up #board carries .full-bleed: the stage covers all
+     2026-11-02). While it is up #board carries .hq-full: the stage covers all
      1920x1080 and the header and footer step aside - the clock, the weather and the
      bins-out count are all inside the picture. The canvas is 640x360, exactly a third
      of the board each way, so every pixel lands as a clean 3x3 block. ── */
-  #board.full-bleed #stage{position:absolute; inset:0; margin:0; z-index:0}
-  #board.full-bleed #topbar, #board.full-bleed #botbar{visibility:hidden}
-  /* ── 3D map speed test (2026-11-13): tv3d/index.html in a frame, full bleed. The frame
-     only exists while the screen is up, so the 3D page frees the TV's GPU between showings. ── */
-  .panel[data-panel="map3d"] .p-body{padding:0}
-  #m3dFrame{display:block; width:100%; height:100%; border:0; background:#0d140f}
+  #board.hq-full #stage{position:absolute; inset:0; margin:0; z-index:0}
+  #board.hq-full #topbar, #board.hq-full #botbar{visibility:hidden}
   .panel[data-panel="hq"] .p-body{padding:0}
   #hqCanvas{display:block; width:100%; height:100%; image-rendering:crisp-edges; image-rendering:pixelated}
 
@@ -868,11 +864,6 @@
         </section>
 
         <!-- Screen 4 · Today at HQ: the pixel scene (app-hq.js) -->
-        <!-- Screen 5 · 3D map speed test (tv3d/index.html, mounted only while up) -->
-        <section class="panel" data-panel="map3d">
-          <div class="p-body" id="m3dBody"></div>
-        </section>
-
         <section class="panel" data-panel="hq">
           <div class="p-head"><span class="bar"></span><h2>Today at HQ</h2>
             <span class="tag" id="hqTag"></span></div>
@@ -925,22 +916,18 @@
     // Jake, 2026-11-02: slow the whole lap down so there is time to look at each
     // screen - about 3.5 minutes a lap. Today at HQ replays the day in 14s, then
     // holds on right now while the day's new bookings are walked to the booking room.
-    var PANEL_MS   = { bins: 40000, kpis: 30000, liveops: 45000, hq: 90000, map3d: 60000 };
+    var PANEL_MS   = { bins: 40000, kpis: 30000, liveops: 45000, hq: 90000 };
     // Jake, 2026-11-12: the 8-bit Today at HQ scene was on too long - every lap.
     // Now it comes up once an hour; the laps in between skip it.
     var HQ_EVERY_MS = 3600000;
     var _hqShownAt = 0;                  // 0 = not yet, so it shows on the first lap
-    // Jake, 2026-11-13: test the 3D map on the real TV. One minute, at most every half
-    // hour, never in quiet hours; the page reports its frames per second to the TV log.
-    var M3D_EVERY_MS = 1800000;
-    var _m3dShownAt = 0;
     function panelMs(name){ return PANEL_MS[name] || ROTATE_MS; }
     var REFRESH_MS = 900000;  // how often data is refetched (15 min — keeps Supabase egress low; panels still rotate every 20s so the board stays lively)
     // The weekly crew schedule came off the wall on 2026-09-06 (Jake: "we don't
     // need it anymore"). The data behind it still loads — workingTodayCount()
     // reads the same rows for the Operations screen.
     // 'hq' (Today at HQ, app-hq.js) drops out of the lap whenever its data is missing.
-    var PANELS = ['bins','kpis','liveops','hq','map3d'];
+    var PANELS = ['bins','kpis','liveops','hq'];
     // 92 Davidson St — home base. Re-geocoded 2026-09-05: the old point (44.3683,
     // -79.6831) was Tower Crescent, 4 km south, so every truck parked at the depot
     // counted as OUT — "5 of 5 out" all night, and the overview framed the depot
@@ -2737,15 +2724,13 @@
       // Today at HQ animates only while it is the screen up
       if(name === 'hq'){ _hqShownAt = Date.now(); JJHQ.show(hqSnapshot()); }
       else if(_hqMounted) JJHQ.hide();
-      if(name === 'map3d'){ _m3dShownAt = Date.now(); mount3d(); }
-      else unmount3d();
       renderCurrent();
       syncFooter();
       // the trucks screen runs the map full bleed; the other two do not
       el('board').classList.toggle('map-full', name === 'liveops');
       el('board').classList.toggle('map-day', name === 'liveops' && lookOf('liveops') === 'c');
-      // ...and Today at HQ and the 3D test fill the whole TV, header and footer included
-      el('board').classList.toggle('full-bleed', name === 'hq' || name === 'map3d');
+      // ...and Today at HQ fills the whole TV, header and footer included
+      el('board').classList.toggle('hq-full', name === 'hq');
       // ...and the map has to be told, or it keeps framing for the old box
       if(name === 'liveops' && _map) google.maps.event.trigger(_map, 'resize');
       var panels = document.querySelectorAll('.panel');
@@ -2779,34 +2764,13 @@
     function nextPanel(){
       try {
         var n = panelIdx+1;
-        while(skipNow(PANELS[n % PANELS.length])) n++;
+        // HQ skipped this lap when its data is missing or it was up within the hour
+        if(PANELS[n % PANELS.length] === 'hq' && (!DATA.hq || Date.now() - _hqShownAt < HQ_EVERY_MS)) n++;
         showPanel(n);
       }
       catch(e){ console.error('panel render failed', e); }
       finally { armRotation(); }
     }
-    // HQ sits out when its data is missing or it was up within the hour; the 3D test
-    // sits out in quiet hours or within half an hour of its last showing.
-    function skipNow(name){
-      if(name === 'hq') return !DATA.hq || Date.now() - _hqShownAt < HQ_EVERY_MS;
-      if(name === 'map3d') return inQuietHours() || Date.now() - _m3dShownAt < M3D_EVERY_MS;
-      return false;
-    }
-    function mount3d(){
-      if(el('m3dFrame')) return;
-      var f = document.createElement('iframe');
-      f.id = 'm3dFrame'; f.src = 'tv3d/index.html?v=745';
-      el('m3dBody').appendChild(f);
-      tvLog('3d-mount', '');
-    }
-    function unmount3d(){
-      var f = el('m3dFrame');
-      if(f) f.parentNode.removeChild(f);
-    }
-    // The 3D page posts its speed every 20 s (and any error); it goes straight to the log.
-    window.addEventListener('message', function(e){
-      if(e.data && e.data.tv3d) tvLog(e.data.error ? '3d-error' : '3d-speed', JSON.stringify(e.data));
-    });
     // A setTimeout chain rather than one setInterval, so each panel can hold the
     // screen for its own length of time.
     function armRotation(){
@@ -2870,7 +2834,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-13-3d-test';
+    var TV_BUILD = '2026-11-13-3d-off';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
