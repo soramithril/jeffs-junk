@@ -20,6 +20,14 @@ and trim it down to what is left.
 
 *Things you want next.*
 
+- **Bins out with no pickup date get a check-in call (Kelly keeps forgetting them)** - Bins with a booked pickup are fine (0 late on 2026-11-16). The forgotten ones have NO pickup date: 16 of 35 out that day (12 will-calls, 4 never given a date; oldest 125, 98 and 42 days). Nothing ever makes them due, so no reminder fires. Plan, mocked up with Jake 2026-11-16:
+  - Every bin out with no pickup date gets a call-back day 7 days after the drop.
+  - **Where:** one new line at the top of Kelly's morning brief (app-brief.js, the pop-up she already gets on her first dashboard visit): "3 bins need a check-in call" with a **Start calls** link. Kelly is on the dashboard every working day (21 of 21) but opened the Bins page twice in 30 days, so it has to live on the dashboard path, not a new page.
+  - **Start calls** opens a big card, one bin at a time: bin number, town, address, days out, customer and phone, two big buttons - **Book pickup** (pick a date) or **Still using it** (asks again in 7 days). The brief line ticks itself off when every bin is answered, like the other lines.
+  - After that the answered bins sit in **Needs you** (under Today's Jobs) for the rest of the day.
+  - Clean-up in the same change: the Bins out list stops flagging bins that already have a pickup booked (17 of 35 were red - too many to mean anything), and Waiting on call shows when each will-call was last asked.
+  - Jake also liked a version where the card takes over the screen until answered; that goes against his October "no buttons in the morning pop-up" rule, so the brief-line version is the plan unless he says otherwise. Other options shown, not picked: an automatic "still using your bin?" email to the customer, the office TV saying it out loud, and passing it up to Jake/Jeff when a bin is 3 days past its call day.
+  <sub>Jake, 2026-11-16 - mockups only, nothing built</sub>
 - **Refresh the help and tutorial for everything that's changed** - The walkthrough is out of date, the Live Jobs help already describes a screen that doesn't exist. Go through every page and bring the help in line with what is actually there now.
   <sub>Jake, 2026-09-08</sub>
 - **Crew in/out and gate times logged from UniFi** - Not an app feature: UniFi Protect already does the face recognition in the back shop and reads plates at the gate. It sends us a small line per sighting - who, which camera, when - plus a link that opens that moment in Protect. No video or snapshots stored here. Payroll stops scrubbing footage by hand. Measured 2026-09-08: about 50 sightings a day is 5-7 MB a year against a 500 MB allowance, so cost is not a reason not to. Scoped 2026-08-29, not built.
