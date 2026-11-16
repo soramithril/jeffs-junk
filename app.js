@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '748';
+var APP_VERSION = '749';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -4826,7 +4826,10 @@ async function renderDash(bg){
   // Morning brief last, on the arrival render only: by here the job count and
   // the loose-end count are both in, so the greeting animates on finished text
   // instead of on a placeholder (the bug that made it look static).
-  if(!bg) maybeShowMorningBrief();
+  // Kelly's list preview (app-kelly-list.js, Jake's login only): while a layout is on
+  // it stands in for his morning brief.
+  if(window.JJKellyList) JJKellyList.render(!bg);
+  if(!bg && !(window.JJKellyList && JJKellyList.on())) maybeShowMorningBrief();
 }
 
 // ─── POSSIBLE JOBS (undated Landscaping backlog) ───────────────────────────
