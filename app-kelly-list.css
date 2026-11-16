@@ -1,0 +1,78 @@
+/* Kelly's list — preview, Jake only (app-kelly-list.js, v749). Built from the morning
+   brief's own pieces (the line, the truck road, the DONE stamp) so it reads as the app. */
+
+/* the preview switch, above the jump bar */
+#jjkl-switch{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 10px;padding:8px 12px;background:#123f24;color:#fff;border-radius:12px}
+.jjkl-sw-lbl{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
+.jjkl-sw-btns{display:flex;gap:6px;flex-wrap:wrap}
+.jjkl-sw-b{font:inherit;font-size:12.5px;font-weight:700;padding:6px 12px;border-radius:99px;border:0;background:rgba(255,255,255,.14);color:#fff;cursor:pointer}
+.jjkl-sw-b:hover{background:rgba(255,255,255,.24)}
+.jjkl-sw-b.on{background:var(--accent-hero);color:#0b2a17}
+
+/* the list card */
+.jjkl-list{background:var(--surface);border:2px solid var(--accent);border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:24px;overflow:hidden}
+.jjkl-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:14px 18px 0}
+.jjkl-title{font-family:'Bebas Neue',Impact,sans-serif;font-size:30px;line-height:1;letter-spacing:.03em;color:var(--accent-hover)}
+.jjkl-left{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.jjkl-road{position:relative;height:32px;margin:0 18px 12px;border-bottom:2px dashed var(--border)}
+.jjkl-truck{position:absolute;bottom:-2px;width:46px;height:28px;transform:translateX(-50%);transition:left .7s cubic-bezier(.34,1.3,.64,1);color:var(--accent)}
+.jjkl-yard{position:absolute;right:0;bottom:4px;font-family:'Bebas Neue',Impact,sans-serif;font-size:15px;letter-spacing:.08em;color:var(--muted)}
+.jjkl-road.arrived .jjkl-yard{color:var(--accent)}
+.jjkl-clear{display:flex;flex-direction:column;gap:2px;padding:0 18px 12px}
+.jjkl-clear b{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:40px;line-height:1;color:var(--accent-hover)}
+.jjkl-clear span{color:var(--muted)}
+.jjkl-lines{display:flex;flex-direction:column;gap:8px;padding:0 14px 14px}
+.jjkl-line{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--info);border-radius:12px;padding:11px 14px;transition:opacity .3s}
+.jjkl-line.jjkl-warn{border-left-color:var(--warn)} .jjkl-line.jjkl-bad{border-left-color:var(--bad)}
+.jjkl-ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--info-soft);color:var(--info-ink)}
+.jjkl-warn .jjkl-ico{background:var(--warn-soft);color:var(--warn-ink)} .jjkl-bad .jjkl-ico{background:var(--bad-soft);color:var(--bad-ink)}
+.jjkl-txt{display:flex;flex-direction:column;min-width:0}
+.jjkl-t{font-size:15px;font-weight:600;line-height:1.3;color:var(--text)}
+.jjkl-s{font-size:12.5px;color:var(--muted)}
+.jjkl-btn{font:inherit;font-size:13px;font-weight:700;white-space:nowrap;border-radius:9px;padding:8px 14px;cursor:pointer;border:1px solid var(--accent);background:var(--surface);color:var(--accent-hover)}
+.jjkl-btn.pri{background:var(--accent-hero);border-color:var(--accent-hero);color:#0b2a17}
+.jjkl-btn:hover{filter:brightness(.96)}
+.jjkl-btn:focus-visible,.jjkl-go:focus-visible,.jjkl-sw-b:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.jjkl-line.is-done{opacity:.6;border-left-color:var(--ok)}
+.jjkl-line.is-done .jjkl-ico{background:var(--ok-soft);color:var(--ok-ink)}
+.jjkl-line.is-done .jjkl-t{text-decoration:line-through}
+.jjkl-done{font-family:'Bebas Neue',Impact,sans-serif;font-size:16px;letter-spacing:.06em;color:var(--ok);border:2px solid var(--ok);border-radius:6px;padding:0 7px;display:inline-block;transform:rotate(-6deg)}
+
+/* B and C: Today's Jobs keeps the top, the list sits pinned on the right */
+.dash-section.jjkl-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,420px);gap:16px;align-items:start}
+.dash-section.jjkl-split .jjkl-list{position:sticky;top:76px;margin-bottom:0}
+.dash-section.jjkl-split .jjkl-line{grid-template-columns:34px minmax(0,1fr)}
+.dash-section.jjkl-split .jjkl-act{grid-column:2}
+.dash-section.jjkl-split .jjkl-ico{width:34px;height:34px}
+@media (max-width:1100px){
+  .dash-section.jjkl-split{grid-template-columns:1fr}
+  .dash-section.jjkl-split .jjkl-list{position:static;order:-1}
+}
+
+/* the bin check-in card (C) */
+.jjkl-ov{background:rgba(18,26,21,.80);z-index:520;padding:20px}
+.jjkl-cc{width:100%;max-width:580px;background:var(--surface);border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.35);overflow:hidden}
+.jjkl-cch{background:#123f24;color:#fff;padding:14px 22px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.jjkl-cch b{font-family:'Bebas Neue',Impact,sans-serif;font-size:26px;letter-spacing:.04em;font-weight:400}
+.jjkl-cch span{font-size:12px;opacity:.8}
+.jjkl-dots{display:flex;gap:5px;padding:14px 22px 0}
+.jjkl-dots span{flex:1;height:6px;border-radius:3px;background:var(--n3)}
+.jjkl-dots .on{background:var(--warn)} .jjkl-dots .ok{background:var(--accent)}
+.jjkl-ccb{padding:14px 22px 22px}
+.jjkl-bid{font-family:'Bebas Neue',Impact,sans-serif;font-size:76px;line-height:.95;letter-spacing:.02em;color:var(--text)}
+.jjkl-bsz{font-size:15px;font-weight:600;color:var(--muted)}
+.jjkl-addr{font-size:20px;font-weight:600;margin-top:4px;color:var(--text)}
+.jjkl-out{display:inline-block;margin-top:12px;background:var(--warn-soft);color:var(--warn-ink);padding:6px 12px;border-radius:8px;font-weight:700}
+.jjkl-who{margin-top:14px;padding:12px 14px;background:var(--n2);border-radius:10px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:16px}
+.jjkl-who b{font-weight:700}
+.jjkl-acts{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;align-items:center}
+.jjkl-ask{width:100%;font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.jjkl-go{flex:1;min-width:150px;font:inherit;font-size:17px;font-weight:700;padding:16px 10px;border-radius:12px;cursor:pointer}
+.jjkl-go.y{background:var(--accent-hero);border:0;color:#0b2a17}
+.jjkl-go.n{background:var(--surface);border:2px solid var(--n7);color:var(--text-secondary)}
+.jjkl-go:hover{filter:brightness(.96)}
+.jjkl-date{flex:1;min-width:180px;font:inherit;font-size:17px;padding:12px;border:2px solid var(--n7);border-radius:12px}
+.jjkl-ccn{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:12.5px}
+.jjkl-prac{color:var(--warn-ink);font-weight:600}
+.jjkl-skip{font:inherit;font-size:12.5px;background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:4px}
+@media (prefers-reduced-motion:reduce){.jjkl-truck{transition:none}}
