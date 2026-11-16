@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '749';
+var APP_VERSION = '750';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -12723,6 +12723,7 @@ async function openDetail(id, returnCid){
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(217,119,6,.4);color:var(--warn)">↩ Not Dropped Yet</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">🚚 Mark Picked Up</button>');
       if(j.service==='Bin Rental'&&j.status!=='Cancelled'&&j.binInstatus==='pickedup') btns.push('<button class="btn btn-ghost" onclick="revertPickedUp(\''+j.id+'\')" style="justify-content:center;border-color:rgba(217,119,6,.4);color:var(--warn)">↩ Revert Pickup</button>');
+      if(j.service==='Bin Rental'&&j.binBid&&j.binInstatus!=='pickedup'&&j.status!=='Cancelled') btns.push('<button class="btn btn-ghost" onclick="unassignBin(\''+j.id+'\')" style="justify-content:center;border-color:rgba(217,119,6,.4);color:var(--warn)">✖ Unassign Bin</button>');
       if(j.service==='Bin Rental'&&!j.binBid) btns.push('<button class="btn btn-ghost" onclick="openLinkBinFromJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🔗 Link a Bin</button>');
       if(j.service==='Bin Rental'){
         var wcIcon='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
@@ -13611,6 +13612,29 @@ function markNotDropped(id){
   binBackInYard(j.binBid, id);
   patchJob(id,{binInstatus:''});
   toast('Bin marked as not dropped yet.');openDetail(id);refresh();
+}
+// Take a wrong bin number off a job (Jake, 2026-11-16: Kelly put a number on a job before
+// she knew which bin was going). On or after the drop day the number also marked the job
+// dropped (binAssignIsDrop), so that comes off too: the job goes back to "needs its bin
+// number", and the bin goes back to the yard unless another job has it out. The size stays.
+async function unassignBin(id){
+  if(!mGuard())return;
+  var j=jobs.find(function(x){return x.id===id;});
+  if(!j) throw new Error('unassignBin: job '+id+' is not in the jobs list');
+  var num=binLabel(j.binBid);
+  var ok=await askBigAction({warn:true,
+    title:'Unassign bin '+num+'?',
+    line:'Bin '+num+' comes off '+(j.name||'this job')+'. The job keeps its '+(j.binSize||'bin')+' size and goes back to needing a bin number'
+      +(j.binInstatus==='dropped'?', it stops counting as dropped, and bin '+num+' shows back in the yard.':'.'),
+    yes:'Yes, unassign it', no:'Keep it'});
+  if(!ok)return;
+  var was=j.binBid, wasDropped=j.binInstatus==='dropped';
+  j.binBid=''; j.binInstatus='';
+  var res=await patchJob(id,{binBid:'',binInstatus:''});
+  if(res.error) return;   // patchJob toasts the failure and puts the screen back
+  if(wasDropped) binBackInYard(was, id);
+  toast('Bin '+num+' unassigned from '+id+'.');
+  openDetail(id);refresh();
 }
 function markBinPickedUp2(id){
   if(!mGuard())return;
