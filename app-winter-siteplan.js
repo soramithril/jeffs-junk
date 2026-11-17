@@ -12,7 +12,7 @@
 // Marks are saved in site_marks as fractions of the photo, so they line up at
 // any size. Every mark is {t: kind, p: [[x, y], ...], n: 'optional note'}
 // (Jake, 2026-11-11 - before that a drop zone was a box, {t:'zone', r:[x,y,w,h]}):
-//   zone, nopile, clear   an outline, three points or more
+//   zone, nopile (Don’t do), clear   an outline, three points or more
 //   walk                  a line, two points or more; with c:1 it is a filled
 //                         shape instead, three points or more (Jake, 2026-11-13:
 //                         a small sidewalk drawn as a line is hard to see in print)
@@ -31,7 +31,7 @@ window.WinterSitePlan = (function(){
   var BUCKET = 'winter-sites', MAX_W = 3200, VW = 1000;
   var KINDS = {
     zone:   {name: 'Drop zone',  code: 'DZ', color: '#ffd60a', shape: 'area',  key: 'Pile snow here.'},
-    nopile: {name: 'Don’t pile', code: 'NP', color: '#ef4444', shape: 'area',  key: 'Never pile snow here.'},
+    nopile: {name: 'Don’t do', code: 'DD', color: '#ef4444', shape: 'area',  key: 'We don’t plow, shovel or salt this area.'},
     clear:  {name: 'Keep clear', code: 'KC', color: '#22d3ee', shape: 'area',  key: 'Entrances, fire routes and doors stay open.'},
     walk:   {name: 'Sidewalk',   code: 'SW', color: '#2f80ed', shape: 'line',  key: 'Plow and salt the walk.'},
     push:   {name: 'Push arrow', code: 'PA', color: '#ffffff', shape: 'arrow', key: 'Push the snow this way.', hint: 'Drag from where the plow starts to where the snow ends up.'},
