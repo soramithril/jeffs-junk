@@ -79,6 +79,21 @@
 #view-jwgscheduler .sp-side-f{display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid var(--n4);padding-top:10px;margin-top:8px}
 #view-jwgscheduler .sp-upload{cursor:pointer}
 #view-jwgscheduler .sp-hint{flex-basis:100%;font-size:12px;color:var(--n11);line-height:1.4}
+/* Full screen (html.sp-full): the editor covers the whole screen, the header is one
+   thin row, and the marks list slides out from a tab on the right. */
+#view-jwgscheduler .sp-marks-tab,#view-jwgscheduler .sp-full-off,html.sp-full #view-jwgscheduler .sp-full-on{display:none}
+html.sp-full #view-jwgscheduler .sp-full-off{display:inline}
+html.sp-full #view-jwgscheduler #sp-full{background:var(--n12);border-color:var(--n12);color:#fff}
+html.sp-full #view-jwgscheduler #sp-page{position:fixed;inset:0;z-index:400;height:auto;min-height:0;padding:10px 14px 12px;gap:8px}
+html.sp-full #view-jwgscheduler .sp-nick,html.sp-full #view-jwgscheduler [data-go="back"]{display:none}
+html.sp-full #view-jwgscheduler .sp-addr{font-size:22px}
+html.sp-full #view-jwgscheduler .sp-id .sp-code{font-size:14px;padding:4px 9px}
+html.sp-full #view-jwgscheduler .sp-btn{padding:7px 13px;font-size:13px}
+html.sp-full #view-jwgscheduler .sp-body{grid-template-columns:minmax(0,1fr) 34px;gap:10px;position:relative}
+html.sp-full #view-jwgscheduler .sp-marks-tab{display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;font:700 13px 'Inter',system-ui,sans-serif;letter-spacing:.5px;background:#fff;color:var(--n12);border:1px solid var(--n6);border-radius:10px;cursor:pointer;padding:10px 0;min-height:0}
+html.sp-full #view-jwgscheduler .sp-marks-open .sp-marks-tab{background:var(--n12);border-color:var(--n12);color:#fff}
+html.sp-full #view-jwgscheduler .sp-side{display:none;position:absolute;top:0;bottom:0;right:44px;width:320px;box-sizing:border-box;z-index:2;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+html.sp-full #view-jwgscheduler .sp-marks-open .sp-side{display:flex}
 @media (max-width:900px){
   #view-jwgscheduler #sp-page{height:auto;padding:14px}
   #view-jwgscheduler .sp-body{grid-template-columns:minmax(0,1fr)}

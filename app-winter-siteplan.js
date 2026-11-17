@@ -244,7 +244,7 @@ window.WinterSitePlan = (function(){
 
   // ── the editor ──
   async function open(id){
-    close();
+    close(true);   // Previous / Next stay in full screen
     var loc = JWG.WIN.locations.find(function(l){ return l.id === id; });
     var run = JWG.WIN.locations.slice().sort(JWG.winterRouteSort);
     var pos = run.findIndex(function(l){ return l.id === id; });
@@ -268,12 +268,14 @@ window.WinterSitePlan = (function(){
       + '<div class="sp-bar"><div class="sp-tools"><button type="button" class="sp-tool" data-tool="select">Select &amp; move</button>'
       +   ORDER.map(function(t){ return '<button type="button" class="sp-tool" data-tool="' + t + '"><i style="background:' + KINDS[t].color + '"></i>' + KINDS[t].name + '</button>'; }).join('') + '</div>'
       + '<div class="sp-tools"><button type="button" class="sp-tool" id="sp-labels" title="Show or hide the codes on the photo">Labels</button><button type="button" class="sp-tool" id="sp-undo">↶ Undo</button><button type="button" class="sp-tool" id="sp-redo">↷ Redo</button>'
-      +   '<button type="button" class="sp-tool" data-zoom="-1" aria-label="Zoom out">−</button><b id="sp-zl">100%</b><button type="button" class="sp-tool" data-zoom="1" aria-label="Zoom in">+</button></div></div>'
+      +   '<button type="button" class="sp-tool" data-zoom="-1" aria-label="Zoom out">−</button><b id="sp-zl">100%</b><button type="button" class="sp-tool" data-zoom="1" aria-label="Zoom in">+</button>'
+      +   '<button type="button" class="sp-tool" id="sp-full" title="Fill the whole screen, for drawing or showing on the TV. Hold Escape to leave."><span class="sp-full-on">⛶ Full screen</span><span class="sp-full-off">Exit full screen</span></button></div></div>'
       // the Draw switch shares the hint's row, so it costs the photo no height
       + '<div class="sp-noterow">' + '<div class="sp-styles" id="sp-styles"><span>Draw</span>' + Object.keys(STYLES).map(function(k){ return '<button type="button" class="sp-tool" data-style="' + k + '">' + STYLES[k] + '</button>'; }).join('') + '</div><div class="sp-note" id="sp-note"></div></div>'
       + '<div id="sp-cropbar" hidden><b>Cropping.</b><span>Drag a box around the part of the photo to keep. Your marks move with it; a mark left wholly outside the box is removed.</span>'
       +   '<button type="button" class="sp-btn primary" id="sp-crop-apply">Apply crop</button><button type="button" class="sp-btn" id="sp-crop-cancel">Cancel</button></div>'
       + '<div class="sp-body"><div class="sp-stage" id="sp-stage"></div>'
+      + '<button type="button" class="sp-marks-tab" id="sp-marks-tab">Marks</button>'
       + '<aside class="sp-side"><div class="sp-side-h">Marks on this site</div><div id="sp-list"></div>'
       +   '<div class="sp-side-f"><label class="sp-tool sp-upload">' + (st.url ? 'Replace photo' : 'Upload photo') + '<input type="file" accept="image/*" id="sp-file" hidden></label>'
       +   '<button type="button" class="sp-tool" id="sp-crop">Crop photo</button>'
@@ -295,6 +297,8 @@ window.WinterSitePlan = (function(){
     document.addEventListener('paste', onPaste);
     document.addEventListener('keydown', onKey);
     window.addEventListener('resize', fit);
+    document.addEventListener('fullscreenchange', onFull);
+    onFull();
     // A crop box may start in the dark border round the photo: it begins at the
     // photo's nearest edge, and the photo's own handlers carry the drag from there.
     page.querySelector('#sp-stage').addEventListener('pointerdown', function(e){
@@ -317,7 +321,7 @@ window.WinterSitePlan = (function(){
   }
 
   // Take the editor off the page and put Snow & Ice back.
-  function close(){
+  function close(stayFull){
     var page = document.getElementById('sp-page');
     if(page) page.remove();
     var host = document.getElementById('win-page');
@@ -325,6 +329,9 @@ window.WinterSitePlan = (function(){
     document.removeEventListener('paste', onPaste);
     document.removeEventListener('keydown', onKey);
     window.removeEventListener('resize', fit);
+    document.removeEventListener('fullscreenchange', onFull);
+    if(document.fullscreenElement && !stayFull) document.exitFullscreen();
+    document.documentElement.classList.remove('sp-full');
     st = null;
   }
   // The Schedule page can redraw under the editor (a tab switch); then it is gone.
@@ -364,6 +371,8 @@ window.WinterSitePlan = (function(){
     if(t.closest('#sp-undo')){ finish(); step(st.undo, st.redo); return; }
     if(t.closest('#sp-redo')){ step(st.redo, st.undo); return; }
     if((b = t.closest('[data-zoom]'))){ zoomTo(st.zoom * (+b.dataset.zoom > 0 ? 1.5 : 1 / 1.5)); return; }
+    if(t.closest('#sp-full')){ toggleFull(); return; }
+    if(t.closest('#sp-marks-tab')){ document.getElementById('sp-page').classList.toggle('sp-marks-open'); return; }
     if(t.closest('#sp-labels')){ st.labels = !st.labels; paint(); return; }
     if(t.closest('#sp-crop')){
       finish();
@@ -376,6 +385,18 @@ window.WinterSitePlan = (function(){
     if(t.closest('#sp-clear')){ if(st.marks.length){ remember(); st.marks = []; st.sel = null; st.draft = null; paint(); } return; }
     if(t.closest('[data-del]')){ removeSelected(); return; }
     if((b = t.closest('[data-mark]')) && t.tagName !== 'INPUT'){ finish(); st.sel = +b.dataset.mark; st.vsel = null; st.ext = null; st.tool = 'select'; if(document.activeElement.blur) document.activeElement.blur(); paint(); }
+  }
+  // Full screen fills the whole screen with the editor (the page sits fixed over
+  // the app while html has .sp-full). Escape is locked so a quick tap still cancels
+  // a line; Chrome leaves full screen when Escape is held.
+  async function toggleFull(){
+    if(document.fullscreenElement){ await document.exitFullscreen(); return; }
+    await document.documentElement.requestFullscreen();
+    if(navigator.keyboard && navigator.keyboard.lock) await navigator.keyboard.lock(['Escape']);
+  }
+  function onFull(){
+    document.documentElement.classList.toggle('sp-full', !!document.fullscreenElement);
+    fit();
   }
   function onPaste(e){
     if(!alive()) return;
