@@ -27,6 +27,7 @@ window.SnowDesk = (function(){
     if(st.filter === 'pending') return loc.winter_contract === 'pending';
     if(st.filter === 'nophoto') return !loc.photo_path;
     if(st.filter === 'low') return isLow(loc);
+    if(st.filter === 'check') return WinterSitePlan.toCheck(loc.site_marks) > 0;
     return true;
   }
 
@@ -42,6 +43,11 @@ window.SnowDesk = (function(){
         + '<span class="l">' + label + '</span><span class="v">' + big + '<small>' + small + '</small></span>'
         + '<span class="sx-bar"><i class="' + (warn ? 'warn' : '') + '" style="width:' + Math.max(pct, 1.5) + '%"></i></span></button>';
     }
+    // the "to check" chip above the list works like the gauges: click to show only those sites
+    var nCheck = W.locations.filter(function(l){ return WinterSitePlan.toCheck(l.site_marks); }).length, ck = root.querySelector('#sx-check');
+    ck.hidden = !nCheck && st.filter !== 'check';
+    ck.setAttribute('aria-pressed', st.filter === 'check');
+    ck.textContent = '? ' + nCheck + ' site' + (nCheck === 1 ? '' : 's') + ' with marks to check';
     root.querySelector('#sx-gauges').innerHTML =
         gauge('pending', 'Contracts confirmed', conf, 'of ' + n, n ? conf / n * 100 : 0, conf < n, 'Show only the sites still pending')
       + gauge('nophoto', 'Site plans with a photo', n - noPhoto.length, 'of ' + n + (noPhoto.length ? ' · missing: ' + names(noPhoto) : ''), n ? (n - noPhoto.length) / n * 100 : 0, false, 'Show only the sites with no photo')
@@ -53,7 +59,8 @@ window.SnowDesk = (function(){
     var code = WinterRoutes.code(loc);
     return '<button type="button" class="sx-stop' + (loc.id === st.sel ? ' on' : '') + '" data-site="' + loc.id + '">'
       + '<span class="sx-code' + (code ? '' : ' none') + '"' + (code ? ' style="background:' + color + '"' : '') + '>' + (code || '—') + '</span>'
-      + '<span><span class="a">' + esc(loc.address) + '</span>' + (nick(loc) ? '<span class="n">' + esc(nick(loc)) + '</span>' : '') + '</span></button>';
+      + '<span class="sx-stop-t"><span class="a">' + esc(loc.address) + '</span>' + (nick(loc) ? '<span class="n">' + esc(nick(loc)) + '</span>' : '') + '</span>'
+      + (WinterSitePlan.toCheck(loc.site_marks) ? '<span class="sx-check-n">' + WinterSitePlan.toCheck(loc.site_marks) + ' to check</span>' : '') + '</button>';
   }
   function paintList(){
     var narrowed = !!(st.q.trim() || st.filter);
@@ -108,7 +115,7 @@ window.SnowDesk = (function(){
       + '<div class="sx-sec"><div class="l">Site plan</div>'
       +   (loc.photo_path
             ? '<button type="button" class="sx-photo" data-plan title="Open the site plan"><img id="sx-photo-img" alt="Aerial photo of ' + esc(loc.address) + '"><span id="sx-photo-mk"></span>'
-              + '<span class="cap">' + nMarks + ' mark' + (nMarks === 1 ? '' : 's') + ' drawn</span></button>'
+              + '<span class="cap">' + nMarks + ' mark' + (nMarks === 1 ? '' : 's') + ' drawn' + (WinterSitePlan.toCheck(loc.site_marks) ? ' · ' + WinterSitePlan.toCheck(loc.site_marks) + ' to check' : '') + '</span></button>'
             : '<button type="button" class="sx-photo none" data-plan>No aerial photo yet. Add one</button>')
       + '</div>'
       + (loc.notes ? '<div class="sx-sec"><div class="l">Notes</div><div class="sx-notes">' + esc(loc.notes) + '</div></div>' : '')
@@ -211,7 +218,7 @@ window.SnowDesk = (function(){
       +   '<button type="button" class="sx-btn primary" data-add>+ Add site</button></div></div>'
       + '<div class="sx-gauges" id="sx-gauges"></div>'
       + '<div class="sx-desk">'
-      +   '<div class="sx-panel sx-list"><input type="search" id="sx-q" class="sx-search" placeholder="Find an address or nickname" aria-label="Find a site"><div id="sx-stops"></div></div>'
+      +   '<div class="sx-panel sx-list"><input type="search" id="sx-q" class="sx-search" placeholder="Find an address or nickname" aria-label="Find a site"><button type="button" class="sx-check" id="sx-check" data-filter="check" hidden title="Show only the sites with marks not confirmed yet"></button><div id="sx-stops"></div></div>'
       +   '<div class="sx-panel sx-mapbox"><div class="sx-placing" id="sx-placing" hidden></div><div class="wr-map-host" id="sx-map"></div></div>'
       +   '<div class="sx-panel sx-detail" id="sx-detail"></div>'
       + '</div></div>';

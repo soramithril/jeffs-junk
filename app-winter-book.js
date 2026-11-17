@@ -186,6 +186,7 @@ window.WinterBook = (function(){
         }).join('') + '</div></div>'
       + '<div><div class="h">Map key</div><div class="legend">'
       + used.map(function(u){ return '<div><i style="background:' + u.kind.color + ';border-color:' + u.kind.color + '"></i><span><b>' + esc(u.kind.name) + ' (' + u.kind.code + ').</b> ' + u.kind.key + ' ' + u.n + ' on this site.</span></div>'; }).join('')
+      + (WinterSitePlan.toCheck(marks) ? '<div><i class="u"></i><span><b>Dashed, with ?</b> Not confirmed yet. Check it on site and tell the office.</span></div>' : '')
       + '<div><i class="x"></i><span><b>Never pile</b> on hydrants, doors, drains or neighbours\' lots.</span></div></div></div>'
       + '<div class="notes"><div class="h">Field notes</div>' + (l.notes ? '<p>' + esc(l.notes) + '</p>' : '')
       + said.map(function(n){ return '<p><b>' + n.code + '</b> ' + esc(n.text) + '</p>'; }).join('')
@@ -259,6 +260,7 @@ window.WinterBook = (function(){
     '.sv .yes .box{background:var(--forest);border-color:var(--forest)}.sv .no{color:#8a958f}.sv .no .box{border-color:#b5bfba}',
     '.legend{display:grid;gap:.6cqw;font-size:1.42cqw}.legend div{display:flex;align-items:flex-start;gap:1cqw}',
     '.legend i{width:2.85cqw;height:1.75cqw;flex:none;margin-top:.1cqw;background:rgba(255,214,10,.55);border:.26cqw solid var(--pile);box-shadow:0 0 0 1px rgba(1,43,31,.55)}',
+    '.legend i.u{background:rgba(255,214,10,.22);border-style:dashed;border-color:#d97706}',
     '.legend i.x{background:#fff;border:.3cqw solid #c53030;box-shadow:none;position:relative}',
     '.legend i.x::after{content:"";position:absolute;inset:0;background:linear-gradient(45deg,transparent 45%,#c53030 45% 55%,transparent 55%),linear-gradient(-45deg,transparent 45%,#c53030 45% 55%,transparent 55%)}',
     '.notes{flex:1;min-height:0;overflow:hidden}.notes p{margin-bottom:.65cqw;font-size:1.42cqw}.lines{display:grid;gap:2.6cqw;margin-top:1.9cqw}.lines i{display:block;border-bottom:1px solid #b9c4be}',

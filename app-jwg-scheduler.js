@@ -3379,6 +3379,9 @@ let _realtimeChannel=null;
 let _schedSaveCooldown={};
 
 function isModalOpen(){return !!document.getElementById("moverlay");}
+// The site plan editor sits inside the Schedule area: a full redraw would throw it away,
+// unsaved marks and all. Snow & Ice reloads its data when the editor is left.
+function sitePlanOpen(){return !!document.getElementById("sp-page");}
 
 function initRealtime(){
   if(!db)return;
@@ -3425,21 +3428,21 @@ function initRealtime(){
       if(!row||S.employees.some(e=>e.id===row.id))return;
       S.employees.push(row);
       S.schedule[row.id]=defSched();
-      if(!isModalOpen())render();
+      if(!isModalOpen()&&!sitePlanOpen())render();
     })
     .on("postgres_changes",{event:"DELETE",schema:"public",table:"jwg_employees"},payload=>{
       const old=payload.old;
       if(!old)return;
       S.employees=S.employees.filter(e=>e.id!==old.id);
       delete S.schedule[old.id];
-      if(!isModalOpen())render();
+      if(!isModalOpen()&&!sitePlanOpen())render();
     })
     .on("postgres_changes",{event:"UPDATE",schema:"public",table:"jwg_employees"},payload=>{
       const row=payload.new;
       if(!row)return;
       const idx=S.employees.findIndex(e=>e.id===row.id);
       if(idx>=0)S.employees[idx]={...S.employees[idx],...row};
-      if(!isModalOpen())render();
+      if(!isModalOpen()&&!sitePlanOpen())render();
     })
 
     // ── Master roster (Team page) — hide/show people the moment they're
@@ -3459,7 +3462,7 @@ function initRealtime(){
       // that no longer exist and a bulk save would write them all back. Only for
       // a removal: switching the Jeff White Group side off deletes nothing.
       if(!wasHidden&&emp.hidden&&row.active===false)rosterPruneLocal(emp.id);
-      if(!isModalOpen())render();
+      if(!isModalOpen()&&!sitePlanOpen())render();
     })
 
     // ── App Settings (tasks list, work hours, emp order) ──
@@ -3474,11 +3477,11 @@ function initRealtime(){
         if(!isModalOpen()&&S.tab==="schedule")refreshGrid();
       }else if(row.key==="crew_groups"){
         localStorage.setItem("ss_crew_groups",JSON.stringify(row.value));
-        if(!isModalOpen())render();
+        if(!isModalOpen()&&!sitePlanOpen())render();
       }else if(row.key==="emp_order"){
         localStorage.setItem("ss_emp_order",JSON.stringify(row.value));
         applyStoredOrder();
-        if(!isModalOpen())render();
+        if(!isModalOpen()&&!sitePlanOpen())render();
       }
     })
 

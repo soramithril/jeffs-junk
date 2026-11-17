@@ -93,12 +93,12 @@ window.WinterSitePlan = (function(){
     var v = o.view || [0, 0, 1, 1], bx0 = v[0] * VW, bx1 = (v[0] + v[2]) * VW, by0 = v[1] * vh, by1 = (v[1] + v[3]) * vh;
     function P(q){ return [q[0] * VW, q[1] * vh]; }
     function pts(p){ return p.map(function(q){ var c = P(q); return f1(c[0]) + ',' + f1(c[1]); }).join(' '); }
-    function chip(x, y, text, color){
+    function chip(x, y, text, color, unsure){
       if(o.labels === false) return '';
       var w = (text.length * 8.6 + 12) * s, hh = 21 * s;
       x = Math.min(bx1 - w / 2 - 2, Math.max(bx0 + w / 2 + 2, x));
       y = Math.min(by1 - hh / 2 - 2, Math.max(by0 + hh / 2 + 2, y));
-      return '<rect x="' + f1(x - w / 2) + '" y="' + f1(y - hh / 2) + '" width="' + f1(w) + '" height="' + f1(hh) + '" rx="' + f1(5 * s) + '" fill="' + color + '" stroke="#012b1f" stroke-width="' + f1(1.2 * s) + '"/>'
+      return '<rect x="' + f1(x - w / 2) + '" y="' + f1(y - hh / 2) + '" width="' + f1(w) + '" height="' + f1(hh) + '" rx="' + f1(5 * s) + '" fill="' + color + '" stroke="' + (unsure ? '#d97706' : '#012b1f') + '" stroke-width="' + f1((unsure ? 2.6 : 1.2) * s) + '"' + (unsure ? ' stroke-dasharray="' + f1(4 * s) + ' ' + f1(3 * s) + '"' : '') + '/>'
         + '<text x="' + f1(x) + '" y="' + f1(y + 4.8 * s) + '" text-anchor="middle" font-size="' + f1(13.5 * s) + '" font-weight="800" fill="#012b1f" ' + FONT + '>' + text + '</text>';
     }
     function w(n){ return f1(n * s); }
@@ -140,6 +140,8 @@ window.WinterSitePlan = (function(){
     }
     function one(m, i, isDraft){
       var K = kind(m), c = K.color, on = !isDraft && o.sel === i, g = '';
+      // not confirmed yet: dashed, lighter, and a "?" after its code
+      var u = !isDraft && !!m.u, ud = ' stroke-dasharray="' + w(9) + ' ' + w(6) + '"';
       var p = isDraft && o.hover && K.shape !== 'arrow' && !m.closed ? m.p.concat([o.hover]) : m.p;
       if(!p.length) return '';
       var a = P(p[0]);
@@ -148,14 +150,14 @@ window.WinterSitePlan = (function(){
       // then below, right or left of it when that spot is taken.
       function tag(mid){
         if(o.labels === false) return '';
-        var text = label(marks, i), xs = p.map(function(q){ return q[0] * VW; }), ys = p.map(function(q){ return q[1] * vh; });
+        var text = label(marks, i) + (u ? ' ?' : ''), xs = p.map(function(q){ return q[0] * VW; }), ys = p.map(function(q){ return q[1] * vh; });
         var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
         var cw = (text.length * 8.6 + 12) * s, ch = 21 * s, gap = 7 * s, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
         var above = [cx, y0 - ch / 2 - gap], below = [cx, y1 + ch / 2 + gap];
         var spots = (y0 - ch - gap < by0 ? [below, above] : [above, below]).concat([[x1 + cw / 2 + gap, cy], [x0 - cw / 2 - gap, cy]]);
         if(mid && x1 - x0 >= cw * 1.3 && y1 - y0 >= ch * 1.9) spots.unshift(mid);
         var at = spot(i, cw, ch, spots);
-        return chip(at.x, at.y, text, c);
+        return chip(at.x, at.y, text, c, u);
       }
       if(m.t === 'site' && !(isDraft && !m.closed)){
         // The site boundary: everything outside it faded toward white, and a thin
@@ -166,9 +168,9 @@ window.WinterSitePlan = (function(){
           + '<polygon points="' + pts(p) + '" fill="none" stroke="#fff" stroke-width="' + w(1.6) + '" stroke-dasharray="' + w(10) + ' ' + w(7) + '" stroke-linejoin="round"/>';
       } else if(K.shape === 'area' || m.c || m.closed){
         var solid = m.t === 'zone' || m.t === 'walk';
-        var dash = solid ? '' : ' stroke-dasharray="' + w(11) + ' ' + w(7) + '"';
+        var dash = u ? ud : solid ? '' : ' stroke-dasharray="' + w(11) + ' ' + w(7) + '"';
         if(isDraft && !m.closed) g += '<polyline points="' + pts(p) + '" fill="' + c + '" fill-opacity=".15" stroke="' + c + '" stroke-width="' + w(3) + '" stroke-dasharray="' + w(8) + ' ' + w(6) + '" stroke-linejoin="round"/>';
-        else g += '<polygon points="' + pts(p) + '" fill="' + c + '" fill-opacity="' + (m.t === 'walk' ? .5 : solid ? .4 : .28) + '" stroke="#012b1f" stroke-width="' + w(on ? 6.5 : 5) + '" stroke-linejoin="round" stroke-opacity=".7"/>'
+        else g += '<polygon points="' + pts(p) + '" fill="' + c + '" fill-opacity="' + (m.t === 'walk' ? .5 : solid ? .4 : .28) * (u ? .45 : 1) + '" stroke="#012b1f" stroke-width="' + w(on ? 6.5 : 5) + '" stroke-linejoin="round" stroke-opacity=".7"/>'
           + '<polygon points="' + pts(p) + '" fill="none" stroke="' + (on ? '#fff' : c) + '" stroke-width="' + w(3) + '"' + dash + ' stroke-linejoin="round"/>';
         if(!isDraft){
           var cx = 0, cy = 0;
@@ -178,7 +180,7 @@ window.WinterSitePlan = (function(){
       } else if(K.shape === 'line'){
         g += '<polyline points="' + pts(p) + '" fill="none" stroke="transparent" stroke-width="' + w(22) + '" stroke-linecap="round" stroke-linejoin="round"/>'
           + '<polyline points="' + pts(p) + '" fill="none" stroke="' + (on ? '#012b1f' : '#fff') + '" stroke-width="' + w(7.5) + '" stroke-linecap="round" stroke-linejoin="round"/>'
-          + '<polyline points="' + pts(p) + '" fill="none" stroke="' + c + '" stroke-width="' + w(4) + '" stroke-linecap="round" stroke-linejoin="round"' + (isDraft ? ' stroke-dasharray="' + w(10) + ' ' + w(8) + '"' : '') + '/>';
+          + '<polyline points="' + pts(p) + '" fill="none" stroke="' + c + '" stroke-width="' + w(4) + '" stroke-linecap="round" stroke-linejoin="round"' + (isDraft ? ' stroke-dasharray="' + w(10) + ' ' + w(8) + '"' : u ? ud : '') + '/>';
         if(!isDraft) g += tag(null);
       } else if(K.shape === 'arrow'){
         if(p.length < 2) return '';
@@ -186,17 +188,17 @@ window.WinterSitePlan = (function(){
         var h1 = [b[0] - hd * Math.cos(ang - .45), b[1] - hd * Math.sin(ang - .45)], h2 = [b[0] - hd * Math.cos(ang + .45), b[1] - hd * Math.sin(ang + .45)];
         var col = on ? '#bbf7d0' : c;
         g += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="#012b1f" stroke-width="' + w(10) + '" stroke-linecap="round" stroke-opacity=".8"/>'
-          + '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + col + '" stroke-width="' + w(5.5) + '" stroke-linecap="round"/>'
+          + '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + col + '" stroke-width="' + w(5.5) + '" stroke-linecap="round"' + (u ? ud : '') + '/>'
           + '<polygon points="' + f1(b[0]) + ',' + f1(b[1]) + ' ' + f1(h1[0]) + ',' + f1(h1[1]) + ' ' + f1(h2[0]) + ',' + f1(h2[1]) + '" fill="' + col + '" stroke="#012b1f" stroke-width="' + w(2) + '" stroke-linejoin="round"/>';
         if(!isDraft) g += tag(null);
       } else {
-        g += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="' + w(on ? 15 : 13) + '" fill="' + c + '" stroke="' + (on ? '#fff' : '#012b1f') + '" stroke-width="' + w(on ? 4 : 2) + '"/>'
+        g += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="' + w(on ? 15 : 13) + '" fill="' + c + '" stroke="' + (on ? '#fff' : u ? '#d97706' : '#012b1f') + '" stroke-width="' + w(on ? 4 : u ? 3 : 2) + '"' + (u && !on ? ' stroke-dasharray="' + w(5) + ' ' + w(3.5) + '"' : '') + '/>'
           + '<text x="' + f1(a[0]) + '" y="' + f1(a[1] + 5.2 * s) + '" text-anchor="middle" font-size="' + w(14.5) + '" font-weight="800" fill="#012b1f" ' + FONT + '>' + (m.t === 'hazard' ? '!' : 'S') + '</text>';
         if(!isDraft && o.labels !== false){
           // a pin's code sits under it, or over it or beside it when that spot is taken
-          var pt = label(marks, i), pw = (pt.length * 8.6 + 12) * s, side = 21 * s + pw / 2;
+          var pt = label(marks, i) + (u ? ' ?' : ''), pw = (pt.length * 8.6 + 12) * s, side = 21 * s + pw / 2;
           var pat = spot(i, pw, 21 * s, [[a[0], a[1] + 27 * s], [a[0], a[1] - 27 * s], [a[0] + side, a[1]], [a[0] - side, a[1]]]);
-          g += chip(pat.x, pat.y, pt, c);
+          g += chip(pat.x, pat.y, pt, c, u);
         }
       }
       if(on && K.shape !== 'pin') g += m.p.map(function(q, k){ var v = P(q); return '<circle data-v="' + k + '" cx="' + f1(v[0]) + '" cy="' + f1(v[1]) + '" r="' + w(k === o.vsel ? 8.5 : 7) + '" fill="' + (k === o.vsel ? '#22c55e' : '#fff') + '" stroke="#012b1f" stroke-width="' + w(2.2) + '" style="cursor:grab"/>'; }).join('');
@@ -232,6 +234,10 @@ window.WinterSitePlan = (function(){
       return {t: t, kind: KINDS[t], n: (marks || []).filter(function(m){ return m.t === t; }).length};
     }).filter(function(x){ return x.n; });
   }
+  // How many marks on a site are flagged not confirmed (still to check on site).
+  function toCheck(marks){
+    return (marks || []).filter(function(m){ return m.u; }).length;
+  }
   function notes(marks){
     return (marks || []).map(function(m, i){ return m.n ? {code: label(marks, i), text: m.n} : null; }).filter(Boolean);
   }
@@ -258,7 +264,7 @@ window.WinterSitePlan = (function(){
     var page = document.createElement('div');
     page.id = 'sp-page';
     page.innerHTML = '<div class="sp-head">'
-      + '<div class="sp-id">' + (code ? '<span class="sp-code" style="background:' + grp.color + '">' + code + '</span>' : '')
+      + '<div class="sp-id">' + (code ? '<span class="sp-code" style="background:' + grp.color + '">' + code + '</span>' : '') + '<span class="sp-check" id="sp-check" hidden></span>'
       +   '<div><div class="sp-addr">' + esc(loc.address) + '</div><div class="sp-nick">' + [nick, grp ? grp.name : '', 'site ' + (pos + 1) + ' of ' + run.length].filter(Boolean).map(esc).join(' · ') + '</div></div></div>'
       + '<div class="sp-acts"><button type="button" class="sp-btn" data-go="back">← Back to Snow &amp; Ice</button>'
       +   '<button type="button" class="sp-btn" data-go="prev"' + (st.prev ? '' : ' disabled') + '>‹ Previous</button>'
@@ -384,6 +390,11 @@ window.WinterSitePlan = (function(){
     if(t.closest('#sp-crop-apply')){ applyCrop(); return; }
     if(t.closest('#sp-clear')){ if(st.marks.length){ remember(); st.marks = []; st.sel = null; st.draft = null; paint(); } return; }
     if(t.closest('[data-del]')){ removeSelected(); return; }
+    if((b = t.closest('[data-unsure]'))){
+      var um = st.marks[+b.dataset.unsure];
+      remember();
+      if(um.u) delete um.u; else um.u = 1;
+      paint(); return; }
     if((b = t.closest('[data-mark]')) && t.tagName !== 'INPUT'){ finish(); st.sel = +b.dataset.mark; st.vsel = null; st.ext = null; st.tool = 'select'; if(document.activeElement.blur) document.activeElement.blur(); paint(); }
   }
   // Full screen fills the whole screen with the editor (the page sits fixed over
@@ -571,11 +582,15 @@ window.WinterSitePlan = (function(){
     page.querySelector('#sp-redo').disabled = !st.redo.length;
     page.querySelector('#sp-zl').textContent = Math.round(st.zoom * 100) + '%';
     page.querySelector('#sp-note').textContent = note();
+    var nc = toCheck(st.marks), pill = page.querySelector('#sp-check');
+    pill.hidden = !nc;
+    pill.textContent = nc + ' to check';
     var list = page.querySelector('#sp-list');
     if(list.contains(document.activeElement)) return;   // someone is typing a note
     list.innerHTML = st.marks.length ? st.marks.map(function(m, i){
       var on = st.sel === i;
-      return '<div class="sp-mark' + (on ? ' on' : '') + '" data-mark="' + i + '"><span class="sp-code" style="background:' + kind(m).color + ';color:#012b1f">' + label(st.marks, i) + '</span><b>' + kind(m).name + '</b>'
+      return '<div class="sp-mark' + (on ? ' on' : '') + '" data-mark="' + i + '"><span class="sp-code' + (m.u ? ' u' : '') + '" style="background:' + kind(m).color + ';color:#012b1f">' + label(st.marks, i) + '</span><b>' + kind(m).name + '</b>'
+        + (m.t === 'site' ? '' : '<button type="button" class="sp-ck' + (m.u ? ' u' : '') + '" data-unsure="' + i + '" title="Click when it has been checked on site, or to flag it for checking">' + (m.u ? '? Not confirmed' : '✓ Confirmed') + '</button>')
         + (on ? '<button type="button" class="sp-tool sp-del" data-del>Remove</button><input type="text" data-note="' + i + '" placeholder="Add a note for the crew" value="' + esc(m.n || '') + '">'
               : (m.n ? '<span class="n">' + esc(m.n) + '</span>' : '')) + '</div>';
     }).join('') : '<div class="sp-none">' + (st.url ? 'Nothing drawn yet. Pick a kind of mark above and draw on the photo.' : 'Add a photo to start.') + '</div>';
@@ -877,5 +892,5 @@ window.WinterSitePlan = (function(){
     }
   }
 
-  return {open: open, close: close, signedUrl: signedUrl, svg: svg, frame: frame, tally: tally, notes: notes, KINDS: KINDS};
+  return {open: open, close: close, signedUrl: signedUrl, svg: svg, frame: frame, tally: tally, notes: notes, toCheck: toCheck, KINDS: KINDS};
 })();
