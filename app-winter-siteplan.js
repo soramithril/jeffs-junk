@@ -394,6 +394,7 @@ window.WinterSitePlan = (function(){
       var um = st.marks[+b.dataset.unsure];
       remember();
       if(um.u) delete um.u; else um.u = 1;
+      b.blur();   // the list does not redraw while something in it has focus
       paint(); return; }
     if((b = t.closest('[data-mark]')) && t.tagName !== 'INPUT'){ finish(); st.sel = +b.dataset.mark; st.vsel = null; st.ext = null; st.tool = 'select'; if(document.activeElement.blur) document.activeElement.blur(); paint(); }
   }
