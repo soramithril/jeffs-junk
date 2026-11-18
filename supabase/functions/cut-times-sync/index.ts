@@ -70,9 +70,11 @@ function call(method: string, params: Record<string, unknown>): Promise<unknown>
   return rpc(_serverUrl, method, { ...params, credentials: _credentials });
 }
 
-/** The device name in Geotab has a TRAILING SPACE. Name search is unreliable,
- *  so every device is fetched and matched exactly. */
-const DEVICE_NAME = "Darrin Truck ";
+/** Darrin's truck, by its Geotab device id; the ID survives renames, the name did
+ *  not. Until 2026-11-18 this matched the name "Darrin Truck " (with a trailing
+ *  space); the device was renamed in Geotab and every weekly run failed from
+ *  2026-11-15 on. The same id is in public.vehicles.geotab_device_id. */
+const DEVICE_ID = "b1B";
 const SEASON_START = "2026-05-25";
 
 const CLUSTER_M = 120;        // stop points this close are the same location
@@ -147,12 +149,14 @@ function easternParts(d: Date): { date: string; day: string; time: string } {
 
 async function findDevice(): Promise<string> {
   const devices = await call("Get", { typeName: "Device" }) as { id: string; name: string }[];
-  const hit = devices.find((d) => d.name === DEVICE_NAME);
+  const hit = devices.find((d) => d.id === DEVICE_ID);
   if (!hit) {
     throw new Error(
-      `Geotab device ${JSON.stringify(DEVICE_NAME)} not found among ${devices.length} devices`,
+      `Geotab device id ${DEVICE_ID} not found. Geotab holds: ` +
+        devices.map((d) => `${d.id}=${d.name}`).join(", "),
     );
   }
+  console.log(`cut-times-sync: device ${DEVICE_ID} is named ${JSON.stringify(hit.name)} in Geotab`);
   return hit.id;
 }
 
