@@ -341,11 +341,31 @@ async function run(dryRun: boolean): Promise<string> {
   return `${dryRun ? "DRY RUN — " : ""}${zones.length} zones, ${trails.size} devices, ${actions.length} actions: ${detail}`;
 }
 
+/** Only the database calls this function (pg_cron). It sends the shared secret
+ *  from public.cron_config in the x-cron-secret header; anyone else gets a 401.
+ *  Added 2026-11-17 — before that the function was open to the internet. */
+async function callerIsDatabase(req: Request): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("cron_config")
+    .select("value")
+    .eq("key", "edge_secret")
+    .single();
+  if (error) throw new Error(`cron_config read failed: ${error.message}`);
+  return req.headers.get("x-cron-secret") === data.value;
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
   try {
+    if (!(await callerIsDatabase(req))) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     let dryRun = false;
     try {
       const body = await req.json();

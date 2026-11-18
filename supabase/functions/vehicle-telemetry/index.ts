@@ -7,6 +7,10 @@
  *   3. Individual safety events → safety_events table → crew attribution
  *
  * Called every 6 hours by pg_cron.
+ *
+ * 2026-09-06: reads the project's elevated key from the SB_SECRET_KEY secret
+ * instead of the auto-injected SUPABASE_SERVICE_ROLE_KEY, which carries the
+ * LEGACY key and stops working once the legacy keys are switched off.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -468,10 +472,32 @@ async function aggregateCrewScores(periodDate: string): Promise<void> {
   console.log(`Crew scores aggregated for ${periodDate}: ${Object.keys(byCrew).length} crew with events`);
 }
 
+// ── Caller check ──
+
+/** Only the database calls this function (pg_cron). It sends the shared secret
+ *  from public.cron_config in the x-cron-secret header; anyone else gets a 401.
+ *  Added 2026-11-17 — before that the function was open to the internet. */
+async function callerIsDatabase(req: Request): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("cron_config")
+    .select("value")
+    .eq("key", "edge_secret")
+    .single();
+  if (error) throw new Error(`cron_config read failed: ${error.message}`);
+  return req.headers.get("x-cron-secret") === data.value;
+}
+
 // ── Main Handler ──
 
 Deno.serve(async (req) => {
   try {
+    if (!(await callerIsDatabase(req))) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     await authenticate();
 
     const readings = await pollOdometers();

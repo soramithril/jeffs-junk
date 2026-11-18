@@ -343,6 +343,22 @@ async function handleExpirySweep(): Promise<string> {
   return `Expiry sweep complete. Scanned ${zones.length}, removed ${expired.length} expired + ${dupes.length} duplicates.`;
 }
 
+// --- Caller check ---
+
+/** Only the database calls this function (pg_cron and the jobs trigger). It sends
+ *  the shared secret from public.cron_config in the x-cron-secret header; anyone
+ *  else gets a 401. Added 2026-11-17 — before that the function was open to the
+ *  internet. */
+async function callerIsDatabase(req: Request): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("cron_config")
+    .select("value")
+    .eq("key", "edge_secret")
+    .single();
+  if (error) throw new Error(`cron_config read failed: ${error.message}`);
+  return req.headers.get("x-cron-secret") === data.value;
+}
+
 // --- Main handler ---
 
 Deno.serve(async (req) => {
@@ -351,6 +367,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    if (!(await callerIsDatabase(req))) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const body = await req.json();
     const { action } = body;
 

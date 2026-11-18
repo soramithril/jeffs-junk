@@ -22,9 +22,18 @@
  * scope) and put its creds in GEOTAB_READONLY_DATABASE/USERNAME/PASSWORD.
  * Right now this reuses the geofence-sync env vars (which have write scope) —
  * fine functionally but broader privilege than the proxy actually needs.
+ *
+ * 2026-11-17: only a signed-in staff account may call it (the TV's display account
+ * included). verify_jwt is off and the caller is checked here instead, the same way
+ * bin-spots does it. Before this, anyone on the internet could read live truck
+ * positions. The one exception is `tv-log`, which stays open: the office TV writes
+ * that boot line before it has signed in, and it only reaches the function log.
  */
 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticate, call, getOrCreateBinRentalsGroup, ZONE_PREFIX } from "../_shared/geotab-client.ts";
+
+const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SB_SECRET_KEY")!);
 
 /**
  * The bin trucks — the only vehicles we track (Jake, 2026-07-20). Names must
@@ -282,6 +291,25 @@ Deno.serve(async (req) => {
       console.log("TV-LOG", JSON.stringify(body).slice(0, 600));
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+
+    // Everything else needs a signed-in staff account: any login with a role in
+    // user_profiles (every role — yard and crew included — not just the office).
+    const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    const { data: who, error: whoErr } = await supabase.auth.getUser(token);
+    if (whoErr || !who?.user) {
+      return new Response(JSON.stringify({ ok: false, error: "Sign in first" }), {
+        status: 401,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+    const { data: prof, error: profErr } = await supabase.from("user_profiles").select("role").eq("id", who.user.id).maybeSingle();
+    if (profErr) throw new Error(`profile lookup failed: ${profErr.message}`);
+    if (!prof || !prof.role) {
+      return new Response(JSON.stringify({ ok: false, error: "Not a staff account" }), {
+        status: 401,
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       });
     }
