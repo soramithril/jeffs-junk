@@ -212,8 +212,10 @@ a:hover{color:#15803d}
       // anywhere shows nobody.
       db.from('geofence_visits').select('device_id,job_id').gte('entered_at', todayISO()+'T00:00:00').lt('entered_at', todayISO()+'T23:59:59.999'),
       db.from('crew_members').select('id,name'),
-      fetch(SB_URL+'/functions/v1/geotab-proxy',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'device-status'}) })
-        .then(function(r){ return r.ok?r.json():{devices:[]}; }).catch(function(){ return {devices:[]}; }),
+      // geotab-proxy answers signed-in staff only, so the call carries this person's session pass.
+      db.auth.getSession().then(function(s){
+        return fetch(SB_URL+'/functions/v1/geotab-proxy',{ method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+s.data.session.access_token}, body:JSON.stringify({action:'device-status'}) });
+      }).then(function(r){ return r.ok?r.json():{devices:[]}; }).catch(function(){ return {devices:[]}; }),
       db.from('jobs').select('job_id,bin_dropoff,bin_pickup,dropoff_crew_id,pickup_crew_id').eq('service','Bin Rental')
         .or('bin_dropoff.eq.'+todayISO()+',bin_pickup.eq.'+todayISO())
     ]).then(function(res){

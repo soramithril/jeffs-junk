@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '754';
+var APP_VERSION = '755';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -96,6 +96,8 @@ function _checkForUpdate(){
 var _updateWaiter = null;
 function _hasWorkInProgress(){
   if(document.querySelector('.modal-overlay.open')) return true;
+  // The site plan editor and the scheduler's own pop-ups are not .modal-overlay.
+  if(document.getElementById('sp-page') || document.getElementById('moverlay')) return true;
   return window._wqDirty === true || window._etplDirty === true;
 }
 function _showUpdateWhenFree(){
@@ -453,7 +455,12 @@ function _isUserBusy(){
   // assignments until a click happened to blur the field. Search/filter inputs are
   // static in index.html, so refreshing under them never disturbs typing or focus.
   if(document.querySelector('.modal-overlay.open')) return true;
+  // The site plan editor and the scheduler's pop-ups live inside pages this refresh
+  // redraws: a half-drawn plan was wiped whenever anyone else saved a job.
+  if(document.getElementById('sp-page') || document.getElementById('moverlay')) return true;
   var ae = document.activeElement;
+  // A reply being typed on the Suggestions board is a text INPUT, redrawn with the board.
+  if(ae && ae.id && ae.id.indexOf('sugg-reply-')===0) return true;
   return !!(ae && ae.tagName==='TEXTAREA');
 }
 function _scheduleRealtimeRefresh(){
@@ -467,6 +474,7 @@ function _scheduleRealtimeRefresh(){
     // Reload binItems so deployed-bin counts stay in sync
     var rb = await db.from('bin_items').select('*');
     if(rb.data) binItems = rb.data;
+    await loadScheduleAway();
     refresh();
   }, 1500);
 }
@@ -1331,6 +1339,22 @@ function deleteJobFromDb(jobId) {
 // therefore rewrote every client row in the business from browser memory — on 2026-07-23 that
 // wrote 11,408 rows in one second. Save the one client that changed; never the array.
 
+// What a job save may change on a customer: contact names, numbers, emails, business name.
+// Nothing else. Saving a job used to write the customer's WHOLE record back from the copy
+// this tab loaded at sign-in, undoing any note, photo or blacklist flag added since, and
+// (being an upsert) bringing back a customer someone had merged away.
+function _clientContacts(c){
+  return {name:c.name||'', names:c.names||[c.name||''], phone:c.phone||'', phones:c.phones||[], email:c.email||'', emails:c.emails||[], business_name:c.businessName||''};
+}
+function saveClientContacts(c) {
+  db.from('clients').update(_clientContacts(c)).eq('cid', c.cid).then(function(r){
+    if(r.error){
+      console.error('Save client contacts error:', r.error.message);
+      toast('⚠ The customer\'s contact details didn\'t save: '+r.error.message,'error');
+    }
+  });
+}
+
 function saveSingleClient(c) {
   db.from('clients').upsert(clientToDb(c), {onConflict:'cid'}).then(function(r){
     if(r.error){
@@ -1367,7 +1391,7 @@ async function delClient(cid) {
   var _cl = clients.find(function(c){ return c.cid===cid; });
   var _names = _cl ? (_cl.names&&_cl.names.length?_cl.names:[_cl.name||'']).filter(Boolean) : [];
   if(_names.length){
-    var rN = await db.from('jobs').select('job_id').is('client_cid',null).in('name',_names).limit(1);
+    var rN = await db.from('jobs').select('job_id').or('client_cid.is.null,client_cid.eq.').in('name',_names).limit(1);
     if(rN.error){
       toast('⚠ Could not check this client for jobs booked under their name: '+rN.error.message+' — nothing deleted','error');
       return;
@@ -1485,24 +1509,38 @@ function insertVehicle(v){
 // upsert), THEN remove only the dates that were taken off. It used to delete them all and put
 // them back, so a dropped connection between the two steps lost the whole list, repair costs
 // included. Now a failure at either step leaves every date that was there.
+// A tab only knows the dates it loaded at sign-in, so it must write only what it changed
+// itself. This used to save every date it remembered and delete every date it did not, which
+// removed dates (and their repair costs) that someone else had blocked since. _vehBlocksSaved
+// is what this tab last knew to be in the database: the difference is this tab's own change.
+var _vehBlocksSaved = {};
+function _vehBlockRow(vid, d, b){
+  return {vid:vid, date:d, reason:b.reason||'', notes:b.notes||'', open_ended:!!b.openEnded, open_from:b.openFrom||null, cost:b.cost!=null?b.cost:null};
+}
 async function saveVehBlocks(vid) {
   var blocks = vehBlocks[vid] || {};
-  var dates = Object.keys(blocks);
-  if(dates.length){
-    var rows = dates.map(function(d){
-      return {vid:vid, date:d, reason:blocks[d].reason||'', notes:blocks[d].notes||'', open_ended:!!blocks[d].openEnded, open_from:blocks[d].openFrom||null, cost:blocks[d].cost!=null?blocks[d].cost:null};
-    });
+  var saved = _vehBlocksSaved[vid] || (_vehBlocksSaved[vid] = {});
+  var rows = [];
+  Object.keys(blocks).forEach(function(d){
+    var row = _vehBlockRow(vid, d, blocks[d]);
+    if(saved[d] !== JSON.stringify(row)) rows.push(row);
+  });
+  var removed = Object.keys(saved).filter(function(d){ return !blocks[d]; });
+  if(rows.length){
     var rUp = await db.from('vehicle_blocks').upsert(rows, {onConflict:'vid,date'});
     if(rUp.error){
       toast('⚠ Couldn\'t save blocked dates for this truck: '+rUp.error.message,'error');
       return;
     }
+    rows.forEach(function(r){ saved[r.date] = JSON.stringify(r); });
   }
-  var del = db.from('vehicle_blocks').delete().eq('vid', vid);
-  if(dates.length) del = del.not('date', 'in', '('+dates.join(',')+')');
-  var rDel = await del;
-  if(rDel.error){
-    toast('⚠ Couldn\'t remove the cleared dates for this truck: '+rDel.error.message,'error');
+  if(removed.length){
+    var rDel = await db.from('vehicle_blocks').delete().eq('vid', vid).in('date', removed);
+    if(rDel.error){
+      toast('⚠ Couldn\'t remove the cleared dates for this truck: '+rDel.error.message,'error');
+      return;
+    }
+    removed.forEach(function(d){ delete saved[d]; });
   }
 }
 
@@ -1623,9 +1661,12 @@ async function loadAllFromSupabase() {
                   vehicleStatus:r.vehicle_status||'Available', leaderboardOnly:!!r.leaderboard_only};
         });
         vehBlocks = {};
+        _vehBlocksSaved = {};
         (rvehBlocks.data||[]).forEach(function(r){
           if(!vehBlocks[r.vid]) vehBlocks[r.vid] = {};
           vehBlocks[r.vid][r.date] = {reason:r.reason||'', notes:r.notes||'', openEnded:!!r.open_ended, openFrom:r.open_from||null, cost:r.cost!=null?Number(r.cost):null};
+          if(!_vehBlocksSaved[r.vid]) _vehBlocksSaved[r.vid] = {};
+          _vehBlocksSaved[r.vid][r.date] = JSON.stringify(_vehBlockRow(r.vid, r.date, vehBlocks[r.vid][r.date]));
         });
       }
     } catch(e) {
@@ -1647,6 +1688,8 @@ async function loadAllFromSupabase() {
         .map(function(r){ return {id:r.id, name:r.name, color:r.color||null}; });
       vehicleAssignments = await loadTodaysDrivers();
     } catch(e){ console.warn('Crew/assignments load error:', e); }
+
+    await loadScheduleAway();
 
     // Load crew availability blocks (employee time-off / bookings)
     try {
@@ -5058,7 +5101,13 @@ async function renderDashBinsOut(){
   var todayS=todayStr();
   // Every active dropped bin = a bin currently out. Grade attention in JS.
   var droppedRes=await db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled').order('bin_dropoff');
-  var droppedJobs=(droppedRes.data||[]).map(dbToJob);
+  if(droppedRes.error){
+    // No answer is not the same as no bins. This used to fall through to "All Bins Home".
+    var subE=document.getElementById('dash-bins-out-sub'); if(subE) subE.textContent='';
+    el.innerHTML=emptyStateHTML('<span style="color:var(--bad)">'+_svgIcon('home',40)+'</span>','Couldn\'t load the bins out','The list didn\'t come through. Check the internet connection, then refresh the page.');
+    return;
+  }
+  var droppedJobs=droppedRes.data.map(dbToJob);
   droppedJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
   droppedJobs.forEach(function(j){
     var drop=j.binDropoff||j.date;
@@ -5747,6 +5796,15 @@ function sortJobList(arr){
   });
 }
 // ─── LIVE MAP ───
+// geotab-proxy answers signed-in staff only (2026-11-17: it used to answer anyone on the
+// internet with every truck's position and every bin zone). Each call carries the signed-in
+// person's own session pass.
+async function _staffFnHeaders(){
+  var s = await db.auth.getSession();
+  var token = s.data && s.data.session && s.data.session.access_token;
+  if(!token) throw new Error('Not signed in');
+  return {'Content-Type':'application/json', 'Authorization':'Bearer '+token};
+}
 // Visual-only Geotab layer for the Live Jobs page. Polls the geotab-proxy
 // edge function every 30s — and ONLY while the Live Jobs view is on screen —
 // for the six whitelisted trucks, draws today's BIN_AUTO_ zones from MyGeotab,
@@ -5833,7 +5891,7 @@ var LiveMap = (function(){
     if(!map) return;
     try {
       var r = await fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method:'POST', headers: await _staffFnHeaders(),
         body: JSON.stringify({ action:'zones' })
       });
       var d = await r.json();
@@ -5876,7 +5934,7 @@ var LiveMap = (function(){
     if(!map) return;
     try {
       var r = await fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method:'POST', headers: await _staffFnHeaders(),
         body: JSON.stringify({ action:'device-status' })
       });
       var d = await r.json();
@@ -11818,7 +11876,7 @@ async function saveJob(e){
   if(visibleDate) date = visibleDate;
 
   // Clear previous field errors
-  ['f-svc','f-names','f-date','f-referral','f-addr','f-city','f-bdrop','f-junk-date','f-fb-date','f-est-duration'].forEach(clearErr);
+  ['f-svc','f-names','f-date','f-referral','f-addr','f-city','f-bdrop','f-bpick','f-junk-date','f-fb-date','f-est-duration'].forEach(clearErr);
 
   // Validate and collect errors
   var errs = [];
@@ -11844,6 +11902,12 @@ async function saveJob(e){
     var _binCity=(document.getElementById('f-city').value||'').trim() || extractCity(_binStreet,'');
     if(!_binStreet){ showErr('f-addr'); errs.push('Address is required for a bin rental.'); if(!firstErrField) firstErrField='f-addr'; }
     if(!_binCity){ showErr('f-city'); errs.push('City is required for a bin rental.'); if(!firstErrField) firstErrField='f-city'; }
+    // A bin with no pickup date and no Will call is never due, so nothing ever asks about
+    // it: on 2026-11-17, 19 of the 41 bins out were like that, the oldest 127 days.
+    var _wcOn=document.getElementById('f-bwillcall').checked, _llOn=document.getElementById('f-liveload').checked;
+    if(!document.getElementById('f-bpick').value && !_wcOn && !_llOn && document.getElementById('f-binstatus').value!=='pickedup'){
+      showErr('f-bpick'); errs.push('Pick-up date is missing — choose a date, or press Will call if the customer will phone when the bin is ready.'); if(!firstErrField) firstErrField='f-bpick';
+    }
   }
   var timeVal=document.getElementById('f-time').value;
 
@@ -12180,6 +12244,7 @@ async function saveJob(e){
   if(cid && names.length){
     var cl=clients.find(function(c){return c.cid===cid;});
     if(cl){
+      var _contactsBefore=JSON.stringify(_clientContacts(cl));
       // Update names if new ones added
       if(!cl.names||!cl.names.length) cl.names=[cl.name||''];
       names.forEach(function(n){if(!cl.names.find(function(x){return x.toLowerCase()===n.toLowerCase();})){cl.names.push(n);}});
@@ -12195,8 +12260,8 @@ async function saveJob(e){
       cl.email=cl.emails[0]||'';
       // Update business name if provided on job
       if(job.businessName) cl.businessName=job.businessName;
-      // Save back to DB
-      saveSingleClient(cl);
+      // Save back to DB — contact fields only, and only when this booking changed them
+      if(JSON.stringify(_clientContacts(cl))!==_contactsBefore) saveClientContacts(cl);
     }
   }
 
@@ -15948,6 +16013,17 @@ async function doMergeClients() {
       merged[f] = pVal ? pVal + '\n' + sVal : sVal;
     }
   });
+
+  // ── What the list above misses: staff-only notes add up, a flag set on either record
+  //    stays set (a blacklisted duplicate used to merge into a clean record and vanish),
+  //    photos are pooled, and one-value fields fill in where the kept record is blank. ──
+  ['internalNotes','billingNote'].forEach(function(f){
+    var pVal = (merged[f]||'').trim(), sVal = (sc[f]||'').trim();
+    if (sVal && pVal.toLowerCase().indexOf(sVal.toLowerCase()) === -1) merged[f] = pVal ? pVal + '\n' + sVal : sVal;
+  });
+  ['blacklisted','contractor','noConfirmationNeeded','billable'].forEach(function(f){ merged[f] = !!(merged[f] || sc[f]); });
+  ['businessName','contactPerson','playbook'].forEach(function(f){ if(!merged[f] && sc[f]) merged[f] = sc[f]; });
+  merged.photos = (merged.photos||[]).concat((sc.photos||[]).filter(function(p){ return (merged.photos||[]).indexOf(p) === -1; }));
 
   // ── Merge names[] — all unique contact names ──
   var pNames = merged.names || [merged.name];
@@ -19969,15 +20045,66 @@ var _crewWeekOffset = 0;
 // Bookings for a crew member on a date (never null).
 function crewDayBlocks(crewId, dateStr){ return ((crewBlocks[crewId]||{})[dateStr])||[]; }
 
+// Time away entered on the Schedule page (Day off, Sick, No work, or any type ticked "time
+// away"). It lives in jwg_schedules, which the junk side never read: someone marked sick on
+// the Schedule could be handed a stop with no warning. Read-only here — the Schedule page
+// stays the place it is edited.   _schedAway = { crewId: { 'YYYY-MM-DD': [ {label,allDay,start,end} ] } }
+var _schedAway = {};
+var _SCHED_DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+async function loadScheduleAway(){
+  var now = new Date(), since = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay()+6)%7) - 7);
+  var ymd = function(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  var res = await Promise.all([
+    db.from('jwg_schedules').select('employee_id,week_start,schedule_data').gte('week_start', ymd(since)),
+    db.from('jwg_app_settings').select('value').eq('key','tasks').maybeSingle()
+  ]);
+  if(res[0].error || res[1].error){
+    console.warn('Schedule time-away load failed:', (res[0].error||res[1].error).message);
+    return;
+  }
+  var awayLabel = {off:'Day off', sick:'Sick', nowork:'No work'};
+  ((res[1].data && res[1].data.value) || []).forEach(function(t){ if(t.away) awayLabel[t.id] = t.label; });
+  var legacy = {dayoff:'off', sick:'sick', nonworking:'nowork'};
+  var out = {};
+  res[0].data.forEach(function(row){
+    var person = _teamByJwg[row.employee_id];
+    if(!person) return;
+    var p = row.week_start.split('-');
+    _SCHED_DAYS.forEach(function(dayName, i){
+      var day = (row.schedule_data||{})[dayName];
+      if(!day) return;
+      var shifts = Array.isArray(day.shifts) ? day.shifts : [];
+      if(!shifts.length && legacy[day.status]) shifts = [{tasks:[legacy[day.status]]}];
+      var hasWork = false, away = [];
+      shifts.forEach(function(sh){
+        var ids = sh.tasks && sh.tasks.length ? sh.tasks : (sh.task ? [sh.task] : []);
+        if(!ids.length) return;
+        if(!ids.every(function(id){ return awayLabel[id]; })){ hasWork = true; return; }
+        away.push({label:awayLabel[ids[0]], allDay:!(sh.start && sh.end), start:sh.start||'', end:sh.end||''});
+      });
+      // An untimed "Day off" beside a real shift is the Schedule contradicting itself; the shift wins.
+      if(hasWork) away = away.filter(function(a){ return !a.allDay; });
+      if(!away.length) return;
+      var ds = ymd(new Date(+p[0], +p[1]-1, +p[2]+i));
+      if(!out[person.id]) out[person.id] = {};
+      out[person.id][ds] = away;
+    });
+  });
+  _schedAway = out;
+}
+
 // Summarize availability for a date → {state:'free'|'partial'|'off', label}.
 function crewStatusForDate(crewId, dateStr){
   var b = crewDayBlocks(crewId, dateStr);
-  if(!b.length) return {state:'free', label:'Available'};
-  var allDay = b.some(function(x){return x.allDay;});
+  var away = (_schedAway[crewId]||{})[dateStr] || [];
+  if(!b.length && !away.length) return {state:'free', label:'Available'};
+  var allDay = b.some(function(x){return x.allDay;}) || away.some(function(a){return a.allDay;});
   var parts = b.map(function(x){
     var when = x.allDay ? 'all day' : (ft(x.slotStart)+'–'+ft(x.slotEnd));
     return (x.role||'Booked')+' · '+when;
-  });
+  }).concat(away.map(function(a){
+    return a.label+' · '+(a.allDay ? 'all day' : (ft(a.start)+'–'+ft(a.end)))+' (on the Schedule)';
+  }));
   return {state: allDay?'off':'partial', label: parts.join('  •  ')};
 }
 

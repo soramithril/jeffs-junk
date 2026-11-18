@@ -1822,7 +1822,7 @@
 
     async function loadTrucks(){
       var r = await fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer '+(await db.auth.getSession()).data.session.access_token},
         body: JSON.stringify({ action:'device-status' })
       });
       var d = await r.json();
@@ -1854,7 +1854,7 @@
     // Same read-only proxy, separate action.
     async function loadTrails(){
       var r = await fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer '+(await db.auth.getSession()).data.session.access_token},
         body: JSON.stringify({ action:'trails' })
       });
       var d = await r.json();
