@@ -214,7 +214,7 @@ window.SnowDesk = (function(){
   function frame(){
     root.innerHTML = '<div class="sx-page">'
       + '<div class="sx-head"><div><div class="sx-title">Snow &amp; Ice</div><div class="sx-sub" id="sx-sub"></div></div>'
-      +   '<div class="sx-acts"><button type="button" class="sx-btn" data-book>Print book</button><button type="button" class="sx-btn" data-types>Service list</button>'
+      +   '<div class="sx-acts"><button type="button" class="sx-btn" data-times>Snow Times</button><button type="button" class="sx-btn" data-book>Print book</button><button type="button" class="sx-btn" data-types>Service list</button>'
       +   '<button type="button" class="sx-btn primary" data-add>+ Add site</button></div></div>'
       + '<div class="sx-gauges" id="sx-gauges"></div>'
       + '<div class="sx-desk">'
@@ -242,6 +242,7 @@ window.SnowDesk = (function(){
       }
       if((b = t.closest('[data-filter]'))){ st.filter = st.filter === b.dataset.filter ? '' : b.dataset.filter; paintGauges(); paintList(); return; }
       if(t.closest('[data-cancel-place]')){ WinterRoutes.cancelPlacing(); return; }
+      if(t.closest('[data-times]')){ JWG.setWinterView('times'); return; }
       if(t.closest('[data-book]')){ WinterBook.choose(); return; }
       if(t.closest('[data-types]')){ if(document.getElementById('sx-types')) closeTypes(); else openTypes(); return; }
       if(t.closest('[data-add]')){ JWG.openAddWinterLocation(); return; }
