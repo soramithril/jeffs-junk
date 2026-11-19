@@ -1,0 +1,306 @@
+/* ══ LOOK PICKER — PREVIEW, JAKE ONLY (v757) ═══════════════════════════════════
+   app-looks.js puts html.look-<id> (and .look-dark for the dark ones) on the page
+   for Jake's login only. Each look redefines the colour tokens from style.css for
+   the WHOLE app, so every page and pop-up follows, then restyles the frame: page,
+   menu, cards, buttons, headings and fonts.
+
+   No backdrop-filter and no animated full-page background on purpose: both lagged
+   the office PCs before (Halloween look, glass look E). Glows are plain shadows. */
+
+/* ── shared: the font swap. --lf = body font, --ld = headings and big numbers ── */
+html.look-on body, html.look-on body *:not(svg):not(svg *){font-family:var(--lf) !important}
+html.look-on .page-title, html.look-on .stat-value, html.look-on .bin-stat-value,
+html.look-on .logo-title, html.look-on .week-cal-title, html.look-on .cat-title,
+html.look-on .veh-card-name, html.look-on .week-day-num, html.look-on .modal-title,
+html.look-on [data-bincount], html.look-on .card-head{font-family:var(--ld) !important}
+html.look-on .page-title{font-size:var(--ld-size,40px);letter-spacing:var(--ld-track,-.5px);font-weight:var(--ld-weight,700);text-transform:none}
+html.look-on .card-head{text-transform:var(--head-case,none);letter-spacing:var(--head-track,0);font-weight:700}
+html.look-on .chart-card, html.look-on .stat-card, html.look-on .modal{border-radius:var(--card-r,16px)}
+html.look-on .btn{border-radius:var(--btn-r,10px)}
+html.look-on .btn-primary{background:var(--btn-bg);color:var(--btn-ink);box-shadow:var(--btn-glow,none)}
+html.look-on .btn-primary:hover{background:var(--btn-bg-h,var(--btn-bg));filter:brightness(1.06)}
+html.look-on body{background:var(--page-paint,var(--bg))}
+html.look-on .liquid-nav-svg path{fill:var(--tab-fill,var(--bg))}
+html.look-on .sidebar{background:var(--nav-green)}
+
+/* ── shared for the dark looks: colours the app writes inline, mapped so nothing
+      goes unreadable (same mapping the night look used, widened to every page) ── */
+html.look-dark{color-scheme:dark}
+html.look-dark [style*="background:#fff"], html.look-dark [style*="background: #fff"],
+html.look-dark [style*="background:white"], html.look-dark [style*="background:#f"],
+html.look-dark [style*="background:#e"], html.look-dark [style*="background-color:#f"]{background:rgba(255,255,255,.06) !important}
+html.look-dark [style*="color:#15803d"], html.look-dark [style*="color:#16a34a"],
+html.look-dark [style*="color:#166534"], html.look-dark [style*="color:#3f6212"],
+html.look-dark [style*="color:#65a30d"], html.look-dark [style*="color:#14532d"]{color:var(--ok-ink) !important}
+html.look-dark [style*="color:#c2410c"], html.look-dark [style*="color:#b45309"],
+html.look-dark [style*="color:#9a3412"], html.look-dark [style*="color:#92400e"],
+html.look-dark [style*="color:#a1662f"]{color:var(--warn-ink) !important}
+html.look-dark [style*="color:#dc2626"], html.look-dark [style*="color:#991b1b"],
+html.look-dark [style*="color:#b91c1c"]{color:var(--bad-ink) !important}
+html.look-dark [style*="color:#0d6efd"], html.look-dark [style*="color:#2563eb"],
+html.look-dark [style*="color:#1d4ed8"], html.look-dark [style*="color:#0891b2"],
+html.look-dark [style*="color:#0e7490"], html.look-dark [style*="color:#1e40af"]{color:var(--info-ink) !important}
+html.look-dark [style*="color:#a855f7"], html.look-dark [style*="color:#9b59b6"],
+html.look-dark [style*="color:#7c3aed"], html.look-dark [style*="color:#6d28d9"],
+html.look-dark [style*="color:#4f46e5"]{color:#C3B3FF !important}
+html.look-dark [style*="color:#1a1a2e"], html.look-dark [style*="color:#000"],
+html.look-dark [style*="color:#111"], html.look-dark [style*="color:#1a211e"],
+html.look-dark [style*="color:#333"], html.look-dark [style*="color:#374151"],
+html.look-dark [style*="color:#454b46"], html.look-dark [style*="color:#555"],
+html.look-dark [style*="color:#666"], html.look-dark [style*="color:#6b7280"],
+html.look-dark [style*="color:#64748b"]{color:var(--text-secondary) !important}
+html.look-dark [style*="background:#14532d"]{background:var(--accent) !important}
+html.look-dark .jj-bin img{filter:drop-shadow(0 10px 14px rgba(0,0,0,.55))}
+html.look-dark ::-webkit-scrollbar-thumb{background:#2a2f2c}
+html.look-dark .modal-overlay{background:rgba(0,0,0,.6)}
+
+/* ══ 1 · FOREST NIGHT — the Verdelo "Dashboard Animation" clip ═══════════════════
+   Smoky forest green page, slightly lighter green panels with a faint rim, ONE mint
+   green for the selected menu item and the main button. The mint tab slides between
+   menu items (the liquid tab, coloured mint). Big friendly greeting type. */
+html.look-forest{
+  --lf:'Manrope',system-ui,sans-serif; --ld:'Manrope',system-ui,sans-serif; --ld-size:40px; --ld-weight:700; --ld-track:-1px;
+  --n1:#101A15; --n2:#131E18; --n3:#18261E; --n4:#1C2B23; --n5:#213229; --n6:#273A30; --n7:#2F453A; --n8:#40594B;
+  --n9:#6F8778; --n10:#80988A; --n11:#A9BDB1; --n12:#ECF3EE;
+  --bg:#0C1511; --surface:#121D17; --surface2:#17241D; --surface-solid:#121D17; --surface-hover:#1A2A21;
+  --border:#22332A; --border-strong:#2D4237;
+  --text:#ECF3EE; --text-secondary:#BCCDC2; --muted:#8FA698; --placeholder:#6F8778;
+  --shadow-sm:0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.35);
+  --shadow-md:0 1px 0 rgba(255,255,255,.04) inset, 0 14px 34px rgba(0,0,0,.45);
+  --shadow-lg:0 1px 0 rgba(255,255,255,.05) inset, 0 24px 60px rgba(0,0,0,.55);
+  --accent-hero:#5BE38F; --accent:#5BE38F; --accent-light:rgba(91,227,143,.12); --accent-hover:#8AF0B0;
+  --green-s1:#8AF0B0; --green-s2:#5BE38F; --green-s3:#2FA864; --green-s4:#1B6B3F;
+  --ok:#5BE38F; --ok-soft:rgba(91,227,143,.14); --ok-ink:#8AF0B0;
+  --warn:#F2C14E; --warn-soft:rgba(242,193,78,.14); --warn-ink:#F6D27F;
+  --bad:#FF6B5E; --bad-soft:rgba(255,107,94,.15); --bad-ink:#FF9A90;
+  --info:#6FB7FF; --info-soft:rgba(111,183,255,.15); --info-ink:#A2CFFF;
+  --c-bin:#4FD1E8; --c-junk:#F2C14E; --c-furn:#B39BFF; --c-furn-del:#FF9F6B; --c-landscaping:#A6E05A;
+  --size1:#0E5F75; --size2:#0891B2; --size3:#4FD1E8; --size4:#9BE8F5;
+  --data:#5BE38F; --data-soft:rgba(91,227,143,.14); --data-edge:#5BE38F;
+  --nav-green:#0F1914; --nav-green-raised:#15221B;
+  --page-paint:radial-gradient(1200px 700px at 70% -10%, rgba(91,227,143,.10), transparent 60%),
+               radial-gradient(900px 600px at 15% 110%, rgba(60,120,85,.18), transparent 60%), #0C1511;
+  --tab-fill:#5BE38F;
+  --card-r:20px; --btn-r:12px; --btn-bg:#5BE38F; --btn-ink:#062012;
+}
+html.look-forest body{background-attachment:fixed}
+html.look-forest .sidebar{border-right:1px solid #1E2E25}
+html.look-forest .nav-item{color:rgba(236,243,238,.72)}
+html.look-forest .nav-item .icon{background:transparent;color:#A9BDB1}
+html.look-forest .nav-item.active{color:#062012 !important;background:transparent}
+html.look-forest .nav-item.active .icon{background:rgba(6,32,18,.10);color:#062012}
+html.look-forest .chart-card, html.look-forest .stat-card{background:linear-gradient(180deg,#14211A 0%,#101A15 100%);border:1px solid #22332A}
+html.look-forest .chart-card:hover{border-color:#2F4A3B}
+html.look-forest .stat-value{font-weight:700;letter-spacing:-1px;text-shadow:none}
+
+/* ══ 2 · BLACK WIDGET — the black widget screenshot ═════════════════════════════
+   Pure black, near-black cards with big rounded corners, tall condensed numbers,
+   and one neon green that GLOWS (bars, the main button, the selected tab). */
+html.look-widget{
+  --lf:'Inter',system-ui,sans-serif; --ld:'Oswald',Impact,sans-serif; --ld-size:46px; --ld-weight:400; --ld-track:.5px;
+  --head-case:uppercase; --head-track:1.5px;
+  --n1:#0A0A0A; --n2:#0E0E0E; --n3:#141414; --n4:#191919; --n5:#1F1F1F; --n6:#262626; --n7:#303030; --n8:#444;
+  --n9:#6E6E6E; --n10:#808080; --n11:#A8A8A8; --n12:#F4F4F4;
+  --bg:#000000; --surface:#111111; --surface2:#181818; --surface-solid:#111111; --surface-hover:#1B1B1B;
+  --border:#222222; --border-strong:#2E2E2E;
+  --text:#F4F4F4; --text-secondary:#C4C4C4; --muted:#8A8A8A; --placeholder:#6E6E6E;
+  --shadow-sm:0 10px 30px rgba(0,0,0,.6); --shadow-md:0 16px 40px rgba(0,0,0,.7); --shadow-lg:0 26px 70px rgba(0,0,0,.8);
+  --accent-hero:#39FF6A; --accent:#39FF6A; --accent-light:rgba(57,255,106,.12); --accent-hover:#7DFF9C;
+  --green-s1:#7DFF9C; --green-s2:#39FF6A; --green-s3:#1FC64A; --green-s4:#0E7A2B;
+  --ok:#39FF6A; --ok-soft:rgba(57,255,106,.14); --ok-ink:#7DFF9C;
+  --warn:#FFC93C; --warn-soft:rgba(255,201,60,.14); --warn-ink:#FFD976;
+  --bad:#FF4D4D; --bad-soft:rgba(255,77,77,.16); --bad-ink:#FF8A8A;
+  --info:#4DA3FF; --info-soft:rgba(77,163,255,.15); --info-ink:#93C6FF;
+  --c-bin:#39D5FF; --c-junk:#FFC93C; --c-furn:#B08CFF; --c-furn-del:#FF8A4C; --c-landscaping:#9BFF4D;
+  --size1:#0E5F75; --size2:#0891B2; --size3:#39D5FF; --size4:#A3EBFF;
+  --data:#39FF6A; --data-soft:rgba(57,255,106,.16); --data-edge:#39FF6A;
+  --nav-green:#000000; --nav-green-raised:#0E0E0E; --tab-fill:#000000;
+  --card-r:28px; --btn-r:14px; --btn-bg:#39FF6A; --btn-ink:#002309;
+  --btn-glow:0 0 0 1px rgba(57,255,106,.6), 0 0 22px rgba(57,255,106,.45);
+}
+html.look-widget .sidebar{border-right:1px solid #161616}
+html.look-widget .nav-item .icon{background:#151515;color:#C4C4C4}
+html.look-widget .nav-item.active{color:#39FF6A !important}
+html.look-widget .nav-item.active .icon{background:#39FF6A;color:#002309;box-shadow:0 0 16px rgba(57,255,106,.6)}
+html.look-widget .chart-card, html.look-widget .stat-card{background:#0F0F0F;border:1px solid #1E1E1E;box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 20px 50px rgba(0,0,0,.7)}
+html.look-widget .stat-value, html.look-widget [data-bincount]{font-weight:300;text-shadow:0 0 20px rgba(57,255,106,.35)}
+html.look-widget #card-today-jobs > div:first-child{background:#39FF6A !important;color:#002309 !important;box-shadow:0 0 30px rgba(57,255,106,.45)}
+html.look-widget #card-today-jobs > div:first-child *{color:#002309 !important}
+
+/* ══ 3 · CLAY MAP — the 3D clay map with the route line ═════════════════════════
+   Soft map grey-green page, chunky white "clay" cards with deep soft shadows,
+   the road-sign green for the menu and buttons, route blue for links and info. */
+html.look-clay{
+  --lf:'Outfit',system-ui,sans-serif; --ld:'Outfit',system-ui,sans-serif; --ld-size:42px; --ld-weight:700; --ld-track:-1px;
+  --bg:#E9ECE5; --surface:#FFFFFF; --surface2:#F3F5F0; --surface-solid:#FFFFFF; --surface-hover:#F1F4EC;
+  --border:#E0E4DA; --border-strong:#CDD3C6;
+  --text:#1D2620; --text-secondary:#3F4A42; --muted:#66716A;
+  --shadow-sm:0 2px 0 rgba(30,50,35,.05), 0 14px 30px -12px rgba(30,60,40,.22);
+  --shadow-md:0 2px 0 rgba(30,50,35,.06), 0 22px 44px -14px rgba(30,60,40,.30);
+  --shadow-lg:0 3px 0 rgba(30,50,35,.06), 0 34px 70px -18px rgba(30,60,40,.38);
+  --accent-hero:#1E7B3A; --accent:#1E7B3A; --accent-light:#E3F1E6; --accent-hover:#17642F;
+  --info:#2F6FED; --info-soft:rgba(47,111,237,.12); --info-ink:#1F4FB8; --data:#2F6FED; --data-edge:#2F6FED; --data-soft:rgba(47,111,237,.12);
+  --nav-green:#1E7B3A; --nav-green-raised:#22893F; --tab-fill:#E9ECE5;
+  --page-paint:radial-gradient(900px 500px at 85% 0%, rgba(255,255,255,.7), transparent 60%),
+               linear-gradient(180deg,#EEF1EA 0%,#E4E8DF 100%);
+  --card-r:24px; --btn-r:14px; --btn-bg:#1E7B3A; --btn-ink:#fff;
+  --btn-glow:0 3px 0 #145428, 0 10px 20px -8px rgba(30,123,58,.6);
+}
+html.look-clay body{background-attachment:fixed}
+html.look-clay .sidebar{margin:12px 0 12px 12px;border-radius:26px;top:0;bottom:0;box-shadow:0 3px 0 #145428, 0 24px 50px -16px rgba(20,80,40,.55)}
+html.look-clay .nav-item .icon{background:rgba(255,255,255,.18);border-radius:12px}
+html.look-clay .nav-item.active .icon{background:#2F6FED}
+html.look-clay .chart-card, html.look-clay .stat-card{border:none}
+html.look-clay .chart-card:hover{transform:translateY(-2px)}
+html.look-clay .btn-primary:active{transform:translateY(2px);box-shadow:0 1px 0 #145428}
+html.look-clay #card-today-jobs > div:first-child{background:#1E7B3A !important;box-shadow:0 3px 0 #145428}
+
+/* ══ 4 · DARK ADMIN — the dark admin dashboard recording ════════════════════════
+   Cool charcoal-navy, crisp thin borders, compact grid, bin green as the one
+   colour, Space Grotesk headings. Quiet and businesslike. */
+html.look-admin{
+  --lf:'Inter',system-ui,sans-serif; --ld:'Space Grotesk',system-ui,sans-serif; --ld-size:34px; --ld-weight:600; --ld-track:-.5px;
+  --n1:#12161E; --n2:#151A23; --n3:#1A2029; --n4:#1E2530; --n5:#232B37; --n6:#29323F; --n7:#323C4B; --n8:#465163;
+  --n9:#6B7689; --n10:#7E899B; --n11:#A6B0C0; --n12:#E8ECF3;
+  --bg:#0E1117; --surface:#161B24; --surface2:#1B212C; --surface-solid:#161B24; --surface-hover:#1E2531;
+  --border:#252D3A; --border-strong:#313B4A;
+  --text:#E8ECF3; --text-secondary:#B7C0CE; --muted:#8A94A6; --placeholder:#6B7689;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow-md:0 6px 18px rgba(0,0,0,.45); --shadow-lg:0 18px 48px rgba(0,0,0,.55);
+  --accent-hero:#00C26A; --accent:#00C26A; --accent-light:rgba(0,194,106,.12); --accent-hover:#1FDB85;
+  --green-s1:#1FDB85; --green-s2:#00C26A; --green-s3:#00994C; --green-s4:#006B35;
+  --ok:#00C26A; --ok-soft:rgba(0,194,106,.14); --ok-ink:#3FE098;
+  --warn:#F5A524; --warn-soft:rgba(245,165,36,.14); --warn-ink:#F8C068;
+  --bad:#F0525B; --bad-soft:rgba(240,82,91,.15); --bad-ink:#F78A90;
+  --info:#5B8DEF; --info-soft:rgba(91,141,239,.15); --info-ink:#93B4F5;
+  --c-bin:#3CC7E6; --c-junk:#F5C542; --c-furn:#A78BFA; --c-furn-del:#FB923C; --c-landscaping:#84CC16;
+  --data:#5B8DEF; --data-soft:rgba(91,141,239,.15); --data-edge:#5B8DEF;
+  --nav-green:#0B0E13; --nav-green-raised:#121720; --tab-fill:#0E1117;
+  --card-r:12px; --btn-r:8px; --btn-bg:#00C26A; --btn-ink:#04220F;
+}
+html.look-admin .sidebar{border-right:1px solid #1C222D}
+html.look-admin .nav-item{color:#9AA4B5}
+html.look-admin .nav-item .icon{background:#161B24;color:#B7C0CE;border-radius:8px}
+html.look-admin .nav-item.active{color:#E8ECF3 !important}
+html.look-admin .nav-item.active .icon{background:#00C26A;color:#04220F}
+html.look-admin .chart-card, html.look-admin .stat-card{background:#161B24;border:1px solid #252D3A;box-shadow:none}
+html.look-admin .stat-card::before{height:2px}
+
+/* ══ 5 · LOGISTICS YARD — the 3D logistics yard recording ═══════════════════════
+   Steel-grey yard page, square-ish white panels like shipping containers, a slate
+   menu, safety orange for warnings, bin green for go. Condensed caps headings. */
+html.look-yard{
+  --lf:'Barlow',system-ui,sans-serif; --ld:'Barlow Condensed',Impact,sans-serif; --ld-size:44px; --ld-weight:700; --ld-track:.5px;
+  --head-case:uppercase; --head-track:1px;
+  --bg:#E4E8EC; --surface:#FFFFFF; --surface2:#F1F3F5; --surface-solid:#FFFFFF; --surface-hover:#EEF1F4;
+  --border:#D2D8DE; --border-strong:#B9C1C9;
+  --text:#17202A; --text-secondary:#36414D; --muted:#5D6874;
+  --shadow-sm:0 1px 0 rgba(23,32,42,.06), 0 6px 14px -6px rgba(23,32,42,.18);
+  --shadow-md:0 1px 0 rgba(23,32,42,.08), 0 12px 26px -10px rgba(23,32,42,.25);
+  --accent-hero:#00994C; --accent:#00994C; --accent-light:#E0F3E9; --accent-hover:#007F3F;
+  --warn:#FF7A1A; --warn-soft:rgba(255,122,26,.14); --warn-ink:#B84F00;
+  --nav-green:#1F2A33; --nav-green-raised:#26333E; --tab-fill:#E4E8EC;
+  --page-paint:repeating-linear-gradient(90deg, rgba(23,32,42,.035) 0 1px, transparent 1px 64px),
+               repeating-linear-gradient(0deg, rgba(23,32,42,.035) 0 1px, transparent 1px 64px), #E4E8EC;
+  --card-r:6px; --btn-r:4px; --btn-bg:#00994C; --btn-ink:#fff;
+}
+html.look-yard .nav-item .icon{background:rgba(255,255,255,.10);border-radius:4px}
+html.look-yard .nav-item.active{color:#17202A !important}
+html.look-yard .nav-item.active .icon{background:#FF7A1A;color:#fff}
+html.look-yard .chart-card, html.look-yard .stat-card{border:1px solid #D2D8DE;border-top:4px solid #17202A}
+html.look-yard .stat-card::before{display:none}
+html.look-yard #card-today-jobs > div:first-child{background:#17202A !important;border-radius:4px 4px 0 0}
+
+/* ══ 6 · FLOATING CARDS — the isometric warehouse with floating cards ══════════
+   Airy light page with a faint isometric grid, a WHITE menu, very round white
+   cards that float on big soft shadows and lift when you point at them. */
+html.look-float{
+  --lf:'DM Sans',system-ui,sans-serif; --ld:'DM Sans',system-ui,sans-serif; --ld-size:40px; --ld-weight:700; --ld-track:-1.2px;
+  --bg:#F3F5FB; --surface:#FFFFFF; --surface2:#F5F7FC; --surface-solid:#FFFFFF; --surface-hover:#F2F5FB;
+  --border:#E6EAF3; --border-strong:#D5DBE8;
+  --text:#151A2D; --text-secondary:#3B4260; --muted:#6A7190;
+  --shadow-sm:0 10px 30px -12px rgba(40,50,110,.18);
+  --shadow-md:0 20px 50px -18px rgba(40,50,110,.28);
+  --shadow-lg:0 34px 80px -24px rgba(40,50,110,.36);
+  --accent-hero:#00A85A; --accent:#00A85A; --accent-light:#E2F7EC; --accent-hover:#008A4A;
+  --info:#6C5CE7; --info-soft:rgba(108,92,231,.12); --info-ink:#5141C9; --data:#6C5CE7; --data-edge:#6C5CE7; --data-soft:rgba(108,92,231,.12);
+  --nav-green:#FFFFFF; --nav-green-raised:#F5F7FC; --tab-fill:#F3F5FB;
+  --page-paint:repeating-linear-gradient(30deg, rgba(60,70,140,.045) 0 1px, transparent 1px 46px),
+               repeating-linear-gradient(150deg, rgba(60,70,140,.045) 0 1px, transparent 1px 46px),
+               linear-gradient(180deg,#F6F7FC 0%,#EEF1F9 100%);
+  --card-r:26px; --btn-r:999px; --btn-bg:#00A85A; --btn-ink:#fff;
+  --btn-glow:0 10px 24px -10px rgba(0,168,90,.7);
+}
+html.look-float body{background-attachment:fixed}
+html.look-float .sidebar{box-shadow:12px 0 40px -20px rgba(40,50,110,.25)}
+html.look-float .logo-title, html.look-float .sidebar .stats-mini-label, html.look-float .sidebar .stats-mini-value,
+html.look-float .footer-help{color:#151A2D}
+html.look-float .sidebar-footer{border-top-color:#E6EAF3}
+html.look-float .footer-help{background:#F2F5FB}
+html.look-float .nav-item{color:#59607E}
+html.look-float .nav-item:hover{background:#F2F5FB;color:#151A2D}
+html.look-float .nav-item .icon{background:#F2F5FB;color:#59607E;border-radius:12px}
+html.look-float .nav-item.active{color:#151A2D !important}
+html.look-float .nav-item.active .icon{background:#00A85A;color:#fff;box-shadow:0 8px 18px -8px rgba(0,168,90,.8)}
+html.look-float .nav-item .nav-hint{color:#8A90AC}
+html.look-float .chart-card, html.look-float .stat-card{border:1px solid rgba(230,234,243,.9);transition:transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s}
+html.look-float .chart-card:hover, html.look-float .stat-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+
+/* ══ 7 · GREEN GLOW — the green-glow pill buttons recording ════════════════════
+   Near-black with a green aurora, everything round: pill buttons, pill menu items,
+   pill tags. The selected item and the main button glow. */
+html.look-glow{
+  --lf:'Sora',system-ui,sans-serif; --ld:'Sora',system-ui,sans-serif; --ld-size:38px; --ld-weight:600; --ld-track:-1px;
+  --n1:#0B110E; --n2:#0E1511; --n3:#121B16; --n4:#16201A; --n5:#1A261F; --n6:#203026; --n7:#283A2F; --n8:#3B5244;
+  --n9:#678273; --n10:#7A9585; --n11:#A4BCAE; --n12:#EAF7EF;
+  --bg:#050807; --surface:#0C1310; --surface2:#111A15; --surface-solid:#0C1310; --surface-hover:#132019;
+  --border:#1A2A21; --border-strong:#24392D;
+  --text:#EAF7EF; --text-secondary:#B6CDBF; --muted:#86A293; --placeholder:#678273;
+  --shadow-sm:0 8px 24px rgba(0,0,0,.5); --shadow-md:0 14px 36px rgba(0,0,0,.55); --shadow-lg:0 24px 60px rgba(0,0,0,.65);
+  --accent-hero:#22FF88; --accent:#22FF88; --accent-light:rgba(34,255,136,.10); --accent-hover:#7CFFB9;
+  --green-s1:#7CFFB9; --green-s2:#22FF88; --green-s3:#14C466; --green-s4:#0A7A3F;
+  --ok:#22FF88; --ok-soft:rgba(34,255,136,.13); --ok-ink:#7CFFB9;
+  --warn:#FFC24D; --warn-soft:rgba(255,194,77,.14); --warn-ink:#FFD58A;
+  --bad:#FF5C6C; --bad-soft:rgba(255,92,108,.15); --bad-ink:#FF95A0;
+  --info:#5CC8FF; --info-soft:rgba(92,200,255,.14); --info-ink:#9ADDFF;
+  --c-bin:#5CC8FF; --c-junk:#FFD15C; --c-furn:#B79CFF; --c-furn-del:#FF9C5C; --c-landscaping:#B4FF5C;
+  --data:#22FF88; --data-soft:rgba(34,255,136,.14); --data-edge:#22FF88;
+  --nav-green:#070C09; --nav-green-raised:#0C1310; --tab-fill:#050807;
+  --page-paint:radial-gradient(800px 420px at 60% -6%, rgba(34,255,136,.16), transparent 65%),
+               radial-gradient(700px 500px at 0% 100%, rgba(34,255,136,.07), transparent 60%), #050807;
+  --card-r:24px; --btn-r:999px; --btn-bg:linear-gradient(180deg,#5CFFA6 0%,#18D872 100%); --btn-ink:#012912;
+  --btn-glow:0 0 0 1px rgba(124,255,185,.6), 0 0 26px rgba(34,255,136,.55), inset 0 1px 0 rgba(255,255,255,.5);
+}
+html.look-glow body{background-attachment:fixed}
+html.look-glow .sidebar{border-right:1px solid #12201A}
+html.look-glow .nav-item{border-radius:999px;color:#A4BCAE}
+html.look-glow .nav-item .icon{background:#101A15;color:#A4BCAE;border-radius:999px}
+html.look-glow .nav-item.active{color:#EAF7EF !important}
+html.look-glow .nav-item.active .icon{background:#22FF88;color:#012912;box-shadow:0 0 18px rgba(34,255,136,.7)}
+html.look-glow .chart-card, html.look-glow .stat-card{background:#0B120F;border:1px solid #1A2A21}
+html.look-glow .chart-card:hover{border-color:rgba(34,255,136,.35);box-shadow:0 0 0 1px rgba(34,255,136,.15), 0 0 40px -10px rgba(34,255,136,.35)}
+html.look-glow input, html.look-glow select{border-radius:999px}
+html.look-glow textarea{border-radius:18px}
+html.look-glow input:focus, html.look-glow select:focus, html.look-glow textarea:focus{border-color:#22FF88;box-shadow:0 0 0 3px rgba(34,255,136,.18), 0 0 18px rgba(34,255,136,.25)}
+html.look-glow #card-today-jobs > div:first-child{background:linear-gradient(90deg,#0A3B22,#0F6B3A) !important;box-shadow:0 0 30px -6px rgba(34,255,136,.5)}
+
+/* ── the picker itself (Jake only) ── */
+#jjlook-bar{position:fixed;right:18px;bottom:18px;z-index:9000;display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-family:'Inter',system-ui,sans-serif !important}
+#jjlook-bar *{font-family:'Inter',system-ui,sans-serif !important}
+.jjlook-pill{display:flex;align-items:center;background:#111;color:#fff;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.12);overflow:hidden}
+.jjlook-pill button{background:none;border:none;color:#fff;cursor:pointer;height:40px}
+.jjlook-arrow{width:38px;font-size:22px;line-height:1}
+.jjlook-arrow:hover, .jjlook-name:hover{background:rgba(255,255,255,.12)}
+.jjlook-name{display:flex;align-items:center;gap:8px;padding:0 10px;font-size:13px;font-weight:600;white-space:nowrap}
+.jjlook-dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 8px currentColor}
+.jjlook-list{display:none;width:330px;max-height:70vh;overflow:auto;background:#111;color:#fff;border-radius:18px;padding:8px;box-shadow:0 20px 50px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.12)}
+#jjlook-bar.open .jjlook-list{display:block}
+.jjlook-hd{font-size:13px;font-weight:700;padding:8px 10px 10px}
+.jjlook-hd span{display:block;font-size:11px;font-weight:500;color:#9a9a9a;margin-top:2px}
+.jjlook-opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:none;color:#fff;padding:9px 10px;border-radius:12px;cursor:pointer}
+.jjlook-opt:hover{background:rgba(255,255,255,.08)}
+.jjlook-opt.on{background:rgba(255,255,255,.14)}
+.jjlook-opt b{display:block;font-size:13.5px}
+.jjlook-opt small{display:block;font-size:11.5px;color:#a8a8a8;margin-top:2px}
+.jjlook-sw{flex:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:flex-end;justify-content:flex-end;padding:5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+.jjlook-sw i{width:12px;height:12px;border-radius:50%}
+@media(max-width:900px){#jjlook-bar{right:10px;bottom:76px}}
