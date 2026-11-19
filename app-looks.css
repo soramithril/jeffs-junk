@@ -53,6 +53,15 @@ html.look-dark [style*="background:#14532d"]{background:var(--accent) !important
 html.look-dark .jj-bin img{filter:drop-shadow(0 10px 14px rgba(0,0,0,.55))}
 html.look-dark ::-webkit-scrollbar-thumb{background:#2a2f2c}
 html.look-dark .modal-overlay{background:rgba(0,0,0,.6)}
+/* the "Today's jobs" style tabs mix the accent with WHITE - on a dark page that is a
+   white tab with white text. And these buttons put white text on the accent, which
+   cannot be read on a bright mint/neon accent: they take the look's button ink. */
+html.look-dark .djj-seg.is-active{background:var(--accent-light);color:var(--text);box-shadow:inset 0 0 0 1px var(--accent)}
+html.look-dark .djj-book:hover, html.look-dark .bin-dur-btn:hover, html.look-dark .bin-quick-dur.active,
+html.look-dark .extend-date-row button, html.look-dark .h-block-form button, html.look-dark .h-add-maint button,
+html.look-dark .drdc-step-inc, html.look-dark .hm-tour-ico, html.look-dark .rc-seg button.active,
+html.look-dark .rc-map-modeseg button.active, html.look-dark .etpl-chip:hover, html.look-dark .ai-btn.lead,
+html.look-dark .help-fab{color:var(--btn-ink) !important}
 
 /* ══ 1 · FOREST NIGHT — the Verdelo "Dashboard Animation" clip ═══════════════════
    Smoky forest green page, slightly lighter green panels with a faint rim, ONE mint
@@ -284,7 +293,7 @@ html.look-glow input:focus, html.look-glow select:focus, html.look-glow textarea
 html.look-glow #card-today-jobs > div:first-child{background:linear-gradient(90deg,#0A3B22,#0F6B3A) !important;box-shadow:0 0 30px -6px rgba(34,255,136,.5)}
 
 /* ── the picker itself (Jake only) ── */
-#jjlook-bar{position:fixed;right:18px;bottom:18px;z-index:9000;display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-family:'Inter',system-ui,sans-serif !important}
+#jjlook-bar{position:fixed;right:92px;bottom:24px;z-index:9000;display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-family:'Inter',system-ui,sans-serif !important}
 #jjlook-bar *{font-family:'Inter',system-ui,sans-serif !important}
 .jjlook-pill{display:flex;align-items:center;background:#111;color:#fff;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.12);overflow:hidden}
 .jjlook-pill button{background:none;border:none;color:#fff;cursor:pointer;height:40px}
@@ -303,4 +312,4 @@ html.look-glow #card-today-jobs > div:first-child{background:linear-gradient(90d
 .jjlook-opt small{display:block;font-size:11.5px;color:#a8a8a8;margin-top:2px}
 .jjlook-sw{flex:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:flex-end;justify-content:flex-end;padding:5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
 .jjlook-sw i{width:12px;height:12px;border-radius:50%}
-@media(max-width:900px){#jjlook-bar{right:10px;bottom:76px}}
+@media(max-width:900px){#jjlook-bar{right:10px;bottom:84px}}
