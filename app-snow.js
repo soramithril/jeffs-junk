@@ -390,9 +390,9 @@ window.SnowDesk = (function(){
     root.querySelector('#sx-tabs').innerHTML = [['sites', 'Sites', W.locations.length], ['plans', 'Site plans', todo ? todo + ' to finish' : 'all done'], ['night', 'Snow night', '']].map(function(t){
       return '<button type="button" class="sx-tab" data-tab="' + t[0] + '" aria-pressed="' + (st.tab === t[0]) + '">' + t[1] + (t[2] !== '' ? '<small>' + t[2] + '</small>' : '') + '</button>';
     }).join('');
-    var body = root.querySelector('#sx-body'), fresh = body.dataset.tab !== st.tab;
+    var body = root.querySelector('#sx-body'), fresh = body.dataset.showing !== st.tab;
     if(fresh){
-      body.dataset.tab = st.tab;
+      body.dataset.showing = st.tab;   // not data-tab: that is what the tab buttons carry, and a click anywhere in here would match it
       body.innerHTML = TABS[st.tab]();
       if(st.tab === 'sites') root.querySelector('#sx-q').value = st.q;
     }
