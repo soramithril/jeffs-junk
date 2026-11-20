@@ -1,5 +1,5 @@
 /**
- * Supabase Edge Function: permit-leads-sync (v2, 2026-11-20)
+ * Supabase Edge Function: permit-leads-sync (v3, 2026-11-20)
  *
  * Pulls the building permits the towns publish into public.permit_leads, which
  * the Prospects page shows as "Permit leads". Called once a morning by pg_cron
@@ -21,6 +21,12 @@
  * no person's name, email or phone is ever kept or written anywhere. The raw
  * record is cut off at 2,000 characters, so it is walked party by party instead
  * of parsed whole.
+ *
+ * v3: the company's own website. The web address comes from the company's
+ * email on the permit (the part after the @; gmail and the like are skipped),
+ * and only that address is kept. Each new site is opened once and its public
+ * phone, email and one-line description are saved beside the lead, so the
+ * office knows who they are calling.
  *
  * A permit is written once and never touched again (unique town + permit_no,
  * duplicates ignored), so whatever the office marked on a lead survives every
@@ -56,6 +62,7 @@ interface Lead {
   issued_on: string; // YYYY-MM-DD
   company: string | null;
   company_role: string | null;
+  company_site: string | null;
 }
 
 const clean = (s: unknown) => String(s ?? "").replace(/\s+/g, " ").trim();
@@ -94,6 +101,7 @@ async function barrie(today: Date): Promise<Lead[]> {
       issued_on: date,
       company: null,
       company_role: null,
+      company_site: null,
     });
   }
   return leads;
@@ -127,18 +135,81 @@ function partiesIn(raw: string): Array<Record<string, unknown>> {
   return out;
 }
 
-/** The one company to show for a permit, and its role. Company name only. */
-function companyOn(raw: string): { company: string | null; company_role: string | null } {
+// Mailbox providers: an address here says nothing about the company's website.
+const FREE_MAIL = new Set(("gmail.com hotmail.com hotmail.ca outlook.com outlook.ca yahoo.com yahoo.ca " +
+  "live.com live.ca icloud.com me.com mac.com msn.com rogers.com bell.net sympatico.ca bellnet.ca " +
+  "cogeco.ca cogeco.net eastlink.ca shaw.ca telus.net aol.com protonmail.com proton.me ymail.com " +
+  "gmx.com mail.com").split(" "));
+
+/** "someone@smithhomes.ca" -> "smithhomes.ca". Only the web address is kept. */
+function siteOf(email: unknown): string | null {
+  const m = /^[^@\s]+@([a-z0-9.-]+\.[a-z]{2,})$/i.exec(clean(email));
+  if (!m) return null;
+  const site = m[1].toLowerCase();
+  return FREE_MAIL.has(site) ? null : site;
+}
+
+/** The one company to show for a permit, its role and its web address. */
+function companyOn(raw: string): { company: string | null; company_role: string | null; company_site: string | null } {
   const parties = partiesIn(raw);
   for (const role of COMPANY_ROLES) {
     for (const p of parties) {
       const name = clean(p.corporationOrPartnership);
       if (name && Array.isArray(p.roles) && p.roles.includes(role)) {
-        return { company: name, company_role: role };
+        return { company: name, company_role: role, company_site: siteOf(p.email) };
       }
     }
   }
-  return { company: null, company_role: null };
+  return { company: null, company_role: null, company_site: null };
+}
+
+const plain = (html: string) =>
+  clean(html.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;/g, "'").replace(/&nbsp;/g, " "));
+
+/** What a company's own home page says about how to reach it. */
+async function readSite(site: string): Promise<{ phone: string | null; email: string | null; about: string | null }> {
+  const res = await fetch(`https://${site}/`, {
+    signal: AbortSignal.timeout(8000),
+    redirect: "follow",
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; permit-leads)" },
+  });
+  if (!res.ok) throw new Error(`${site} answered ${res.status}`);
+  const html = (await res.text()).slice(0, 400000);
+  const tel = /href=["']tel:([^"']+)["']/i.exec(html);
+  const loose = /\(?\b(?:705|249|905|289|365|416|647|437|519|226|613|343|800|888|877|866|855)\)?[\s.-]{1,2}\d{3}[\s.-]\d{4}\b/
+    .exec(html.replace(/<script[\s\S]*?<\/script>/gi, " "));
+  const mail = /href=["']mailto:([^"'?]+)/i.exec(html);
+  const desc = /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i.exec(html) ||
+    /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i.exec(html);
+  const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
+  return {
+    phone: tel ? clean(decodeURIComponent(tel[1])) : (loose ? clean(loose[0]) : null),
+    email: mail ? clean(decodeURIComponent(mail[1])) : null,
+    about: plain((desc && desc[1]) || (title && title[1]) || "").slice(0, 220) || null,
+  };
+}
+
+/** Open every company site not looked at yet and save what it says. A site
+ *  that will not open is still marked as looked at, so it is not retried every
+ *  morning; the count of those is reported. */
+async function lookUpCompanies(): Promise<{ looked: number; unreachable: number }> {
+  const { data, error } = await supabase.from("permit_leads")
+    .select("company_site").not("company_site", "is", null).is("company_checked", null);
+  if (error) throw new Error(`read company sites: ${error.message}`);
+  const sites = [...new Set(data.map((r) => r.company_site as string))].slice(0, 25);
+  let unreachable = 0;
+  await Promise.all(sites.map(async (site) => {
+    let found: { phone: string | null; email: string | null; about: string | null } | null = null;
+    try { found = await readSite(site); } catch (_) { unreachable++; }
+    const { error: e } = await supabase.from("permit_leads").update({
+      company_phone: found ? found.phone : null,
+      company_email: found ? found.email : null,
+      company_about: found ? found.about : null,
+      company_checked: new Date().toISOString(),
+    }).eq("company_site", site);
+    if (e) throw new Error(`write company info for ${site}: ${e.message}`);
+  }));
+  return { looked: sites.length, unreachable };
 }
 
 /** Oro-Medonte: permits issued in the lookback window. `issued` is a real
@@ -218,6 +289,7 @@ async function innisfilMonth(month: number, year: number): Promise<Lead[]> {
       issued_on: date,
       company: null,
       company_role: null,
+      company_site: null,
     });
   }
   return leads;
@@ -274,7 +346,8 @@ Deno.serve(async (req) => {
       if (error) throw new Error(`write permit_leads: ${error.message}`);
       added = data.length;
     }
-    return json({ ok: failures.length === 0, fetched: summary, added, failures },
+    const companies = body.dryRun === true ? null : await lookUpCompanies();
+    return json({ ok: failures.length === 0, fetched: summary, added, companies, failures },
       failures.length ? 500 : 200);
   } catch (e) {
     return json({ ok: false, error: (e as Error).message }, 500);
