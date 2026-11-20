@@ -107,6 +107,13 @@ html.sp-full #view-jwgscheduler .sp-marks-open .sp-side{display:flex}
 #view-jwgscheduler .sp-styles .sp-tool{justify-content:center;font-size:12.5px;padding:7px 10px}
 #view-jwgscheduler .sp-main{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0}
 #view-jwgscheduler #sp-cropbar{flex-wrap:nowrap;padding:6px 12px;min-height:48px}
+#view-jwgscheduler #sp-turnbar{box-sizing:border-box;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--n6);border-radius:8px;padding:6px 12px;min-height:48px;font-size:13.5px}
+#view-jwgscheduler #sp-turnbar[hidden]{display:none}
+#view-jwgscheduler #sp-turnbar input[type=range]{flex:1;min-width:120px;accent-color:var(--green-s2)}
+#view-jwgscheduler #sp-turnbar input[type=number]{width:74px;font:700 14px 'Inter',system-ui,sans-serif;padding:6px 8px;border-radius:8px;border:1px solid var(--n7);background:#fff;color:var(--n12);text-align:right;font-variant-numeric:tabular-nums}
+#view-jwgscheduler #sp-turnbar span{color:var(--n11)}
+#view-jwgscheduler #sp-turnbar .sp-btn{padding:6px 13px;font-size:13px;flex:none}
+#view-jwgscheduler .sp-photo{transition:none}
 #view-jwgscheduler #sp-cropbar span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #view-jwgscheduler #sp-cropbar .sp-btn{padding:6px 13px;font-size:13px;flex:none}
 #view-jwgscheduler .sp-bar{flex-wrap:nowrap}

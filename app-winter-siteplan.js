@@ -254,7 +254,7 @@ window.WinterSitePlan = (function(){
     var loc = JWG.WIN.locations.find(function(l){ return l.id === id; });
     var run = JWG.WIN.locations.slice().sort(JWG.winterRouteSort);
     var pos = run.findIndex(function(l){ return l.id === id; });
-    st = {loc: loc, marks: JSON.parse(JSON.stringify(loc.site_marks || [])), tool: 'select', sel: null, vsel: null, ext: null, crop: null, draft: null, drag: null, hover: null, snap: null,
+    st = {loc: loc, marks: JSON.parse(JSON.stringify(loc.site_marks || [])), tool: 'select', sel: null, vsel: null, ext: null, crop: null, turn: null, draft: null, drag: null, hover: null, snap: null,
           zoom: 1, size: 1, labels: true, undo: [], redo: [], dirty: false, blob: null, ar: null,
           prev: run[pos - 1] ? run[pos - 1].id : null, next: run[pos + 1] ? run[pos + 1].id : null,
           url: loc.photo_path ? await signedUrl(loc.photo_path) : null};
@@ -285,6 +285,9 @@ window.WinterSitePlan = (function(){
       +   '<div class="sp-bar"><div class="sp-note" id="sp-note"></div><div class="sp-tools"><button type="button" class="sp-tool" id="sp-undo">↶ Undo</button><button type="button" class="sp-tool" id="sp-redo">↷ Redo</button></div></div>'
       +   '<div id="sp-cropbar" hidden title="Your marks move with the photo. A mark left wholly outside the box is removed."><b>Cropping.</b><span>Drag a box round the part to keep. Your marks move with it.</span>'
       +     '<button type="button" class="sp-btn primary" id="sp-crop-apply">Apply crop</button><button type="button" class="sp-btn" id="sp-crop-cancel">Cancel</button></div>'
+      +   '<div id="sp-turnbar" hidden><b>Turning.</b><input type="range" id="sp-turn-r" min="-180" max="180" step="0.5" value="0" aria-label="Angle">'
+      +     '<input type="number" id="sp-turn-n" min="-180" max="180" step="0.5" value="0" aria-label="Angle in degrees"><span>degrees</span>'
+      +     '<button type="button" class="sp-btn primary" id="sp-turn-apply">Apply</button><button type="button" class="sp-btn" id="sp-turn-cancel">Cancel</button></div>'
       +   '<div class="sp-stagewrap"><div class="sp-stage" id="sp-stage"></div>'
       +     '<div class="sp-view"><button type="button" class="sp-tool" id="sp-labels" title="Show or hide the codes on the photo">Labels</button>'
       +     '<button type="button" class="sp-tool" data-zoom="-1" aria-label="Zoom out">−</button><b id="sp-zl">100%</b><button type="button" class="sp-tool" data-zoom="1" aria-label="Zoom in">+</button>'
@@ -296,6 +299,7 @@ window.WinterSitePlan = (function(){
       +   '<button type="button" class="sp-tool" id="sp-crop">Crop</button>'
       +   '<button type="button" class="sp-tool" data-turn="-1" title="Turn the photo a quarter turn to the left. Your marks turn with it.">↺ Turn left</button>'
       +   '<button type="button" class="sp-tool" data-turn="1" title="Turn the photo a quarter turn to the right. Your marks turn with it.">↻ Turn right</button>'
+      +   '<button type="button" class="sp-tool" id="sp-turn" title="Turn the photo by any angle, to square a site up. Your marks turn with it.">Turn by angle</button>'
       +   '<button type="button" class="sp-tool" data-tool="site" title="Outline the site. Everything outside it is faded, and the book prints only the part inside.">Site boundary</button>'
       +   '<div class="sp-hint">You can also copy a Google Earth screenshot and press Ctrl+V.</div></div>'
       +   '<div class="sp-side-h">Marks on this site</div><div id="sp-list"></div>'
@@ -312,6 +316,14 @@ window.WinterSitePlan = (function(){
       st.dirty = true;
     });
     page.querySelector('#sp-list').addEventListener('focusin', function(e){ if(e.target.dataset.note != null) remember(); });
+    page.addEventListener('input', function(e){
+      if(e.target.id !== 'sp-turn-r' && e.target.id !== 'sp-turn-n') return;
+      if(!st.turn) return;
+      var deg = Math.max(-180, Math.min(180, +e.target.value || 0));
+      st.turn.deg = deg;
+      if(e.target.id === 'sp-turn-r') document.getElementById('sp-turn-n').value = deg; else document.getElementById('sp-turn-r').value = deg;
+      previewTurn();
+    });
     document.addEventListener('paste', onPaste);
     document.addEventListener('keydown', onKey);
     window.addEventListener('resize', fit);
@@ -397,8 +409,16 @@ window.WinterSitePlan = (function(){
       // The crop bar takes the place of the hint row, at exactly its height, so the
       // photo does not move when cropping starts.
       if(!st.crop) document.getElementById('sp-cropbar').style.minHeight = document.querySelector('#sp-page .sp-bar').getBoundingClientRect().height + 'px';
-      st.crop = st.crop ? null : {box: null}; st.tool = 'select'; st.sel = null; st.vsel = null; st.ext = null; paint(); return; }
-    if((b = t.closest('[data-turn]'))){ turnPhoto(+b.dataset.turn); return; }
+      st.crop = st.crop ? null : {box: null}; st.turn = null; st.tool = 'select'; st.sel = null; st.vsel = null; st.ext = null; paint(); return; }
+    if((b = t.closest('[data-turn]'))){ turnPhoto(90 * +b.dataset.turn); return; }
+    if(t.closest('#sp-turn')){
+      finish();
+      if(!st.turn) document.getElementById('sp-turnbar').style.minHeight = document.querySelector('#sp-page .sp-bar').getBoundingClientRect().height + 'px';
+      st.turn = st.turn ? null : {deg: 0}; st.crop = null; st.tool = 'select'; st.sel = null; st.vsel = null; st.ext = null;
+      document.getElementById('sp-turn-r').value = document.getElementById('sp-turn-n').value = 0;
+      paint(); return; }
+    if(t.closest('#sp-turn-cancel')){ st.turn = null; paint(); return; }
+    if(t.closest('#sp-turn-apply')){ if(st.turn.deg) turnPhoto(st.turn.deg); else { st.turn = null; paint(); } return; }
     if(t.closest('#sp-crop-cancel')){ st.crop = null; paint(); return; }
     if(t.closest('#sp-crop-apply')){ applyCrop(); return; }
     if(t.closest('#sp-clear')){ if(st.marks.length){ remember(); st.marks = []; st.sel = null; st.draft = null; paint(); } return; }
@@ -433,6 +453,7 @@ window.WinterSitePlan = (function(){
   function onKey(e){
     if(!alive() || /INPUT|TEXTAREA/.test(document.activeElement.tagName) || document.getElementById('jwg-confirm')) return;
     if(st.crop){ if(e.key === 'Escape'){ st.crop = null; paint(); } return; }
+    if(st.turn){ if(e.key === 'Escape'){ st.turn = null; paint(); } return; }
     var cmd = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
     if(cmd && k === 'z'){ e.preventDefault(); if(e.shiftKey) step(st.redo, st.undo); else { finish(); step(st.undo, st.redo); } }
     else if(cmd && k === 'y'){ e.preventDefault(); step(st.redo, st.undo); }
@@ -567,7 +588,7 @@ window.WinterSitePlan = (function(){
   }
   // The one line of help under the tools: what the pointer does right now.
   function note(){
-    if(!st.url || st.crop) return '';
+    if(!st.url || st.crop || st.turn) return '';
     if(st.ext) return 'Carrying ' + label(st.marks, st.ext.i) + ' on from its end: ' + (mode() === 'free' ? 'drag to trace more of it.' : 'click to add to it. Double-click or press Enter to finish.') + ' Escape to stop.';
     if(st.tool !== 'select') return KINDS[st.tool].name + ': ' + (mode() ? HINTS[KINDS[st.tool].shape][mode()] : KINDS[st.tool].hint);
     var m = st.sel != null ? st.marks[st.sel] : null, shape = m ? shapeOf(m) : '';
@@ -588,11 +609,15 @@ window.WinterSitePlan = (function(){
     page.querySelectorAll('[data-style]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.style === md); b.disabled = !!st.ext && b.dataset.style === 'box'; });
     page.querySelector('#sp-labels').setAttribute('aria-pressed', st.labels);
     page.querySelector('#sp-cropbar').hidden = !st.crop;
-    page.querySelector('.sp-bar').style.display = st.crop ? 'none' : '';
+    page.querySelector('#sp-turnbar').hidden = !st.turn;
+    page.querySelector('.sp-bar').style.display = (st.crop || st.turn) ? 'none' : '';
+    page.querySelector('#sp-turn').setAttribute('aria-pressed', !!st.turn);
+    page.querySelector('#sp-turn').disabled = !st.url;
+    previewTurn();
     page.querySelector('#sp-crop-apply').disabled = !(st.crop && st.crop.box);
     page.querySelector('#sp-crop').setAttribute('aria-pressed', !!st.crop);
     page.querySelector('#sp-crop').disabled = !st.url;
-    page.querySelectorAll('[data-turn]').forEach(function(b){ b.disabled = !st.url || !!st.crop; });
+    page.querySelectorAll('[data-turn]').forEach(function(b){ b.disabled = !st.url || !!st.crop || !!st.turn; });
     page.querySelector('#sp-undo').disabled = !st.undo.length;
     page.querySelector('#sp-redo').disabled = !st.redo.length;
     page.querySelector('#sp-zl').textContent = Math.round(st.zoom * 100) + '%';
@@ -842,27 +867,49 @@ window.WinterSitePlan = (function(){
     }
   }
 
-  // A quarter turn of the photo (Jake, 2026-11-20: a Google Earth screenshot is not
-  // always the right way up for the site). dir 1 is to the right, -1 to the left.
-  // turnedCanvas and turnPoint are the whole of the geometry: the picture and the
-  // marks have to agree, so they sit side by side.
-  function turnedCanvas(bmp, dir){
+  // Turning the photo, by a quarter turn or by any angle (Jake, 2026-11-20: a Google
+  // Earth screenshot is not always the right way up, and a site rarely sits square in
+  // it). Positive is clockwise. turnedCanvas and turnPoint are the whole of the
+  // geometry: the picture and the marks have to agree, so they sit side by side.
+  // The picture grows to hold its turned corners, so nothing is cut off; the empty
+  // corners are the stage's own dark green. Crop afterwards to trim them.
+  function turnedSize(w, h, deg){
+    var r = deg * Math.PI / 180, c = Math.abs(Math.cos(r)), n = Math.abs(Math.sin(r));
+    return [w * c + h * n, w * n + h * c];
+  }
+  function turnedCanvas(bmp, deg){
+    var size = turnedSize(bmp.width, bmp.height, deg), k = Math.min(1, MAX_W / size[0]);
     var c = document.createElement('canvas');
-    c.width = bmp.height; c.height = bmp.width;
+    c.width = Math.round(size[0] * k); c.height = Math.round(size[1] * k);
     var g = c.getContext('2d');
-    if(dir > 0) g.translate(c.width, 0); else g.translate(0, c.height);
-    g.rotate(dir * Math.PI / 2);
-    g.drawImage(bmp, 0, 0);
+    g.fillStyle = '#1d2b24';
+    g.fillRect(0, 0, c.width, c.height);
+    g.translate(c.width / 2, c.height / 2);
+    g.rotate(deg * Math.PI / 180);
+    g.scale(k, k);
+    g.drawImage(bmp, -bmp.width / 2, -bmp.height / 2);
     return c;
   }
-  // Marks are fractions of the photo, so a turn is just a swap of the two.
-  function turnPoint(q, dir){ return dir > 0 ? [clamp(1 - q[1]), q[0]] : [q[1], clamp(1 - q[0])]; }
+  // q is a point as fractions of a w by h photo; the answer is the same spot as
+  // fractions of the turned photo.
+  function turnPoint(q, deg, w, h){
+    var r = deg * Math.PI / 180, cos = Math.cos(r), sin = Math.sin(r), size = turnedSize(w, h, deg);
+    var x = (q[0] - .5) * w, y = (q[1] - .5) * h;
+    return [clamp((x * cos - y * sin) / size[0] + .5), clamp((x * sin + y * cos) / size[1] + .5)];
+  }
+  // While the angle bar is open the photo and its marks lean with the slider. It is
+  // only a preview: nothing is redrawn until Apply.
+  function previewTurn(){
+    var ph = document.getElementById('sp-photo'), svg = document.getElementById('sp-svg');
+    if(ph) ph.style.transform = st.turn && st.turn.deg ? 'rotate(' + st.turn.deg + 'deg)' : '';
+    if(svg) svg.style.pointerEvents = st.turn ? 'none' : '';
+  }
   // Nothing is stored until Save, the same as a crop.
-  async function turnPhoto(dir){
+  async function turnPhoto(deg){
     if(!st.url || st.crop) return;
     finish();
     var site = st;
-    var btns = document.querySelectorAll('#sp-page [data-turn]');
+    var btns = document.querySelectorAll('#sp-page [data-turn],#sp-turn-apply');
     btns.forEach(function(b){ b.disabled = true; });
     try {
       var src = st.blob;
@@ -871,15 +918,15 @@ window.WinterSitePlan = (function(){
         if(!got.ok) throw new Error('the photo did not download (' + got.status + ')');
         src = await got.blob();
       }
-      var c = turnedCanvas(await createImageBitmap(src), dir);
+      var bmp = await createImageBitmap(src), c = turnedCanvas(bmp, deg);
       var blob = await new Promise(function(res){ c.toBlob(res, 'image/jpeg', .92); });
       if(st !== site) return;
-      st.marks = st.marks.map(function(m){ return Object.assign({}, m, {p: m.p.map(function(q){ return turnPoint(q, dir); })}); });
+      st.marks = st.marks.map(function(m){ return Object.assign({}, m, {p: m.p.map(function(q){ return turnPoint(q, deg, bmp.width, bmp.height); })}); });
       st.blob = blob;
       st.url = URL.createObjectURL(blob);
-      st.sel = null; st.vsel = null; st.ext = null; st.draft = null;
+      st.turn = null; st.sel = null; st.vsel = null; st.ext = null; st.draft = null;
       st.undo = []; st.redo = []; st.dirty = true; st.zoom = 1;
-      JWG.toast('Photo turned. Press Save to keep it.');
+      JWG.toast('Photo turned' + (deg % 90 ? '. Crop it to trim the dark corners' : '') + '. Press Save to keep it.');
       renderStage();
     } catch(e){
       JWG.toast('Could not turn the photo: ' + (e.message || e), 'error');
