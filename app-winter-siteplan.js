@@ -283,7 +283,7 @@ window.WinterSitePlan = (function(){
       +   '<div class="sp-styles" id="sp-styles"><div class="sp-side-h">How to draw it</div>' + Object.keys(STYLES).map(function(k){ return '<button type="button" class="sp-tool" data-style="' + k + '">' + STYLES[k] + '</button>'; }).join('') + '</div></aside>'
       + '<div class="sp-main">'
       +   '<div class="sp-bar"><div class="sp-note" id="sp-note"></div><div class="sp-tools"><button type="button" class="sp-tool" id="sp-undo">↶ Undo</button><button type="button" class="sp-tool" id="sp-redo">↷ Redo</button></div></div>'
-      +   '<div id="sp-cropbar" hidden><b>Cropping.</b><span>Drag a box around the part of the photo to keep. Your marks move with it; a mark left wholly outside the box is removed.</span>'
+      +   '<div id="sp-cropbar" hidden title="Your marks move with the photo. A mark left wholly outside the box is removed."><b>Cropping.</b><span>Drag a box round the part to keep. Your marks move with it.</span>'
       +     '<button type="button" class="sp-btn primary" id="sp-crop-apply">Apply crop</button><button type="button" class="sp-btn" id="sp-crop-cancel">Cancel</button></div>'
       +   '<div class="sp-stagewrap"><div class="sp-stage" id="sp-stage"></div>'
       +     '<div class="sp-view"><button type="button" class="sp-tool" id="sp-labels" title="Show or hide the codes on the photo">Labels</button>'
