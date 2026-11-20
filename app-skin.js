@@ -48,7 +48,9 @@
       var el = target();
       if (!el) { pill.style.opacity = '0'; s = null; return; }
       var h = host.getBoundingClientRect(), r = el.getBoundingClientRect();
-      var to = { l: r.left - h.left + host.scrollLeft, t: r.top - h.top + host.scrollTop, r: r.right - h.left + host.scrollLeft, b: r.bottom - h.top + host.scrollTop };
+      // Measured from the host's inside edge (its border is not part of where the pill sits).
+      var ox = h.left + host.clientLeft - host.scrollLeft, oy = h.top + host.clientTop - host.scrollTop;
+      var to = { l: r.left - ox, t: r.top - oy, r: r.right - ox, b: r.bottom - oy };
       if (!s || snap) s = to;
       else {
         s.l += (to.l - s.l) * (to.l < s.l ? 0.30 : 0.15);

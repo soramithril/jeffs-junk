@@ -137,7 +137,9 @@ html.jj-skin body.signed-in #nav-more-label.liquid-more-active span{color:var(--
   font-size:13px;font-weight:500;color:#c3c9cf;transition:color .25s}
 #jk-top .jk-p:hover{color:#fff}
 #jk-top .jk-p.on{color:var(--jk-on)}
-#jk-top .jk-p img,#jk-top .jk-p svg{width:18px;height:18px;flex:none}
+/* The side menu's icon comes across in its 34px rail wrapper: shrink both to pill size. */
+#jk-top .jk-p .jj3d-rail{width:20px !important;height:20px !important;display:inline-flex;align-items:center;justify-content:center;flex:none}
+#jk-top .jk-p img,#jk-top .jk-p svg{width:20px !important;height:20px !important;flex:none}
 #jk-top .jk-sep{width:1px;height:20px;background:rgba(255,255,255,.12);margin:0 5px;flex:none}
 
 /* ── a page change: the new page comes into focus, piece by piece ── */
