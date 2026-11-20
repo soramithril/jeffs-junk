@@ -1,4 +1,4 @@
-/* ══ TWO TRIAL LOOKS: GREEN AND DARK GLASS (v760) ═════════════════════════════════
+/* ══ TWO TRIAL LOOKS: GREEN AND DARK GLASS (v760, reworked v762) ══════════════════
    Jake 2026-11-20, from two videos he sent and the mockup built from them: "I like
    both, let's add them as options in the app ... easy to switch between so I can go
    over it with my users to see which ones they like best."
@@ -7,46 +7,28 @@
    someone picks a look from the Look button (bottom right, everyone signed in). Normal
    is untouched: every rule here needs one of those classes AND body.signed-in.
 
-   First version, agreed with Jake: the menu and the Dashboard get the full look. Every
-   other page gets the colours through the tokens and may have rough spots.
-
-   How it works: the colour tokens from style.css are redefined inside .main only, so
-   everything that paints from tokens follows. Pop-ups (the job form, the search
-   palette) live outside .main and keep the normal day look. Colours the app writes
-   inline are mapped near the bottom.
+   Reworked the same day (Jake: "not good enough UI"). What changed and why:
+   - The colour settings now go on <html>, so the whole app follows: the pages, the
+     pop-ups, the side menu. Before they sat on .main only and pop-ups stayed white.
+   - The light colours typed straight into rows, chips and buttons all over the app
+     are handled by the big generated list at the bottom of app-glass.css, which now
+     answers to html.jj-skin as well as html.jj-glass. One list, both looks.
+   - The page-change animation used to sit on every box of the page. That replaced the
+     boxes' own fade-in, which is what makes them visible at all (.dash-section starts
+     at opacity 0), so the Dashboard came up blank. Now the page itself fades, once.
 
    No backdrop-filter anywhere: blur over a full page is what lagged the office PCs
    (Halloween look, glass look). The frosted feel is a still gradient. */
 
-/* ── what each look is made of ── */
-html.jj-skin-green body.signed-in{
+/* ── what each look is made of. On <html>, where style.css sets its own: a setting
+      built from another (--text is var(--n12)) is worked out where it is set. ── */
+html.jj-skin-green:has(> body.signed-in){
   --jk-page:#071510; --jk-pill1:#63e08e; --jk-pill2:#3fc673; --jk-on:#06240f;
   --jk-glow1:rgba(25,195,107,.16); --jk-glow2:rgba(14,165,200,.10);
-  --jk-card1:#112419; --jk-card2:#0c1b14;
+  --jk-card1:#112419; --jk-card2:#0c1b14; --jk-pop:#0f2118;
   --jk-band:linear-gradient(115deg,#0a5530 0%,#0f8a47 52%,#19c36b 100%);
   --jk-t1:rgba(99,224,142,.09); --jk-t2:rgba(99,224,142,.09); --jk-t3:rgba(99,224,142,.09); --jk-t4:rgba(99,224,142,.09);
   --nav-green:#08180f; --nav-green-raised:#0d2417;
-}
-html.jj-skin-dark body.signed-in{
-  --jk-page:#131619; --jk-pill1:#56b9ee; --jk-pill2:#3a9fd8; --jk-on:#04202f;
-  --jk-glow1:rgba(190,170,140,.13); --jk-glow2:rgba(120,140,160,.12);
-  --jk-card1:#1c2024; --jk-card2:#16191c;
-  --jk-band:linear-gradient(115deg,#245a7e 0%,#2f84b6 55%,#56b9ee 100%);
-  --jk-t1:rgba(52,120,165,.40); --jk-t2:rgba(42,120,96,.40); --jk-t3:rgba(92,112,50,.38); --jk-t4:rgba(140,74,58,.40);
-  --nav-green:#101316; --nav-green-raised:#181c20;
-}
-html.jj-skin body.signed-in{background:var(--jk-page)}
-html.jj-skin body.signed-in .main{
-  background:
-    radial-gradient(1100px 520px at 78% -8%, var(--jk-glow1), transparent 62%),
-    radial-gradient(900px 520px at 8% 108%, var(--jk-glow2), transparent 60%),
-    var(--jk-page);
-  background-attachment:fixed;
-  color:var(--text);
-}
-
-/* ── the tokens, inside .main only ── */
-html.jj-skin-green body.signed-in .main{
   --n1:#0B1912; --n2:#0E1D16; --n3:#13271E; --n4:#172E23;
   --n5:#1B3429; --n6:#22402F; --n7:#2B4D3B; --n8:#3A5F4C;
   --n9:#6A8A79; --n10:#7E9C8B; --n11:#A9C4B5; --n12:#EAF5EE;
@@ -58,7 +40,13 @@ html.jj-skin-green body.signed-in .main{
   --green-s1:#63e08e; --green-s2:#3fc673; --green-s3:#0F8A47; --green-s4:#0B5E33;
   --data:#38D3F0; --data-soft:rgba(56,211,240,.14); --data-edge:#22C3E6;
 }
-html.jj-skin-dark body.signed-in .main{
+html.jj-skin-dark:has(> body.signed-in){
+  --jk-page:#131619; --jk-pill1:#56b9ee; --jk-pill2:#3a9fd8; --jk-on:#04202f;
+  --jk-glow1:rgba(190,170,140,.13); --jk-glow2:rgba(120,140,160,.12);
+  --jk-card1:#1c2024; --jk-card2:#16191c; --jk-pop:#1a1d21;
+  --jk-band:linear-gradient(115deg,#245a7e 0%,#2f84b6 55%,#56b9ee 100%);
+  --jk-t1:rgba(52,120,165,.40); --jk-t2:rgba(42,120,96,.40); --jk-t3:rgba(92,112,50,.38); --jk-t4:rgba(140,74,58,.40);
+  --nav-green:#101316; --nav-green-raised:#181c20;
   --n1:#15181B; --n2:#181B1F; --n3:#1E2226; --n4:#23272C;
   --n5:#292E33; --n6:#30363C; --n7:#3B4249; --n8:#4A525A;
   --n9:#7B848D; --n10:#8D96A0; --n11:#B3BBC3; --n12:#F2F4F6;
@@ -70,7 +58,7 @@ html.jj-skin-dark body.signed-in .main{
   --green-s1:#8fd2f6; --green-s2:#56b9ee; --green-s3:#2f84b6; --green-s4:#245a7e;
   --data:#56b9ee; --data-soft:rgba(86,185,238,.14); --data-edge:#3a9fd8;
 }
-html.jj-skin body.signed-in .main{
+html.jj-skin:has(> body.signed-in){
   --shadow-sm:0 0 0 1px rgba(255,255,255,.025), 0 6px 20px rgba(0,0,0,.35);
   --shadow-md:0 0 0 1px rgba(255,255,255,.04), 0 12px 32px rgba(0,0,0,.45);
   --shadow-lg:0 0 0 1px rgba(255,255,255,.05), 0 20px 50px rgba(0,0,0,.55);
@@ -81,8 +69,19 @@ html.jj-skin body.signed-in .main{
   --info:#5AA9FF; --info-soft:rgba(90,169,255,.15); --info-ink:#8EC5FF;
   --c-bin:#22C3E6; --c-junk:#FFD24A; --c-furn:#A98BFF; --c-furn-del:#FF9A5C; --c-landscaping:#9BD94A;
   --size1:#0E5F75; --size2:#0891B2; --size3:#22C3E6; --size4:#7FE0F2;
+  color-scheme:dark;   /* date pickers, scrollbars and dropdown lists go dark too */
+  background:var(--jk-page);
 }
-html.jj-skin body.signed-in .main .btn-primary{color:var(--jk-on)}
+html.jj-skin body.signed-in{background:var(--jk-page);color:var(--text)}
+html.jj-skin body.signed-in .main{
+  background:
+    radial-gradient(1100px 520px at 78% -8%, var(--jk-glow1), transparent 62%),
+    radial-gradient(900px 520px at 8% 108%, var(--jk-glow2), transparent 60%),
+    var(--jk-page);
+  background-attachment:fixed;
+  color:var(--text);
+}
+html.jj-skin body.signed-in .btn-primary{color:var(--jk-on)}
 
 /* ── the side menu: the liquid tab rests, a pill slides instead (app-skin.js moves it) ── */
 #jk-pill,#jk-top{display:none}
@@ -91,10 +90,18 @@ html.jj-skin body.signed-in #jk-pill{
   display:block;position:absolute;left:0;top:0;z-index:-1;border-radius:13px;pointer-events:none;
   background:linear-gradient(180deg,var(--jk-pill1),var(--jk-pill2));box-shadow:0 6px 22px -6px var(--jk-pill1);
 }
+html.jj-skin body.signed-in .sidebar{border-right:1px solid var(--border)}
 html.jj-skin body.signed-in .sidebar .nav > .nav-item.active,
 html.jj-skin body.signed-in .sidebar .nav > .nav-item.active .nav-hint{color:var(--jk-on) !important}
 html.jj-skin body.signed-in .sidebar .nav > .nav-item.active .icon{background:rgba(0,0,0,.14)}
 html.jj-skin body.signed-in #nav-more-label.liquid-more-active span{color:var(--jk-on) !important}
+/* New Job at the top of the menu and the name card at the bottom were white tiles. New Job
+   is an outline, not a filled tile: filled is how the open page is marked. */
+html.jj-skin body.signed-in .sidebar .nav > .nav-item-action{
+  background:var(--nav-green-raised) !important;color:var(--jk-pill1) !important;
+  border:1px solid var(--jk-pill2) !important;box-shadow:none}
+html.jj-skin body.signed-in .sidebar .nav > .nav-item-action .icon{background:none}
+html.jj-skin body.signed-in .sidebar .user-card{background:var(--nav-green-raised) !important;border:1px solid var(--border);color:var(--text)}
 
 /* ── Dark glass on a desktop: the menu becomes a row of pills across the top.
       The side menu is only hidden, never taken apart (liquid-nav.js and Normal need it
@@ -103,14 +110,18 @@ html.jj-skin body.signed-in #nav-more-label.liquid-more-active span{color:var(--
 @media(min-width:901px){
   html.jj-skin-dark body.signed-in .sidebar{visibility:hidden}
   html.jj-skin-dark body.signed-in{--sidebar-rail:0px}
-  html.jj-skin-dark body.signed-in .main{padding-top:132px}
+  html.jj-skin-dark body.signed-in .main{padding-top:128px}
   html.jj-skin-dark body.signed-in #jk-top{
-    display:block;position:fixed;left:0;right:0;top:0;z-index:150;padding:14px 40px 10px;
-    background:linear-gradient(180deg,var(--jk-page) 78%,transparent);
+    display:block;position:fixed;left:0;right:0;top:0;z-index:150;padding:12px 40px 10px;
+    background:linear-gradient(180deg,var(--jk-page) 86%,transparent);
     font-family:'Inter',system-ui,sans-serif;color:#f2f4f6;
   }
+  /* The Dashboard's jump bar sticks to the top of the window: under the top bar, not behind it. */
+  html.jj-skin-dark body.signed-in #view-dashboard .djj-jumpbar{top:116px !important}
+  /* The Schedule page pulls itself 32px up to sit flush with the window: that is under the top bar here. */
+  html.jj-skin-dark body.signed-in #view-jwgscheduler.active{margin-top:0 !important}
   html.jj-skin-dark body.signed-in #nav-more.more-flyout{
-    visibility:visible;left:auto;right:50%;top:124px;bottom:auto;max-height:calc(100vh - 150px);overflow-y:auto;
+    visibility:visible;left:auto;right:50%;top:120px;bottom:auto;max-height:calc(100vh - 150px);overflow-y:auto;
     transform:translate(50%,-8px);width:min(680px,90vw);grid-template-columns:1fr 1fr 1fr;border-radius:20px;
     border:1px solid rgba(255,255,255,.14);background:#181c20;z-index:640;
   }
@@ -118,7 +129,7 @@ html.jj-skin body.signed-in #nav-more-label.liquid-more-active span{color:var(--
   html.jj-skin-dark body.signed-in #more-flyout-backdrop{visibility:visible}
 }
 #jk-top .jk-row{display:flex;align-items:center;gap:14px}
-#jk-top .jk-row + .jk-row{margin-top:12px}
+#jk-top .jk-row + .jk-row{margin-top:10px;justify-content:center}
 #jk-top button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 #jk-top .jk-logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;line-height:1;padding:0 4px}
 #jk-top .jk-find{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;height:42px;padding:0 18px;
@@ -128,42 +139,56 @@ html.jj-skin body.signed-in #nav-more-label.liquid-more-active span{color:var(--
 #jk-top .jk-new{display:flex;align-items:center;gap:8px;height:42px;padding:0 18px;border-radius:13px;font-weight:600;font-size:14px;
   background:linear-gradient(180deg,var(--jk-pill1),var(--jk-pill2));color:var(--jk-on)}
 #jk-top .jk-me{width:40px;height:40px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);font-weight:600;text-align:center}
-#jk-top .jk-pills{position:relative;display:flex;align-items:center;gap:2px;padding:4px;width:max-content;max-width:100%;overflow-x:auto;scrollbar-width:none;
+#jk-top .jk-pills{position:relative;display:flex;align-items:center;gap:1px;padding:4px;width:max-content;max-width:100%;overflow-x:auto;scrollbar-width:none;
   border:1px solid rgba(255,255,255,.11);border-radius:999px;background:rgba(0,0,0,.26)}
 #jk-top .jk-pills::-webkit-scrollbar{display:none}
 #jk-top #jk-toppill{position:absolute;left:0;top:0;border-radius:999px;pointer-events:none;
   background:linear-gradient(180deg,var(--jk-pill1),var(--jk-pill2));box-shadow:0 6px 22px -6px var(--jk-pill1)}
-#jk-top .jk-p{position:relative;z-index:1;display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;white-space:nowrap;
-  font-size:13px;font-weight:500;color:#c3c9cf;transition:color .25s}
+#jk-top .jk-p{position:relative;z-index:1;display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;white-space:nowrap;flex:none;
+  font-size:12.5px;font-weight:500;color:#c3c9cf;transition:color .25s}
 #jk-top .jk-p:hover{color:#fff}
-#jk-top .jk-p.on{color:var(--jk-on)}
+#jk-top .jk-p.on{color:var(--jk-on);font-weight:600}
 /* The side menu's icon comes across in its 34px rail wrapper: shrink both to pill size. */
 #jk-top .jk-p .jj3d-rail{width:20px !important;height:20px !important;display:inline-flex;align-items:center;justify-content:center;flex:none}
 #jk-top .jk-p img,#jk-top .jk-p svg{width:20px !important;height:20px !important;flex:none}
-#jk-top .jk-sep{width:1px;height:20px;background:rgba(255,255,255,.12);margin:0 5px;flex:none}
-
-/* ── a page change: the new page comes into focus, piece by piece ── */
-@media (prefers-reduced-motion:no-preference){
-  html.jj-skin body.signed-in .view.active > *{animation:jkIn .55s cubic-bezier(.22,1,.36,1) backwards}
-  html.jj-skin body.signed-in .view.active > *:nth-child(2){animation-delay:60ms}
-  html.jj-skin body.signed-in .view.active > *:nth-child(3){animation-delay:120ms}
-  html.jj-skin body.signed-in .view.active > *:nth-child(4){animation-delay:180ms}
-  html.jj-skin body.signed-in .view.active > *:nth-child(5){animation-delay:240ms}
-  html.jj-skin body.signed-in .view.active > *:nth-child(6){animation-delay:300ms}
-  html.jj-skin body.signed-in .view.active > *:nth-child(n+7){animation-delay:360ms}
+#jk-top .jk-sep{width:1px;height:20px;background:rgba(255,255,255,.12);margin:0 3px;flex:none}
+/* A narrower screen cannot hold twelve names in a row: only the open page keeps its
+   name, the rest are their pictures (hover shows the name). Nothing scrolls sideways. */
+@media(max-width:1500px){
+  #jk-top .jk-p:not(.on) > span:last-child{display:none}
+  #jk-top .jk-p{padding:8px 11px}
+  #jk-top .jk-p img,#jk-top .jk-p svg,#jk-top .jk-p .jj3d-rail{width:22px !important;height:22px !important}
 }
-/* Ends on "none", and only fills backwards, so no filter or transform is left behind
-   to re-anchor anything fixed inside the page. */
-@keyframes jkIn{from{opacity:0;filter:blur(8px);transform:translateY(10px)}to{opacity:1;filter:none;transform:none}}
+
+/* ── a page change: the new page fades in, once. Only opacity, and nothing is left
+      behind when it ends, so the boxes' own fade-ins (style.css) still run. ── */
+@media (prefers-reduced-motion:no-preference){
+  html.jj-skin body.signed-in .view.active{animation:jkIn .32s ease-out backwards}
+}
+@keyframes jkIn{from{opacity:0}to{opacity:1}}
 
 /* ── cards ── */
-html.jj-skin body.signed-in .main .chart-card,
-html.jj-skin body.signed-in .main #card-fleetcrew{
+html.jj-skin body.signed-in :is(.chart-card,.glass-card,.stat-card,.table-wrap,.pv-table-wrap,.client-card,
+  .veh-card,.week-cal-wrap,.timeline-wrap,.metric-box,.lj-stat,.h-kpi,.ana-hero,.ana-toolbar,.drdc-quote,
+  .etpl-card,.etpl-side,.ffv-feat,.ffv-row,.fleet-bar,.fleet-summary-bars,.op-picker,.pj-card,.pv-rail,.yoy-card,#card-fleetcrew){
   background:linear-gradient(180deg,var(--jk-card1) 0%,var(--jk-card2) 100%);
   border:1px solid var(--border);
   box-shadow:var(--shadow-md);
 }
-html.jj-skin body.signed-in .main .card-head{color:var(--text)}
+html.jj-skin body.signed-in .main [style*="background:var(--surface)"]{background:var(--jk-card1)}
+html.jj-skin body.signed-in :is(.stat-card,.client-card,.pj-card,.etpl-card,.yoy-card):hover{border-color:var(--border-strong)}
+html.jj-skin body.signed-in .card-head{color:var(--text)}
+
+/* ── pop-ups, menus and typing boxes ── */
+html.jj-skin body.signed-in .modal{background:var(--jk-pop);border:1px solid var(--border-strong)}
+html.jj-skin body.signed-in .modal-overlay{background:rgba(0,0,0,.6)}
+html.jj-skin-dark body.signed-in .modal-overlay{z-index:1100}   /* above the top bar */
+html.jj-skin body.signed-in :is(.lb-assign-menu,.jdd-menu,.extend-popup,.notif-panel,.tour-tip,#photo-upload-toast){
+  background:var(--jk-pop);border:1px solid var(--border-strong);box-shadow:var(--shadow-lg)}
+html.jj-skin body.signed-in :is(input,select,textarea){background:rgba(255,255,255,.06);border-color:var(--border-strong);color:var(--text)}
+html.jj-skin body.signed-in :is(input,select,textarea):focus{border-color:var(--jk-pill1);box-shadow:0 0 0 3px var(--accent-light)}
+html.jj-skin body.signed-in :is(input,textarea)::placeholder{color:var(--placeholder)}
+html.jj-skin body.signed-in select option{background:var(--jk-pop);color:var(--text)}
 
 /* ── Dashboard: date line and the search box ── */
 html.jj-skin body.signed-in #view-dashboard #dash-strip-date{color:var(--text)}
@@ -199,50 +224,23 @@ html.jj-skin body.signed-in #view-dashboard #card-today-jobs > div:first-child::
 @keyframes jkSweep{to{transform:translateX(1400%) skewX(-18deg)}}
 html.jj-skin body.signed-in #view-dashboard .tj-cat-hd{color:var(--text)}
 
-/* ── Dashboard: jump bar ── */
+/* ── Dashboard: rows, their buttons, the jump bar ── */
+html.jj-skin body.signed-in .djj-row{background:var(--surface);border-color:var(--border);border-left-color:var(--djj-c,var(--border-strong))}
+html.jj-skin body.signed-in .djj-row:hover{background:var(--surface-hover)}
+html.jj-skin body.signed-in .djj-row.attn{background:rgba(255,90,82,.09);border-color:rgba(255,90,82,.28);border-left-color:var(--bad)}
+html.jj-skin body.signed-in .djj-name{color:var(--text)}
+html.jj-skin body.signed-in .djj-btn:not(.done):not(.pickup):not(.danger):not(.green){background:var(--surface2);border-color:var(--border-strong);color:var(--text-secondary)}
+html.jj-skin body.signed-in .djj-btn:not(.done):not(.pickup):not(.danger):not(.green):hover{background:var(--surface-hover);border-color:var(--jk-pill1);color:var(--text)}
+html.jj-skin body.signed-in .djj-btn.green{background:linear-gradient(180deg,var(--jk-pill1),var(--jk-pill2));color:var(--jk-on)}
 html.jj-skin body.signed-in #view-dashboard .djj-jumpbar{background:var(--jk-page);border-color:var(--border)}
 html.jj-skin body.signed-in #view-dashboard .djj-seg{background:var(--surface);color:var(--text-secondary);border-color:var(--border)}
 html.jj-skin body.signed-in #view-dashboard .djj-seg.is-active{background:linear-gradient(180deg,var(--jk-pill1),var(--jk-pill2));color:var(--jk-on);box-shadow:0 6px 22px -8px var(--jk-pill1)}
 html.jj-skin body.signed-in #view-dashboard .djj-seg.is-active .djj-seg-badge{background:rgba(0,0,0,.18);color:var(--jk-on)}
 html.jj-skin body.signed-in #view-dashboard .djj-seg:not(.is-active) .djj-seg-badge{background:var(--surface2);border-color:var(--border);color:var(--text-secondary)}
 
-/* ── colours the app writes inline. Light fills become a quiet lift, dark inks
-      become their night partners so nothing goes unreadable. ── */
-html.jj-skin body.signed-in .main [style*="background:#fff"],
-html.jj-skin body.signed-in .main [style*="background:white"],
-html.jj-skin body.signed-in .main [style*="background:#f"],
-html.jj-skin body.signed-in .main [style*="background:#e"]{background:rgba(255,255,255,.06) !important}
-html.jj-skin body.signed-in .main [style*="background:#14532d"]{background:var(--green-s3) !important}
-html.jj-skin body.signed-in .main [style*="color:#15803d"],
-html.jj-skin body.signed-in .main [style*="color:#16a34a"],
-html.jj-skin body.signed-in .main [style*="color:#166534"],
-html.jj-skin body.signed-in .main [style*="color:#3f6212"],
-html.jj-skin body.signed-in .main [style*="color:#65a30d"]{color:#4DFFA0 !important}
-html.jj-skin body.signed-in .main [style*="color:#c2410c"],
-html.jj-skin body.signed-in .main [style*="color:#b45309"],
-html.jj-skin body.signed-in .main [style*="color:#9a3412"],
-html.jj-skin body.signed-in .main [style*="color:#92400e"],
-html.jj-skin body.signed-in .main [style*="color:#a1662f"]{color:#FFC078 !important}
-html.jj-skin body.signed-in .main [style*="color:#0d6efd"],
-html.jj-skin body.signed-in .main [style*="color:#2563eb"],
-html.jj-skin body.signed-in .main [style*="color:#1d4ed8"],
-html.jj-skin body.signed-in .main [style*="color:#0891b2"],
-html.jj-skin body.signed-in .main [style*="color:#0e7490"]{color:#7FE0F2 !important}
-html.jj-skin body.signed-in .main [style*="color:#a855f7"],
-html.jj-skin body.signed-in .main [style*="color:#9b59b6"],
-html.jj-skin body.signed-in .main [style*="color:#7c3aed"],
-html.jj-skin body.signed-in .main [style*="color:#6d28d9"],
-html.jj-skin body.signed-in .main [style*="color:#4f46e5"]{color:#C3B3FF !important}
-html.jj-skin body.signed-in .main [style*="color:#1a1a2e"],
-html.jj-skin body.signed-in .main [style*="color:#000"],
-html.jj-skin body.signed-in .main [style*="color:#333"],
-html.jj-skin body.signed-in .main [style*="color:#555"],
-html.jj-skin body.signed-in .main [style*="color:#666"],
-html.jj-skin body.signed-in .main [style*="color:#6b7280"],
-html.jj-skin body.signed-in .main [style*="color:#64748b"]{color:var(--text-secondary) !important}
-
 /* ── the Look button, bottom right beside Help. Everyone signed in gets it. ── */
-#jj-look{position:fixed;right:92px;bottom:24px;z-index:9000;font:600 13px/1 'Inter',system-ui,sans-serif}
+/* Under the pop-ups (500): it sat on top of the New Job form's Save button. */
+#jj-look{position:fixed;right:92px;bottom:24px;z-index:400;font:600 13px/1 'Inter',system-ui,sans-serif}
 #jj-look-btn{height:40px;padding:0 16px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:#111;color:#fff;font:inherit;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 #jj-look-btn:hover{filter:brightness(1.25)}
 #jj-look-menu{position:absolute;right:0;bottom:48px;width:230px;padding:6px;border-radius:16px;border:1px solid rgba(255,255,255,.16);background:#111;box-shadow:0 18px 50px rgba(0,0,0,.45);display:none}
