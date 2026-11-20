@@ -38,8 +38,8 @@
     ['comm',  /commercial|industrial|institutional|retail|tenant|office|warehouse/i]
   ];
   var KIND_LABEL = { demo:'Demolition', small:'Small job', reno:'Renovation', build:'New build', comm:'Commercial', other:'Other' };
-  // The bin to lead with for each kind of work.
-  var BIN = { demo:'20 yard', build:'20 yard', comm:'20 yard', reno:'14 yard', small:'7 yard, or junk removal', other:'14 yard' };
+  // No size per kind of work: the office picks the bin once they know the job (Jake, 2026-11-20).
+  var BIN = 'Usually a 20 yard. Your call once you know the job.';
   var BIG = { demo:1, build:1, reno:1, comm:1 };
   var FRESH_DAYS = 14;
 
@@ -122,9 +122,9 @@
   function opener(x){
     var st = street(x.address);
     var line = {
-      demo:  'I see there’s a demolition permit on ' + st + '. I can have a 20 yard there tomorrow morning.',
+      demo:  'I see there’s a demolition permit on ' + st + '. I can have a bin there tomorrow morning.',
       build: 'I see the new build on ' + st + ' just got its permit. Who’s looking after your bins through framing and drywall?',
-      reno:  'I saw the renovation permit for ' + st + '. A 14 yard fits most driveways — want one dropped before demo day?',
+      reno:  'I saw the renovation permit for ' + st + '. Want a bin dropped before demo day?',
       comm:  'I see the permit for the work on ' + st + '. We do bins and clean-outs for commercial jobs, one invoice per site.',
       small: 'I saw the permit for the work on ' + st + '. If the old one’s coming out, we can take it away for you.',
       other: 'I saw the building permit for ' + st + '. If you need a bin on site, we can have one there tomorrow.'
@@ -347,7 +347,7 @@
       + '<div class="jpl-say"><b>What to say</b>“' + esc(opener(x)) + '”</div>'
       + '<div class="jpl-facts">'
         + fact('The job', esc(x.work))
-        + fact('Bin to offer', esc(BIN[x.kind]))
+        + fact('Bin to offer', BIN)
         + (x.value ? fact('Job value', money(x.value)) : '')
         + fact('Permit issued', esc(fdate(x.issued_on)) + ' · ' + esc(ago(x.issued_on)))
         + fact('Where', esc(x.town) + (m !== null ? ' · ' + m + ' min from the yard' : ''))
