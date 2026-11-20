@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '760';
+var APP_VERSION = '761';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -12956,7 +12956,6 @@ function renderDrdInDetail(j){
     +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">Source:</div>'
     +'<label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-d-src-fb"'+(sources.indexOf('fb')>=0?' checked':'')+' style="accent-color:#a855f7"> FURNITURE BANK</label>'
     +'<label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-d-src-jj"'+(sources.indexOf('jj')>=0?' checked':'')+' style="accent-color:#a855f7"> JEFF\'S JUNK</label>'
-    +'<label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-d-src-rp"'+(sources.indexOf('rp')>=0?' checked':'')+' style="accent-color:#a855f7"> REDWOOD PARK</label>'
     +'</div>';
 
   html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">'
@@ -12990,7 +12989,7 @@ function renderDrdInDetail(j){
         var item=DRD_ITEMS[i];
         var qty=qtys[i]||0;
         html+='<div class="drd-d-item" data-name="'+_esc(item.name.toLowerCase())+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
-          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(item.name)+'">'+escHtml(item.name)+'</div>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);line-height:1.25;overflow-wrap:anywhere">'+escHtml(item.name)+'</div>'
           +'<div style="font-size:11px;color:var(--muted)"><span style="color:var(--accent);font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt'+(item.vol?' · '+item.vol+' ft³':'')+(item.hidden?' · no longer listed':'')+'</div></div>'
           +'<input type="number" id="drd-d-qty-'+i+'" min="0" value="'+(qty||'')+'" placeholder="0" style="width:56px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:13px;font-weight:700;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdDetailRecalc()">'
           +'</div>';
@@ -13053,7 +13052,7 @@ function printDrdForm(jobId){
   DRD_ITEMS.forEach(function(it,i){totalItems+=qtys[i];inkind+=qtys[i]*it.val;});
   others.forEach(function(o){totalItems+=o.qty;inkind+=o.qty*o.val;});
   var d={
-    sources:{fb:ck('drd-d-src-fb'),jj:ck('drd-d-src-jj'),rp:ck('drd-d-src-rp')},
+    sources:{fb:ck('drd-d-src-fb'),jj:ck('drd-d-src-jj')},
     opp:v('drd-d-opp'),tax:v('drd-d-tax')||'YES',date:v('drd-d-date'),
     donorName:v('drd-d-donor-name'),addr:v('drd-d-addr'),city:v('drd-d-city'),
     postal:v('drd-d-postal'),email:v('drd-d-email'),phone:v('drd-d-phone'),
@@ -13111,7 +13110,7 @@ function _drdPrintHtml(d){
     +'<div style="background:#3faa4c;color:#fff;font-weight:800;text-align:center;padding:8px 12px;font-size:11px;line-height:1.25">&#128666;&#10084;<br>FURNITURE<br>BANK</div>'
     +'</div>'
     +'<div style="border:1.6px solid #000;padding:7px 10px;margin-bottom:8px"><span class="grn" style="margin-right:18px">DONATION SOURCE</span>'
-    +cb(d.sources.fb,'FURNITURE BANK')+cb(d.sources.jj,'JEFF&#8217;S JUNK')+cb(d.sources.rp,'REDWOOD PARK')+'</div>'
+    +cb(d.sources.fb,'FURNITURE BANK')+cb(d.sources.jj,'JEFF&#8217;S JUNK')+'</div>'
     +'<div style="display:flex;gap:10px;margin-bottom:10px">'
     +'<div style="flex:1.2;border:1.6px solid #000;padding:5px 8px"><span class="grn">FB OPPORTUNITY #</span><div style="font-weight:700;font-size:12px;min-height:16px;padding-top:3px">'+esc(d.opp)+'</div></div>'
     +'<div style="flex:1;border:1.6px solid #000;padding:5px 8px;display:flex;align-items:center;gap:8px"><span style="display:inline-block;min-width:34px;border:1.6px solid #000;text-align:center;font-weight:800;font-size:12px;padding:2px 4px">'+esc(d.tax)+'</span> Tax Receipt Requested?</div>'
@@ -13215,7 +13214,6 @@ function _collectDrdFromDetail(){
   var sources=[];
   if(document.getElementById('drd-d-src-fb')&&document.getElementById('drd-d-src-fb').checked) sources.push('fb');
   if(document.getElementById('drd-d-src-jj')&&document.getElementById('drd-d-src-jj').checked) sources.push('jj');
-  if(document.getElementById('drd-d-src-rp')&&document.getElementById('drd-d-src-rp').checked) sources.push('rp');
   var quantities=[];
   DRD_ITEMS.forEach(function(_,i){
     var el=document.getElementById('drd-d-qty-'+i);
@@ -16171,7 +16169,7 @@ function renderDrdModalGrid(keep){
           :'<span style="width:34px;height:34px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted)">'+JWGIcons.svg('furniture',{size:17})+'</span>';
         mhtml+='<div style="display:flex;align-items:center;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:8px">'
           +thumb
-          +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(item.name)+'">'+escHtml(item.name)+'</div>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--text);line-height:1.25;overflow-wrap:anywhere">'+escHtml(item.name)+'</div>'
           +'<div style="font-size:10px;color:var(--muted)">$'+item.val+(item.vol?' · '+item.vol+' ft³':'')+(item.hidden?' · no longer listed':'')+'</div></div>'
           +'<div style="display:flex;align-items:center;gap:5px;flex:none">'
           +'<button type="button" class="drdc-step drdc-step-dec" onclick="drdModalStep('+i+',-1)" aria-label="Remove one">&minus;</button>'
@@ -16261,7 +16259,6 @@ function _collectDrdFromModal(){
   var sources=[];
   if(document.getElementById('drd-m-src-fb')&&document.getElementById('drd-m-src-fb').checked) sources.push('fb');
   if(document.getElementById('drd-m-src-jj')&&document.getElementById('drd-m-src-jj').checked) sources.push('jj');
-  if(document.getElementById('drd-m-src-rp')&&document.getElementById('drd-m-src-rp').checked) sources.push('rp');
   var quantities=[];
   DRD_ITEMS.forEach(function(_,i){
     var el=document.getElementById('drd-m-qty-'+i);
@@ -16303,7 +16300,6 @@ function _clearDrdModal(){
   var dn=document.getElementById('drd-m-donor-name');if(dn)dn.value='';
   var fb=document.getElementById('drd-m-src-fb');if(fb)fb.checked=true;
   var jj=document.getElementById('drd-m-src-jj');if(jj)jj.checked=false;
-  var rp=document.getElementById('drd-m-src-rp');if(rp)rp.checked=false;
   var opp=document.getElementById('drd-m-opp');if(opp)opp.value='';
   var tax=document.getElementById('drd-m-tax');if(tax)tax.value='YES';
   var dt=document.getElementById('drd-m-date');if(dt)dt.value='';
@@ -16320,7 +16316,6 @@ function _fillDrdModal(drd){
   var dn=document.getElementById('drd-m-donor-name');if(dn)dn.value=drd.donorName||'';
   var fb=document.getElementById('drd-m-src-fb');if(fb)fb.checked=(drd.sources||[]).indexOf('fb')>=0;
   var jj=document.getElementById('drd-m-src-jj');if(jj)jj.checked=(drd.sources||[]).indexOf('jj')>=0;
-  var rp=document.getElementById('drd-m-src-rp');if(rp)rp.checked=(drd.sources||[]).indexOf('rp')>=0;
   var opp=document.getElementById('drd-m-opp');if(opp)opp.value=drd.opp||'';
   var tax=document.getElementById('drd-m-tax');if(tax)tax.value=drd.tax||'YES';
   var dt=document.getElementById('drd-m-date');if(dt)dt.value=drd.emailedDate?'':'';//donation date not stored separately
@@ -18518,7 +18513,7 @@ async function printLandscaping(jobId){
       + '<div class="col"><div class="sec">Tasks / checklist</div>'+taskBlanks+'</div></div>'
     + '<div class="sect"><div class="sec">Reference photos</div><div class="photos">'+photosBlock+'</div></div>'
     + '<div class="signoff"><div class="sec">Completion sign-off</div>'
-      + '<span class="cb"></span>Work completed &nbsp;&nbsp;&nbsp;<span class="cb"></span>Follow-up needed'
+      + '<span class="cb"></span>Work completed &nbsp;&nbsp;&nbsp;<span class="cb"></span>Follow-up needed &nbsp;&nbsp;&nbsp;<span class="cb"></span>Ice melter applied &nbsp; Bags: '+line('46px')
       + '<div style="margin-top:9px">Crew lead: '+line('150px')+' &nbsp; Signature: '+line('160px')+' &nbsp; Completed at: '+line('80px')+'</div>'
     + '</div>'
     + '</div>';

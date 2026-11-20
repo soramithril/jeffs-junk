@@ -107,7 +107,7 @@ function renderDrdCalc(){
           :'<span style="width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--muted)">'+JWGIcons.svg('furniture',{size:20})+'</span>';
         html+='<div class="drdc-item" data-name="'+_esc(item.name.toLowerCase())+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
           +thumb
-          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(item.name)+'">'+escHtml(item.name)+'</div>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);line-height:1.25;overflow-wrap:anywhere">'+escHtml(item.name)+'</div>'
           +'<div style="font-size:11px;color:var(--muted)"><span style="color:var(--accent);font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt'+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
           +'<div style="display:flex;align-items:center;gap:6px;flex:none">'
           +'<button type="button" class="drdc-step drdc-step-dec" onclick="drdcStep('+i+',-1)" aria-label="Remove one"'+(c?'':' disabled')+'>&minus;</button>'
