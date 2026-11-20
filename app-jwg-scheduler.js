@@ -2651,58 +2651,76 @@ async function routeAfterSave(locId,pt,group,oldGroup,want){
   if(!WinterRoutes.located(loc))toast("Saved, but the address wasn't found on the map. Place its pin on the Route map.","error");
 }
 
-function openAddWinterLocation(){
-  let svcToggles=WIN.serviceTypes.map(t=>{
-    return`<div style="background:var(--bg-deep);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;">
-        <input type="checkbox" class="win-svc-toggle-add" data-type="${t.id}" style="accent-color:var(--accent);width:16px;height:16px;">
-        ${esc(t.name)}
-      </label>
-      <div class="svc-detail" style="margin-top:6px;display:none;gap:8px;">
-        <input type="text" class="si-form-input" data-wsnotes-add="${t.id}" placeholder="Notes for this service…" style="flex:1;padding:5px 8px;font-size:12px;">
+// The winter site form, for adding a site and for editing one. One screen, no
+// scrolling (Jake, 2026-11-20: the edit form was a single tall column down the
+// middle of a full page, "lots of space wasted, we shouldn't have to scroll at all").
+// The fields pair up on the left and the services sit beside them, the way the lawn
+// & grounds form has since 2026-07-28. o.loc is the site being edited (none when
+// adding); o.cls and o.notes name the service inputs, which the two save functions
+// read by different names.
+function winterSiteForm(o){
+  const loc=o.loc||{},mine=o.services||[];
+  const svc=WIN.serviceTypes.map(t=>{
+    const ls=mine.find(x=>x.service_type_id===t.id);
+    return`<div class="loc-svc-card">
+      <label><input type="checkbox" class="${o.cls}" data-type="${t.id}"${ls?" checked":""}> ${esc(t.name)}</label>
+      <div class="svc-detail" style="display:${ls?"flex":"none"};">
+        <input type="text" class="si-form-input" data-${o.notes}="${t.id}" value="${esc(ls?.notes||"")}" placeholder="Notes for this service…">
       </div>
     </div>`;
   }).join("");
-  const html=`<div style="flex-direction:column;">
-    <h3 style="margin-bottom:14px;">Add Winter Service Location</h3>
-    <div class="si-form-group">
-      <label class="si-form-label">Client Name</label>
-      <input type="text" class="si-form-input" id="win-name" placeholder="Client name">
+  return`<div class="loc-form win-form">
+    <h3 class="loc-form-title">${o.title}</h3>
+    <div class="loc-form-col">
+      <div class="si-form-group">
+        <label class="si-form-label">Name or nickname</label>
+        <input type="text" class="si-form-input" id="win-name" value="${esc(loc.client_name||"")}" placeholder="What the crew call it">
+      </div>
+      <div class="win-row">
+        <div class="si-form-group">
+          <label class="si-form-label">Address</label>
+          <input type="text" class="si-form-input" id="win-addr" value="${esc(loc.address||"")}" placeholder="Street address">
+        </div>
+        <div class="si-form-group">
+          <label class="si-form-label">City</label>
+          <input type="text" class="si-form-input" id="win-city" value="${esc(loc.city||"")}" placeholder="City">
+        </div>
+      </div>
+      <div class="win-row">${winterGroupField(loc.winter_group||"",loc.id||"")}</div>
+      <div class="win-row">
+        ${winterContractField(loc.winter_contract||"pending")}
+        ${o.salt?`<div class="si-form-group">
+          <label class="si-form-label">Refill salt bin at</label>
+          <div class="win-salt"><input type="number" class="si-form-input" id="win-salt-min" value="${o.salt.min_threshold||DEFAULT_SALT_THRESHOLD}" min="0"><span>bags · ${o.salt.current_bags||0} in it now</span></div>
+        </div>`:""}
+      </div>
+      <div class="si-form-group">
+        <label class="si-form-label">Notes</label>
+        <textarea class="si-form-textarea" id="win-notes" placeholder="Optional notes…">${esc(loc.notes||"")}</textarea>
+      </div>
     </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Address</label>
-      <input type="text" class="si-form-input" id="win-addr" placeholder="Street address">
+    <div class="loc-form-col">
+      <label class="si-form-label">What we do here</label>
+      ${WIN.serviceTypes.length?`<div class="win-svcs">${svc}</div>`:`<div class="win-none">No services yet. Add them from Service list on the Snow &amp; Ice page.</div>`}
     </div>
-    <div class="si-form-group">
-      <label class="si-form-label">City</label>
-      <input type="text" class="si-form-input" id="win-city" placeholder="City">
-    </div>
-    ${winterGroupField("","")}
-    ${winterContractField("pending")}
-    <div class="si-form-group">
-      <label class="si-form-label">Notes</label>
-      <textarea class="si-form-textarea" id="win-notes" placeholder="Optional notes…"></textarea>
-    </div>
-    ${WIN.serviceTypes.length?`<div class="si-form-group">
-      <button type="button" class="collapse-toggle" onclick="const el=document.getElementById('win-svc-toggles-add');const ic=document.getElementById('win-svc-caret');const hidden=el.style.display==='none';el.style.display=hidden?'block':'none';ic.textContent=hidden?'▾':'▸';">
-        <span id="win-svc-caret">▸</span> Services <span class="collapse-hint">(click to expand)</span>
-      </button>
-      <div id="win-svc-toggles-add" style="display:none;margin-top:8px;">${svcToggles}</div>
-    </div>`:""}
     <div class="si-modal-actions">
-      <button class="modal-done" onclick="JWG.saveWinterLocation()">Save Location</button>
+      <button class="modal-done" onclick="${o.save}">${o.saveLabel}</button>
       <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
     </div>
   </div>`;
-  openModal(html,null,true);
-  setTimeout(()=>{
-    document.querySelectorAll('.win-svc-toggle-add').forEach(cb=>{
-      cb.addEventListener('change',()=>{
-        const detail=cb.closest('div').querySelector('.svc-detail');
-        if(detail)detail.style.display=cb.checked?'flex':'none';
-      });
+}
+// A service's note box shows only while that service is ticked.
+function wireWinterServices(cls){
+  document.querySelectorAll('.'+cls).forEach(cb=>{
+    cb.addEventListener('change',()=>{
+      cb.closest('.loc-svc-card').querySelector('.svc-detail').style.display=cb.checked?'flex':'none';
     });
-  },50);
+  });
+}
+
+function openAddWinterLocation(){
+  openModal(winterSiteForm({title:"Add a winter site",cls:"win-svc-toggle-add",notes:"wsnotes-add",save:"JWG.saveWinterLocation()",saveLabel:"Add site"}),null,true);
+  wireWinterServices("win-svc-toggle-add");
 }
 
 async function saveWinterLocation(){
@@ -2739,70 +2757,9 @@ async function saveWinterLocation(){
 function editWinterLocation(locId){
   const loc=WIN.locations.find(l=>l.id===locId);
   if(!loc)return;
-  const locServices=WIN.locationServices.filter(ls=>ls.location_id===locId);
-  const salt=WIN.saltBins.find(s=>s.location_id===locId);
-  let svcToggles=WIN.serviceTypes.map(t=>{
-    const ls=locServices.find(s=>s.service_type_id===t.id);
-    const checked=!!ls;
-    const sNotes=ls?.notes||'';
-    return`<div style="background:var(--bg-deep);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;">
-        <input type="checkbox" class="win-svc-toggle" data-type="${t.id}" ${checked?"checked":""} style="accent-color:var(--accent);width:16px;height:16px;">
-        ${esc(t.name)}
-      </label>
-      <div class="svc-detail" style="margin-top:6px;display:${checked?"flex":"none"};gap:8px;">
-        <input type="text" class="si-form-input" data-wsnotes="${t.id}" value="${esc(sNotes)}" placeholder="Notes for this service…" style="flex:1;padding:5px 8px;font-size:12px;">
-      </div>
-    </div>`;
-  }).join("");
-  const html=`<div style="flex-direction:column;">
-    <h3 style="margin-bottom:14px;">Edit Winter Service Location</h3>
-    <div class="si-form-group">
-      <label class="si-form-label">Client Name</label>
-      <input type="text" class="si-form-input" id="win-name" value="${esc(loc.client_name)}">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Address</label>
-      <input type="text" class="si-form-input" id="win-addr" value="${esc(loc.address)}">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">City</label>
-      <input type="text" class="si-form-input" id="win-city" value="${esc(loc.city)}">
-    </div>
-    ${winterGroupField(loc.winter_group||"",locId)}
-    ${winterContractField(loc.winter_contract)}
-    <div class="si-form-group">
-      <label class="si-form-label">Notes</label>
-      <textarea class="si-form-textarea" id="win-notes">${esc(loc.notes||"")}</textarea>
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Services</label>
-      <div id="win-svc-toggles">${svcToggles}</div>
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Salt Bin</label>
-      <div style="background:var(--bg-deep);border-radius:8px;padding:12px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-          <label style="font-size:13px;font-weight:600;">Min Threshold:</label>
-          <input type="number" class="si-form-input" id="win-salt-min" value="${salt?.min_threshold||DEFAULT_SALT_THRESHOLD}" min="0" style="width:70px;padding:5px 8px;font-size:12px;">
-        </div>
-        <div style="font-size:11px;color:var(--fg-muted);">Current bags: ${salt?.current_bags||0} (use +/- buttons on the card to adjust)</div>
-      </div>
-    </div>
-    <div class="si-modal-actions">
-      <button class="modal-done" onclick="JWG.updateWinterLocation('${locId}')">Update</button>
-      <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
-    </div>
-  </div>`;
-  openModal(html,null,true);
-  setTimeout(()=>{
-    document.querySelectorAll('.win-svc-toggle').forEach(cb=>{
-      cb.addEventListener('change',()=>{
-        const detail=cb.closest('div').querySelector('.svc-detail');
-        if(detail)detail.style.display=cb.checked?'flex':'none';
-      });
-    });
-  },50);
+  openModal(winterSiteForm({title:"Edit winter site",loc,services:WIN.locationServices.filter(ls=>ls.location_id===locId),
+    salt:WIN.saltBins.find(s=>s.location_id===locId),cls:"win-svc-toggle",notes:"wsnotes",save:`JWG.updateWinterLocation('${locId}')`,saveLabel:"Save changes"}),null,true);
+  wireWinterServices("win-svc-toggle");
 }
 
 async function updateWinterLocation(locId){
