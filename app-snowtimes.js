@@ -41,6 +41,8 @@ function niceDate(d){ var p = d.split('-'), dt = new Date(+p[0], +p[1] - 1, +p[2
 function clock(iso){ return new Date(iso).toLocaleTimeString('en-CA', {timeZone: 'America/Toronto', hour: 'numeric', minute: '2-digit'}).replace(/\./g, '').toUpperCase(); }
 function mins(n){ return Math.round(n) + ' min'; }
 function hours(e){ return (new Date(e.last_back) - new Date(e.first_out)) / 3600000; }
+// Snowfall to one decimal: the figure arrives as a decimal and must not print as 28.799999.
+function cm(v){ return Math.round(v * 10) / 10; }
 
 // The shop is in the winter book but it is the yard, not a stop.
 function isYard(l){ return Math.abs(l.lat - YARD[0]) < 0.002 && Math.abs(l.lng - YARD[1]) < 0.003; }
@@ -112,7 +114,7 @@ function paintStats(){
   var avg = n ? evs.reduce(function(a, e){ return a + hours(e); }, 0) / n : 0;
   root.querySelector('#snt-stats').innerHTML = '<span><b>' + n + '</b> snow event' + (n === 1 ? '' : 's') + '</span>'
     + (n ? '<span>average <b>' + avg.toFixed(1) + ' h</b> first out to last back</span>' : '')
-    + (biggest ? '<span>biggest <b>' + (+biggest.snow_cm) + ' cm</b> on ' + niceDate(biggest.event_date) + '</span>' : '');
+    + (biggest ? '<span>biggest <b>' + cm(biggest.snow_cm) + ' cm</b> on ' + niceDate(biggest.event_date) + '</span>' : '');
   root.querySelectorAll('[data-mode]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.mode === st.mode); });
 }
 
@@ -120,7 +122,7 @@ function paintEvents(){
   var evs = seasonEvents(), box = root.querySelector('#snt-events'), top = box.scrollTop;
   box.innerHTML = evs.length ? evs.map(function(e){
     return '<button type="button" class="snt-ev' + (e.event_date === st.ev ? ' on' : '') + '" data-ev="' + e.event_date + '">'
-      + '<span class="cm">' + (e.snow_cm == null ? '–' : +e.snow_cm) + '<small>cm</small></span>'
+      + '<span class="cm">' + (e.snow_cm == null ? '–' : cm(e.snow_cm)) + '<small>cm</small></span>'
       + '<span class="t"><b>' + niceDate(e.event_date) + '</b>'
       + '<span>' + e.tractors_out + ' of 5 tractors · ' + e.sites_visited + ' sites · ' + hours(e).toFixed(1) + ' h</span></span></button>';
   }).join('') : '<div class="snt-empty">No snow events yet this winter. The first one shows up here the evening after the tractors go out.</div>';
@@ -139,7 +141,7 @@ function paintEvent(fit){
     return;
   }
   head.innerHTML = '<b>' + niceDate(e.event_date) + '</b><span class="snt-hint">'
-    + (e.snow_cm == null ? 'snowfall not reported yet' : (+e.snow_cm) + ' cm fell (' + esc(e.snow_station) + ')') + ' · out ' + clock(e.first_out) + ', back ' + clock(e.last_back) + '</span>'
+    + (e.snow_cm == null ? 'snowfall not reported yet' : cm(e.snow_cm) + ' cm fell (' + esc(e.snow_station) + ')') + ' · out ' + clock(e.first_out) + ', back ' + clock(e.last_back) + '</span>'
     + '<span class="snt-acts">' + (m ? '<button type="button" class="snt-btn" data-mach="">Show every machine</button>' : '') + '<button type="button" class="snt-btn go" data-play>&#9654; Play the event</button></span>';
   root.querySelector('#snt-whohead').innerHTML = '<b>Who went out</b><span class="snt-hint">' + MACH.length + ' machine' + (MACH.length === 1 ? '' : 's') + ' · click one to follow it</span>';
   var h = MACH.map(function(x){
