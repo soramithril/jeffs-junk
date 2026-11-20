@@ -49,17 +49,13 @@
 #view-jwgscheduler .sp-tool:hover{background:var(--n3)}
 #view-jwgscheduler .sp-tool[aria-pressed="true"]{background:var(--n12);border-color:var(--n12);color:#fff}
 #view-jwgscheduler .sp-tool i{width:13px;height:13px;border-radius:4px;border:1px solid rgba(1,43,31,.6)}
-#view-jwgscheduler .sp-noterow{display:flex;align-items:center;gap:14px;min-height:35px}
-#view-jwgscheduler .sp-noterow .sp-note{flex:1;min-width:0}
-#view-jwgscheduler .sp-styles{display:flex;align-items:center;gap:6px;flex:none}
-#view-jwgscheduler .sp-styles span{font-size:12px;font-weight:700;color:var(--n11);text-transform:uppercase;letter-spacing:.06em}
 #view-jwgscheduler #sp-zl{min-width:46px;text-align:center;font-size:13px;font-variant-numeric:tabular-nums}
-#view-jwgscheduler .sp-note{font-size:13px;color:var(--n11);min-height:19px}
+#view-jwgscheduler .sp-note{flex:1;min-width:0;display:flex;align-items:center;min-height:48px;padding:6px 12px;border-radius:8px;background:var(--info-soft);color:var(--info-ink);font-size:13.5px;font-weight:600;line-height:1.35}
 #view-jwgscheduler #sp-cropbar{box-sizing:border-box;display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:#fff;border:1px solid var(--n6);border-radius:8px;padding:8px 12px;font-size:13.5px}
 #view-jwgscheduler #sp-cropbar[hidden]{display:none}
 #view-jwgscheduler #sp-cropbar span{flex:1;min-width:200px;color:var(--n11)}
-#view-jwgscheduler .sp-body{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
-#view-jwgscheduler .sp-stage{min-height:0;min-width:0;overflow:auto;display:flex;background:#1d2b24;border:1px solid var(--n6);border-radius:12px;padding:8px}
+#view-jwgscheduler .sp-body{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:190px minmax(0,1fr) 300px;gap:16px}
+#view-jwgscheduler .sp-stage{flex:1 1 auto;min-height:0;min-width:0;overflow:auto;display:flex;background:#1d2b24;border:1px solid var(--n6);border-radius:12px;padding:8px}
 #view-jwgscheduler .sp-photo{position:relative;flex:none;margin:auto;line-height:0;touch-action:none;user-select:none}
 #view-jwgscheduler .sp-photo img{display:block;width:100%;height:auto}
 #view-jwgscheduler .sp-photo svg{position:absolute;inset:0;width:100%;height:100%}
@@ -96,13 +92,44 @@ html.sp-full #view-jwgscheduler .sp-nick,html.sp-full #view-jwgscheduler [data-g
 html.sp-full #view-jwgscheduler .sp-addr{font-size:22px}
 html.sp-full #view-jwgscheduler .sp-id .sp-code{font-size:14px;padding:4px 9px}
 html.sp-full #view-jwgscheduler .sp-btn{padding:7px 13px;font-size:13px}
-html.sp-full #view-jwgscheduler .sp-body{grid-template-columns:minmax(0,1fr) 34px;gap:10px;position:relative}
+html.sp-full #view-jwgscheduler .sp-body{grid-template-columns:170px minmax(0,1fr) 34px;gap:10px;position:relative}
 html.sp-full #view-jwgscheduler .sp-marks-tab{display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;font:700 13px 'Inter',system-ui,sans-serif;letter-spacing:.5px;background:#fff;color:var(--n12);border:1px solid var(--n6);border-radius:10px;cursor:pointer;padding:10px 0;min-height:0}
 html.sp-full #view-jwgscheduler .sp-marks-open .sp-marks-tab{background:var(--n12);border-color:var(--n12);color:#fff}
-html.sp-full #view-jwgscheduler .sp-side{display:none;position:absolute;top:0;bottom:0;right:44px;width:320px;box-sizing:border-box;z-index:2;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+html.sp-full #view-jwgscheduler .sp-side{display:none;position:absolute;top:0;bottom:0;right:44px;width:300px;box-sizing:border-box;z-index:2;box-shadow:0 12px 40px rgba(0,0,0,.35)}
 html.sp-full #view-jwgscheduler .sp-marks-open .sp-side{display:flex}
+/* the three-column working area (2026-11-20) */
+#view-jwgscheduler .sp-rail{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:auto;background:#fff;border:1px solid var(--n6);border-radius:12px;box-shadow:var(--shadow-sm);padding:12px}
+#view-jwgscheduler .sp-kind{width:100%;justify-content:flex-start;gap:10px;padding:11px 12px;font-size:14px}
+#view-jwgscheduler .sp-kind i{width:14px;height:14px;border-radius:50%}
+#view-jwgscheduler .sp-kind i.sel{background:#fff;border:2px dashed var(--n9)}
+#view-jwgscheduler .sp-kind[aria-pressed="true"]{background:#f0fdf4;border-color:var(--green-s2);color:var(--n12);box-shadow:inset 0 0 0 1.5px var(--green-s2)}
+#view-jwgscheduler .sp-styles{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--n4);padding-top:10px;margin-top:6px}
+#view-jwgscheduler .sp-styles .sp-tool{justify-content:center;font-size:12.5px;padding:7px 10px}
+#view-jwgscheduler .sp-main{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0}
+#view-jwgscheduler .sp-bar{flex-wrap:nowrap}
+#view-jwgscheduler .sp-stagewrap{position:relative;flex:1 1 auto;min-height:0;display:flex}
+#view-jwgscheduler .sp-view{position:absolute;right:22px;bottom:22px;display:flex;align-items:center;gap:4px;padding:5px;border-radius:10px;background:rgba(255,255,255,.96);box-shadow:0 4px 16px rgba(0,0,0,.35)}
+#view-jwgscheduler .sp-view .sp-tool{padding:6px 10px;font-size:12.5px}
+#view-jwgscheduler .sp-side-f{border-top:0;padding-top:0;margin-top:0;margin-bottom:12px}
+#view-jwgscheduler .sp-side-e{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--n4);padding-top:10px;margin-top:8px}
+#view-jwgscheduler .sp-side-e .sp-hint{flex-basis:auto}
+#view-jwgscheduler .sp-link{background:none;border:0;font:600 13px 'Inter',system-ui,sans-serif;color:var(--n11);cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:0;padding:4px 0}
+#view-jwgscheduler .sp-link:hover{color:var(--bad-ink)}
+html.sp-full #view-jwgscheduler .sp-rail{padding:8px}
+html.sp-full #view-jwgscheduler .sp-kind{padding:8px 10px;font-size:13px}
+@media (max-width:1180px){
+  #view-jwgscheduler .sp-body{grid-template-columns:170px minmax(0,1fr)}
+  #view-jwgscheduler .sp-side{grid-column:1 / -1}
+  html.sp-full #view-jwgscheduler .sp-body{grid-template-columns:150px minmax(0,1fr) 34px}
+  html.sp-full #view-jwgscheduler .sp-side{grid-column:auto}
+}
 @media (max-width:900px){
   #view-jwgscheduler #sp-page{height:auto;padding:14px}
   #view-jwgscheduler .sp-body{grid-template-columns:minmax(0,1fr)}
+  #view-jwgscheduler .sp-rail{flex-direction:row;flex-wrap:wrap}
+  #view-jwgscheduler .sp-rail .sp-side-h{flex-basis:100%}
+  #view-jwgscheduler .sp-kind{width:auto;flex:1 1 140px}
+  #view-jwgscheduler .sp-styles{flex-direction:row;flex-wrap:wrap;flex-basis:100%}
   #view-jwgscheduler .sp-stage{height:60vh}
+  #view-jwgscheduler .sp-bar{flex-wrap:wrap}
 }

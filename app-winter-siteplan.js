@@ -269,27 +269,37 @@ window.WinterSitePlan = (function(){
       + '<div class="sp-acts"><button type="button" class="sp-btn" data-go="back">← Back to Snow &amp; Ice</button>'
       +   '<button type="button" class="sp-btn" data-go="prev"' + (st.prev ? '' : ' disabled') + '>‹ Previous</button>'
       +   '<button type="button" class="sp-btn" data-go="next"' + (st.next ? '' : ' disabled') + '>Next ›</button>'
-      +   '<button type="button" class="sp-btn primary" id="sp-save">Save</button>'
-      +   (st.next ? '<button type="button" class="sp-btn primary" id="sp-save-next">Save &amp; next →</button>' : '') + '</div></div>'
-      + '<div class="sp-bar"><div class="sp-tools"><button type="button" class="sp-tool" data-tool="select">Select &amp; move</button>'
-      +   ORDER.map(function(t){ return '<button type="button" class="sp-tool" data-tool="' + t + '"><i style="background:' + KINDS[t].color + '"></i>' + KINDS[t].name + '</button>'; }).join('') + '</div>'
-      + '<div class="sp-tools"><button type="button" class="sp-tool" id="sp-labels" title="Show or hide the codes on the photo">Labels</button><button type="button" class="sp-tool" id="sp-undo">↶ Undo</button><button type="button" class="sp-tool" id="sp-redo">↷ Redo</button>'
-      +   '<button type="button" class="sp-tool" data-zoom="-1" aria-label="Zoom out">−</button><b id="sp-zl">100%</b><button type="button" class="sp-tool" data-zoom="1" aria-label="Zoom in">+</button>'
-      +   '<button type="button" class="sp-tool" id="sp-full" title="Fill the whole screen, for drawing or showing on the TV. Hold Escape to leave."><span class="sp-full-on">⛶ Full screen</span><span class="sp-full-off">Exit full screen</span></button></div></div>'
-      // the Draw switch shares the hint's row, so it costs the photo no height
-      + '<div class="sp-noterow">' + '<div class="sp-styles" id="sp-styles"><span>Draw</span>' + Object.keys(STYLES).map(function(k){ return '<button type="button" class="sp-tool" data-style="' + k + '">' + STYLES[k] + '</button>'; }).join('') + '</div><div class="sp-note" id="sp-note"></div></div>'
-      + '<div id="sp-cropbar" hidden><b>Cropping.</b><span>Drag a box around the part of the photo to keep. Your marks move with it; a mark left wholly outside the box is removed.</span>'
-      +   '<button type="button" class="sp-btn primary" id="sp-crop-apply">Apply crop</button><button type="button" class="sp-btn" id="sp-crop-cancel">Cancel</button></div>'
-      + '<div class="sp-body"><div class="sp-stage" id="sp-stage"></div>'
+      +   '<button type="button" class="sp-btn' + (st.next ? '' : ' primary') + '" id="sp-save">Save</button>'
+      +   (st.next ? '<button type="button" class="sp-btn primary" id="sp-save-next">Save and next site →</button>' : '') + '</div></div>'
+      // Three columns (Jake, 2026-11-20: the tools were a strip of small buttons across the
+      // top and the photo buttons were mixed in under the marks list):
+      //   rail   what to draw, as big buttons, and how to draw it
+      //   main   one hint line with Undo and Redo, then the photo; zoom sits on its corner
+      //   side   the photo's own buttons together, then the marks on this site
+      + '<div class="sp-body">'
+      + '<aside class="sp-rail"><div class="sp-side-h">Draw</div>'
+      +   ORDER.map(function(t){ return '<button type="button" class="sp-tool sp-kind" data-tool="' + t + '"><i style="background:' + KINDS[t].color + '"></i>' + KINDS[t].name + '</button>'; }).join('')
+      +   '<button type="button" class="sp-tool sp-kind" data-tool="select"><i class="sel"></i>Select &amp; move</button>'
+      +   '<div class="sp-styles" id="sp-styles"><div class="sp-side-h">How to draw it</div>' + Object.keys(STYLES).map(function(k){ return '<button type="button" class="sp-tool" data-style="' + k + '">' + STYLES[k] + '</button>'; }).join('') + '</div></aside>'
+      + '<div class="sp-main">'
+      +   '<div class="sp-bar"><div class="sp-note" id="sp-note"></div><div class="sp-tools"><button type="button" class="sp-tool" id="sp-undo">↶ Undo</button><button type="button" class="sp-tool" id="sp-redo">↷ Redo</button></div></div>'
+      +   '<div id="sp-cropbar" hidden><b>Cropping.</b><span>Drag a box around the part of the photo to keep. Your marks move with it; a mark left wholly outside the box is removed.</span>'
+      +     '<button type="button" class="sp-btn primary" id="sp-crop-apply">Apply crop</button><button type="button" class="sp-btn" id="sp-crop-cancel">Cancel</button></div>'
+      +   '<div class="sp-stagewrap"><div class="sp-stage" id="sp-stage"></div>'
+      +     '<div class="sp-view"><button type="button" class="sp-tool" id="sp-labels" title="Show or hide the codes on the photo">Labels</button>'
+      +     '<button type="button" class="sp-tool" data-zoom="-1" aria-label="Zoom out">−</button><b id="sp-zl">100%</b><button type="button" class="sp-tool" data-zoom="1" aria-label="Zoom in">+</button>'
+      +     '<button type="button" class="sp-tool" id="sp-full" title="Fill the whole screen, for drawing or showing on the TV. Hold Escape to leave."><span class="sp-full-on">⛶ Full screen</span><span class="sp-full-off">Exit full screen</span></button></div></div>'
+      + '</div>'
       + '<button type="button" class="sp-marks-tab" id="sp-marks-tab">Marks</button>'
-      + '<aside class="sp-side"><div class="sp-side-h">Marks on this site</div><div id="sp-list"></div>'
+      + '<aside class="sp-side"><div class="sp-side-h">Photo</div>'
       +   '<div class="sp-side-f"><label class="sp-tool sp-upload">' + (st.url ? 'Replace photo' : 'Upload photo') + '<input type="file" accept="image/*" id="sp-file" hidden></label>'
-      +   '<button type="button" class="sp-tool" id="sp-crop">Crop photo</button>'
+      +   '<button type="button" class="sp-tool" id="sp-crop">Crop</button>'
       +   '<button type="button" class="sp-tool" data-turn="-1" title="Turn the photo a quarter turn to the left. Your marks turn with it.">↺ Turn left</button>'
       +   '<button type="button" class="sp-tool" data-turn="1" title="Turn the photo a quarter turn to the right. Your marks turn with it.">↻ Turn right</button>'
       +   '<button type="button" class="sp-tool" data-tool="site" title="Outline the site. Everything outside it is faded, and the book prints only the part inside.">Site boundary</button>'
-      +   '<button type="button" class="sp-tool" id="sp-clear">Clear all marks</button>'
-      +   '<div class="sp-hint">You can also copy a Google Earth screenshot and press Ctrl+V. Notes print in the book.</div></div></aside></div>';
+      +   '<div class="sp-hint">You can also copy a Google Earth screenshot and press Ctrl+V.</div></div>'
+      +   '<div class="sp-side-h">Marks on this site</div><div id="sp-list"></div>'
+      +   '<div class="sp-side-e"><span class="sp-hint">Notes print in the book.</span><button type="button" class="sp-link" id="sp-clear">Clear all marks</button></div></aside></div>';
     var host = document.getElementById('win-page');
     host.hidden = true;
     host.parentNode.appendChild(page);
@@ -384,9 +394,9 @@ window.WinterSitePlan = (function(){
     if(t.closest('#sp-labels')){ st.labels = !st.labels; paint(); return; }
     if(t.closest('#sp-crop')){
       finish();
-      // The crop bar takes the place of the tools and the hint line, at exactly their
-      // height, so the photo does not move when cropping starts.
-      if(!st.crop) document.getElementById('sp-cropbar').style.minHeight = (document.querySelector('#sp-page .sp-noterow').getBoundingClientRect().bottom - document.querySelector('#sp-page .sp-bar').getBoundingClientRect().top) + 'px';
+      // The crop bar takes the place of the hint row, at exactly its height, so the
+      // photo does not move when cropping starts.
+      if(!st.crop) document.getElementById('sp-cropbar').style.minHeight = document.querySelector('#sp-page .sp-bar').getBoundingClientRect().height + 'px';
       st.crop = st.crop ? null : {box: null}; st.tool = 'select'; st.sel = null; st.vsel = null; st.ext = null; paint(); return; }
     if((b = t.closest('[data-turn]'))){ turnPhoto(+b.dataset.turn); return; }
     if(t.closest('#sp-crop-cancel')){ st.crop = null; paint(); return; }
@@ -559,7 +569,7 @@ window.WinterSitePlan = (function(){
   function note(){
     if(!st.url || st.crop) return '';
     if(st.ext) return 'Carrying ' + label(st.marks, st.ext.i) + ' on from its end: ' + (mode() === 'free' ? 'drag to trace more of it.' : 'click to add to it. Double-click or press Enter to finish.') + ' Escape to stop.';
-    if(st.tool !== 'select') return (mode() ? HINTS[KINDS[st.tool].shape][mode()] : KINDS[st.tool].hint) + ' Scroll to zoom in.';
+    if(st.tool !== 'select') return KINDS[st.tool].name + ': ' + (mode() ? HINTS[KINDS[st.tool].shape][mode()] : KINDS[st.tool].hint);
     var m = st.sel != null ? st.marks[st.sel] : null, shape = m ? shapeOf(m) : '';
     if(shape === 'line') return 'Drag a dot to reshape. Click an end dot to carry the line on. Double-click the line to add a dot; click a dot and press Delete to remove it.';
     if(shape === 'area') return 'Drag a dot to reshape. Double-click the outline to add a dot; click a dot and press Delete to remove it.';
@@ -572,13 +582,13 @@ window.WinterSitePlan = (function(){
       el.style.cursor = st.tool === 'select' && !st.ext && !st.crop ? 'default' : 'crosshair';
     }
     page.querySelectorAll('[data-tool]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.tool === st.tool); b.disabled = !st.url; });
-    // The Draw switch keeps its place in the bar when it has nothing to say, so the photo never jumps.
+    // The Draw switch keeps its place in the rail when it has nothing to say, so nothing under it jumps.
     var md = st.url ? mode() : '';
     page.querySelector('#sp-styles').style.visibility = md ? '' : 'hidden';
     page.querySelectorAll('[data-style]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.style === md); b.disabled = !!st.ext && b.dataset.style === 'box'; });
     page.querySelector('#sp-labels').setAttribute('aria-pressed', st.labels);
     page.querySelector('#sp-cropbar').hidden = !st.crop;
-    page.querySelector('.sp-bar').style.display = page.querySelector('.sp-noterow').style.display = st.crop ? 'none' : '';
+    page.querySelector('.sp-bar').style.display = st.crop ? 'none' : '';
     page.querySelector('#sp-crop-apply').disabled = !(st.crop && st.crop.box);
     page.querySelector('#sp-crop').setAttribute('aria-pressed', !!st.crop);
     page.querySelector('#sp-crop').disabled = !st.url;
@@ -598,7 +608,7 @@ window.WinterSitePlan = (function(){
         + (m.t === 'site' ? '' : '<button type="button" class="sp-ck' + (m.u ? ' u' : '') + '" data-unsure="' + i + '" title="Click when it has been checked on site, or to flag it for checking">' + (m.u ? '? Not confirmed' : '✓ Confirmed') + '</button>')
         + (on ? '<button type="button" class="sp-tool sp-del" data-del>Remove</button><input type="text" data-note="' + i + '" placeholder="Add a note for the crew" value="' + esc(m.n || '') + '">'
               : (m.n ? '<span class="n">' + esc(m.n) + '</span>' : '')) + '</div>';
-    }).join('') : '<div class="sp-none">' + (st.url ? 'Nothing drawn yet. Pick a kind of mark above and draw on the photo.' : 'Add a photo to start.') + '</div>';
+    }).join('') : '<div class="sp-none">' + (st.url ? 'Nothing drawn yet. Pick what to draw on the left, then draw on the photo.' : 'Add a photo to start.') + '</div>';
   }
 
   // Draw, trace, move and reshape, all as fractions of the photo.
