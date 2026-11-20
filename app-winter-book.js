@@ -34,10 +34,14 @@ window.WinterBook = (function(){
       + W.groups.map(function(g){
           return '<button class="si-action-btn secondary wb-pick" onclick="WinterBook.print(\'' + g.code + '\')"><span class="wr-code" style="background:' + g.color + '">' + g.code + '</span> ' + esc(g.name) + ' · ' + count(g.code) + '</button>';
         }).join('')
+      + '<button class="si-action-btn secondary wb-pick" onclick="WinterBook.print(null, true)">Test print · the cover and one site page</button>'
+      + '<div style="font-size:12.5px;color:var(--fg-muted)">Two pages, to check the printer's settings before the whole book goes through.</div>'
       + '<div class="si-modal-actions"><button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button></div></div>', '440px');
   }
 
-  async function print(groupCode){
+  // test: only the cover and one site page (Jake, 2026-11-20), so a printer's
+  // settings can be tried on two sheets, not on the whole book.
+  async function print(groupCode, test){
     // Opened inside the click so the browser allows the window; filled once the
     // photos are ready.
     var win = window.open('', '_blank');
@@ -53,13 +57,18 @@ window.WinterBook = (function(){
           .sort(function(a, b){ return a.winter_stop - b.winter_stop; });
       });
       var sites = [].concat.apply([], groups.map(function(g){ return bySite[g.code]; }));
-      var photos = await loadPhotos(sites);
+      // The test page is the first site that has a photo: it shows the most.
+      var sample = test ? (sites.find(function(l){ return l.photo_path; }) || sites[0]) : null;
+      if(test && !sample) throw new Error('there is no site with a stop number to print');
+      var photos = await loadPhotos(test ? [sample] : sites);
       var today = new Date();
-      var pages = cover(groups, bySite, sites.length, today) + groups.map(function(g){
+      var sampleGroup = sample && groups.find(function(g){ return g.code === sample.winter_group; });
+      var pages = test ? cover(groups, bySite, sites.length, today) + sitePage(sample, sampleGroup, bySite[sampleGroup.code].length, photos[sample.id], W, today)
+        : cover(groups, bySite, sites.length, today) + groups.map(function(g){
         return divider(g, bySite[g.code], W) + bySite[g.code].map(function(l){ return sitePage(l, g, bySite[g.code].length, photos[l.id], W, today); }).join('');
       }).join('');
       win.document.open();
-      win.document.write(bookHtml(pages, groupCode ? groups[0].name : 'Whole book', sites.length));
+      win.document.write(bookHtml(pages, test ? 'Test print' : groupCode ? groups[0].name : 'Whole book', sites.length, test));
       win.document.close();
       win.focus();
     } catch(e){
@@ -134,7 +143,7 @@ window.WinterBook = (function(){
   // Where the map goes on a site page, in printed inches: the slot's width is fixed by
   // the page; its height moves a little with a long address, so this is a close guess
   // used only to pick how heavy the marks are drawn (the CSS does the real fitting).
-  var SLOT_W = 5.24, SLOT_H = 9;
+  var SLOT_W = 5.24, SLOT_H = 8.5;
 
   // Every sheet reads upright, like the cover and the dividers (Jake, 2026-11-13). The
   // map takes the left of the page from header to footer; a photo that is wider than
@@ -196,11 +205,12 @@ window.WinterBook = (function(){
   }
 
   // The book opens as a preview; the bar on top prints it and never prints itself.
-  function bookHtml(pages, label, n){
+  function bookHtml(pages, label, n, test){
     return '<!doctype html><html><head><meta charset="utf-8"><title>Winter book · ' + esc(label) + '</title>'
       + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=Saira+Stencil+One&family=Bebas+Neue&family=IBM+Plex+Mono:wght@500;600&display=swap">'
       + '<style>' + BOOK_CSS + '</style></head><body>'
-      + '<div class="bar"><b>Winter book · ' + esc(label) + '</b><span>' + n + ' site page' + (n === 1 ? '' : 's') + ' plus a cover and a divider for each group. Print on Letter paper, margins: none.</span>'
+      + '<div class="bar"><b>Winter book · ' + esc(label) + '</b><span>' + (test ? 'The cover and one site page.' : n + ' site page' + (n === 1 ? '' : 's') + ' plus a cover and a divider for each group.')
+      + ' Letter paper, Margins: None, Background graphics: on. For colour right to the edge of the paper, turn on Borderless in the printer's own settings.</span>'
       + '<button onclick="print()">Print</button></div>'
       + pages + '</body></html>';
   }
@@ -218,6 +228,13 @@ window.WinterBook = (function(){
     '.bar span{flex:1;opacity:.8}',
     '.bar button{font:700 14px var(--ui);background:#22c55e;color:#012b1f;border:0;border-radius:8px;padding:9px 22px;cursor:pointer}',
     '@media print{html,body{background:#fff}.page{margin:0;box-shadow:none}.bar{display:none}}',
+    // The safe zone (Jake, 2026-11-20: "WINTER OPS at the top was cut off"). A desk
+    // printer cannot print the outer quarter inch of a sheet, and the first and last
+    // strips sat inside it. Their colour still runs to the paper's edge, so a borderless
+    // printer or a print shop gives a page that bleeds like a book's; their words now
+    // sit .3in in, where every printer can reach. Sides were already .31in clear.
+    '.page>.class:first-child{padding-top:.3in}',
+    '.page>.class:last-child,.page>.foot:last-child{padding-bottom:.3in}',
     '.class{flex:none;background:var(--deep);color:#e6f2ea;font-family:var(--mono);font-weight:600;font-size:1.35cqw;letter-spacing:.32em;text-align:center;padding:.9cqw 2cqw;white-space:nowrap;overflow:hidden}',
     // ── site page (Jake, 2026-11-13): a compact header, then the map as big as the sheet
     // allows with services, key and notes in a column beside it ──
