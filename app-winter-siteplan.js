@@ -285,6 +285,8 @@ window.WinterSitePlan = (function(){
       + '<aside class="sp-side"><div class="sp-side-h">Marks on this site</div><div id="sp-list"></div>'
       +   '<div class="sp-side-f"><label class="sp-tool sp-upload">' + (st.url ? 'Replace photo' : 'Upload photo') + '<input type="file" accept="image/*" id="sp-file" hidden></label>'
       +   '<button type="button" class="sp-tool" id="sp-crop">Crop photo</button>'
+      +   '<button type="button" class="sp-tool" data-turn="-1" title="Turn the photo a quarter turn to the left. Your marks turn with it.">↺ Turn left</button>'
+      +   '<button type="button" class="sp-tool" data-turn="1" title="Turn the photo a quarter turn to the right. Your marks turn with it.">↻ Turn right</button>'
       +   '<button type="button" class="sp-tool" data-tool="site" title="Outline the site. Everything outside it is faded, and the book prints only the part inside.">Site boundary</button>'
       +   '<button type="button" class="sp-tool" id="sp-clear">Clear all marks</button>'
       +   '<div class="sp-hint">You can also copy a Google Earth screenshot and press Ctrl+V. Notes print in the book.</div></div></aside></div>';
@@ -386,6 +388,7 @@ window.WinterSitePlan = (function(){
       // height, so the photo does not move when cropping starts.
       if(!st.crop) document.getElementById('sp-cropbar').style.minHeight = (document.querySelector('#sp-page .sp-noterow').getBoundingClientRect().bottom - document.querySelector('#sp-page .sp-bar').getBoundingClientRect().top) + 'px';
       st.crop = st.crop ? null : {box: null}; st.tool = 'select'; st.sel = null; st.vsel = null; st.ext = null; paint(); return; }
+    if((b = t.closest('[data-turn]'))){ turnPhoto(+b.dataset.turn); return; }
     if(t.closest('#sp-crop-cancel')){ st.crop = null; paint(); return; }
     if(t.closest('#sp-crop-apply')){ applyCrop(); return; }
     if(t.closest('#sp-clear')){ if(st.marks.length){ remember(); st.marks = []; st.sel = null; st.draft = null; paint(); } return; }
@@ -579,6 +582,7 @@ window.WinterSitePlan = (function(){
     page.querySelector('#sp-crop-apply').disabled = !(st.crop && st.crop.box);
     page.querySelector('#sp-crop').setAttribute('aria-pressed', !!st.crop);
     page.querySelector('#sp-crop').disabled = !st.url;
+    page.querySelectorAll('[data-turn]').forEach(function(b){ b.disabled = !st.url || !!st.crop; });
     page.querySelector('#sp-undo').disabled = !st.undo.length;
     page.querySelector('#sp-redo').disabled = !st.redo.length;
     page.querySelector('#sp-zl').textContent = Math.round(st.zoom * 100) + '%';
@@ -823,6 +827,52 @@ window.WinterSitePlan = (function(){
       renderStage();
     } catch(e){
       JWG.toast('Could not crop the photo: ' + (e.message || e), 'error');
+      paint();
+      throw e;
+    }
+  }
+
+  // A quarter turn of the photo (Jake, 2026-11-20: a Google Earth screenshot is not
+  // always the right way up for the site). dir 1 is to the right, -1 to the left.
+  // turnedCanvas and turnPoint are the whole of the geometry: the picture and the
+  // marks have to agree, so they sit side by side.
+  function turnedCanvas(bmp, dir){
+    var c = document.createElement('canvas');
+    c.width = bmp.height; c.height = bmp.width;
+    var g = c.getContext('2d');
+    if(dir > 0) g.translate(c.width, 0); else g.translate(0, c.height);
+    g.rotate(dir * Math.PI / 2);
+    g.drawImage(bmp, 0, 0);
+    return c;
+  }
+  // Marks are fractions of the photo, so a turn is just a swap of the two.
+  function turnPoint(q, dir){ return dir > 0 ? [clamp(1 - q[1]), q[0]] : [q[1], clamp(1 - q[0])]; }
+  // Nothing is stored until Save, the same as a crop.
+  async function turnPhoto(dir){
+    if(!st.url || st.crop) return;
+    finish();
+    var site = st;
+    var btns = document.querySelectorAll('#sp-page [data-turn]');
+    btns.forEach(function(b){ b.disabled = true; });
+    try {
+      var src = st.blob;
+      if(!src){
+        var got = await fetch(st.url);
+        if(!got.ok) throw new Error('the photo did not download (' + got.status + ')');
+        src = await got.blob();
+      }
+      var c = turnedCanvas(await createImageBitmap(src), dir);
+      var blob = await new Promise(function(res){ c.toBlob(res, 'image/jpeg', .92); });
+      if(st !== site) return;
+      st.marks = st.marks.map(function(m){ return Object.assign({}, m, {p: m.p.map(function(q){ return turnPoint(q, dir); })}); });
+      st.blob = blob;
+      st.url = URL.createObjectURL(blob);
+      st.sel = null; st.vsel = null; st.ext = null; st.draft = null;
+      st.undo = []; st.redo = []; st.dirty = true; st.zoom = 1;
+      JWG.toast('Photo turned. Press Save to keep it.');
+      renderStage();
+    } catch(e){
+      JWG.toast('Could not turn the photo: ' + (e.message || e), 'error');
       paint();
       throw e;
     }
