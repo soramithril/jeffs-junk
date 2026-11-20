@@ -35,7 +35,7 @@ window.WinterBook = (function(){
           return '<button class="si-action-btn secondary wb-pick" onclick="WinterBook.print(\'' + g.code + '\')"><span class="wr-code" style="background:' + g.color + '">' + g.code + '</span> ' + esc(g.name) + ' · ' + count(g.code) + '</button>';
         }).join('')
       + '<button class="si-action-btn secondary wb-pick" onclick="WinterBook.print(null, true)">Test print · the cover and one site page</button>'
-      + '<div style="font-size:12.5px;color:var(--fg-muted)">Two pages, to check the printer's settings before the whole book goes through.</div>'
+      + '<div style="font-size:12.5px;color:var(--fg-muted)">Two pages, to check the printer settings before the whole book goes through.</div>'
       + '<div class="si-modal-actions"><button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button></div></div>', '440px');
   }
 
@@ -210,7 +210,7 @@ window.WinterBook = (function(){
       + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=Saira+Stencil+One&family=Bebas+Neue&family=IBM+Plex+Mono:wght@500;600&display=swap">'
       + '<style>' + BOOK_CSS + '</style></head><body>'
       + '<div class="bar"><b>Winter book · ' + esc(label) + '</b><span>' + (test ? 'The cover and one site page.' : n + ' site page' + (n === 1 ? '' : 's') + ' plus a cover and a divider for each group.')
-      + ' Letter paper, Margins: None, Background graphics: on. For colour right to the edge of the paper, turn on Borderless in the printer's own settings.</span>'
+      + ' Letter paper, Margins: None, Background graphics: on. For colour right to the edge of the paper, turn on Borderless in your printer settings.</span>'
       + '<button onclick="print()">Print</button></div>'
       + pages + '</body></html>';
   }
