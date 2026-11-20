@@ -1166,9 +1166,3 @@ html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#fff2e6;" i],html.j
 html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#fff7ed;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#fff7ed" i]{background:hsla(33,70%,55%,.16) !important}
 html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#fffbeb;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#fffbeb" i]{background:hsla(48,70%,55%,.16) !important}
 html.jj-glass body.signed-in :not(#rt-qr)[style*="background:#fffdf5;" i],html.jj-glass body.signed-in :not(#rt-qr)[style$="background:#fffdf5" i]{background:hsla(48,70%,55%,.16) !important}
-
-/* ── Jake's Glass on/off switch (v757). Only his login gets the button (app-glass.js). ── */
-#jj-glass-switch{position:fixed;right:92px;bottom:24px;z-index:9000;height:40px;padding:0 16px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:#111;color:#fff;font:600 13px/1 'Inter',system-ui,sans-serif;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-#jj-glass-switch.on{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.35)}
-#jj-glass-switch:hover{filter:brightness(1.15)}
-@media(max-width:900px){#jj-glass-switch{right:10px;bottom:84px}}

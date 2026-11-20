@@ -1,9 +1,8 @@
-/* ── THE GLASS LOOK, JAKE ONLY (back 2026-11-19, v757) ───────────────────────────
-   Jake 2026-11-19: "remember the glass one we made, bring that back as a look". It was
-   homepage option E (2026-11-05 to 11-10, removed in v736). It comes back as it last was
-   (the normal dashboard layout on the dark frosted sheet), switched with a small Glass
-   on/off button bottom-right that only Jake's login gets. His choice is kept in this
-   browser (localStorage jjGlass). Nobody else ever sees the button or the look.
+/* ── THE FROSTED GLASS LOOK (one of the four Look choices, v759) ───────────────────
+   It was homepage option E (2026-11-05 to 11-10, removed in v736), then came back on
+   2026-11-19 behind a Glass on/off switch only Jake could see. Since 2026-11-20 it is
+   the fourth choice on the Look button everyone gets: app-skin.js owns that button and
+   calls JJGlass.set() to turn this look on and off.
    The notes below are from when it was option E. */
 /* ── HOMEPAGE OPTION E: THE GLASS LOOK AND THE MOCKUP'S MENUS ─────────────────
    Jake, 2026-11-05: every page in the frosted-glass look from his "Glassy Dashboard"
@@ -173,48 +172,5 @@ window.JJGlass = (function () {
     paint();
     timer = setInterval(paint, 60 * 1000);   // catches the hour within a minute
   }
-  // ── Jake's switch ──
-  // Who is signed in: app.js writes the name into #logged-in-username on sign-in and
-  // marks #user-card signed-out on sign-out. Watching them keeps this out of app.js.
-  var KEY = 'jjGlass', jake = false;
-  function wanted() { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } }
-  function drawSwitch() {
-    var b = document.getElementById('jj-glass-switch');
-    if (!jake) { if (b) b.remove(); return; }
-    if (!b) {
-      b = document.createElement('button');
-      b.type = 'button';
-      b.id = 'jj-glass-switch';
-      b.title = 'Only you can see this switch';
-      b.addEventListener('click', function () {
-        try { localStorage.setItem(KEY, wanted() ? '0' : '1'); } catch (e) {}
-        sync();
-      });
-      document.body.appendChild(b);
-    }
-    var on = document.documentElement.classList.contains('jj-glass');
-    b.classList.toggle('on', on);
-    b.textContent = on ? 'Glass look: on' : 'Glass look: off';
-  }
-  function sync() {
-    var on = jake && wanted();
-    if (on !== document.documentElement.classList.contains('jj-glass')) set(on);
-    drawSwitch();
-  }
-  function watchUser() {
-    var nameEl = document.getElementById('logged-in-username');
-    var card = document.getElementById('user-card');
-    if (!nameEl || !card) throw new Error('app-glass.js: #logged-in-username or #user-card is missing, cannot tell who is signed in');
-    function check() {
-      var now = !card.classList.contains('signed-out') && nameEl.textContent.trim() === 'Jake';
-      if (now !== jake) { jake = now; sync(); }
-    }
-    new MutationObserver(check).observe(nameEl, { childList: true, characterData: true, subtree: true });
-    new MutationObserver(check).observe(card, { attributes: true, attributeFilter: ['class'] });
-    check();
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchUser);
-  else watchUser();
-
   return { set: set };
 })();
