@@ -7,7 +7,14 @@
 // writes jwg_snow_events / jwg_snow_machines / jwg_snow_visits; this file only
 // reads them. The sites are the winter book's own list, passed in by the Snow &
 // Ice page (WIN.locations) and never changed here.
-// Renders inside the Winter page — app-jwg-scheduler.js calls SnowTimes.mount().
+//
+// It is the fourth tab of Snow & Ice (Jake, 2026-11-20: as its own page it was one
+// long stack, with the events in a strip that scrolled sideways). It fits one
+// screen and has two views:
+//   Events      the events down the left, the picked event's map in the middle,
+//               who went out on the right; a machine's stops open under it.
+//   Site times  every site in one table that sorts on any heading.
+// app-snow.js calls SnowTimes.mount() when the tab opens and unmount() when it closes.
 window.SnowTimes = (function(){
 "use strict";
 
@@ -19,7 +26,8 @@ var DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 var W = null, root = null;
 var EVENTS = [];                    // every event on record, newest first
-var st = {season: null, ev: null, mach: null, stop: null};
+// mode: 'events' | 'sites'. sort / dir / area belong to the Site times table.
+var st = {season: null, ev: null, mach: null, stop: null, mode: 'events', sort: 'avg', dir: -1, area: ''};
 var MACH = [], VISITS = [], STATS = [];   // for the open event / the open season
 var map = null, layer = null, raf = 0;
 
@@ -31,8 +39,8 @@ function seasonOf(date){ var p = date.split('-'); return +p[1] >= 7 ? +p[0] : +p
 function seasonName(y){ return y + '–' + String(y + 1).slice(2); }
 function niceDate(d){ var p = d.split('-'), dt = new Date(+p[0], +p[1] - 1, +p[2]); return DAYS[dt.getDay()] + ' ' + MONTHS[dt.getMonth()] + ' ' + dt.getDate(); }
 function clock(iso){ return new Date(iso).toLocaleTimeString('en-CA', {timeZone: 'America/Toronto', hour: 'numeric', minute: '2-digit'}).replace(/\./g, '').toUpperCase(); }
-function span(a, b){ var m = Math.round((new Date(b) - new Date(a)) / 60000); return Math.floor(m / 60) + ' h ' + (m % 60) + ' m'; }
 function mins(n){ return Math.round(n) + ' min'; }
+function hours(e){ return (new Date(e.last_back) - new Date(e.first_out)) / 3600000; }
 
 // The shop is in the winter book but it is the yard, not a stop.
 function isYard(l){ return Math.abs(l.lat - YARD[0]) < 0.002 && Math.abs(l.lng - YARD[1]) < 0.003; }
@@ -40,6 +48,7 @@ function sites(){ return W.locations.filter(function(l){ return l.lat != null &&
 function site(id){ return W.locations.find(function(l){ return l.id === id; }); }
 function siteName(l){ return l.client_name || l.address; }
 function siteCode(l){ return WinterRoutes.code(l) || ''; }
+function codeHtml(l){ return siteCode(l) ? '<span class="snt-code">' + esc(siteCode(l)) + '</span>' : ''; }
 function colourOf(deviceId){ var i = MACH.findIndex(function(m){ return m.device_id === deviceId; }); return PALETTE[i % PALETTE.length]; }
 function visitsOf(deviceId){ return VISITS.filter(function(v){ return v.device_id === deviceId; }); }
 function event(){ return EVENTS.find(function(e){ return e.event_date === st.ev; }); }
@@ -72,79 +81,85 @@ function loadEvent(){
 function shell(){
   var years = EVENTS.map(function(e){ return seasonOf(e.event_date); }).concat([st.season])
     .filter(function(y, i, a){ return a.indexOf(y) === i; }).sort(function(a, b){ return b - a; });
-  return '<div class="snt-page">'
-    + '<div class="snt-head"><div><div class="snt-title">Snow Times</div>'
-    +   '<div class="snt-sub">A snow event is any day the tractors go out. Worked out from the trucks\' GPS each evening; nobody has to mark anything.</div></div>'
-    +   '<div class="snt-acts"><select id="snt-season" class="snt-select" aria-label="Winter">' + years.map(function(y){ return '<option value="' + y + '"' + (y === st.season ? ' selected' : '') + '>Winter ' + seasonName(y) + '</option>'; }).join('') + '</select>'
-    +   '<button type="button" class="snt-btn" data-back>Back to Snow &amp; Ice</button></div></div>'
-    + '<div class="snt-tiles" id="snt-tiles"></div>'
-    + '<div class="snt-h2">Snow events <span class="snt-hint">newest first · click one to open it</span></div>'
-    + '<div class="snt-events" id="snt-events"></div>'
-    + '<div class="snt-panel" id="snt-event"></div>'
-    + '<div class="snt-panel"><div class="snt-h2">Every site this winter <span class="snt-hint">time on site is every machine added together · click a row to find it on the map</span></div>'
-    +   '<div class="snt-scroll"><table class="snt-table" id="snt-sites"></table></div></div>'
-    + '<p class="snt-note"><b>How to read this:</b> a machine counts as being at a site when its GPS is within 80 m of the site\'s pin for 3 minutes or more, so sites that sit side by side can borrow a little of each other\'s time. '
-    +   '"No stop recorded" means no machine\'s GPS showed that, which is a prompt to check, not proof the site was missed. Snowfall is the Government of Canada\'s measured figure for that day plus the day before, from the nearest station that has reported.</p>'
+  return '<div class="snt">'
+    + '<div class="snt-bar">'
+    +   '<div class="snt-seg"><button type="button" data-mode="events">Events</button><button type="button" data-mode="sites">Site times</button></div>'
+    +   '<select id="snt-season" class="snt-select" aria-label="Winter">' + years.map(function(y){ return '<option value="' + y + '"' + (y === st.season ? ' selected' : '') + '>Winter ' + seasonName(y) + '</option>'; }).join('') + '</select>'
+    +   '<div class="snt-stats" id="snt-stats"></div>'
+    +   '<details class="snt-how"><summary>How to read this</summary><p>A snow event is any day the tractors go out. It is worked out from the trucks\' GPS each evening; nobody has to mark anything. '
+    +     'A machine counts as being at a site when its GPS is within 80 m of the site\'s pin for 3 minutes or more, so sites that sit side by side can borrow a little of each other\'s time. '
+    +     '"No stop recorded" means no machine\'s GPS showed that, which is a prompt to check, not proof the site was missed. '
+    +     'Snowfall is the Government of Canada\'s measured figure for that day plus the day before, from the nearest station that has reported.</p></details>'
+    + '</div><div class="snt-body" id="snt-body"></div></div>';
+}
+function eventsFrame(){
+  return '<div class="snt-three">'
+    + '<div class="snt-panel"><div class="snt-ph"><b>Snow events</b><span class="snt-hint">newest first</span></div><div class="snt-scroll" id="snt-events"></div></div>'
+    + '<div class="snt-panel"><div class="snt-ph" id="snt-evhead"></div><div id="snt-map"></div><div class="snt-info" id="snt-info"></div>'
+    +   '<div class="snt-legend"><span><i class="dot"></i>Stop, coloured by machine</span><span><i class="ring"></i>No stop recorded</span><span><i class="yard"></i>The yard</span></div></div>'
+    + '<div class="snt-panel"><div class="snt-ph" id="snt-whohead"></div><div class="snt-scroll" id="snt-who"></div></div>'
     + '</div>';
 }
+function sitesFrame(){
+  return '<div class="snt-panel"><div class="snt-ph"><b>Time on site</b><span class="snt-hint">every machine added together · click a heading to sort · click a row to find it on the map</span>'
+    + '<div class="snt-chips" id="snt-areas"></div></div><div class="snt-scroll"><table class="snt-table" id="snt-sites"></table></div></div>';
+}
 
-function paintTiles(){
+// The season in one line, where four tiles used to take a row of their own.
+function paintStats(){
   var evs = seasonEvents(), n = evs.length;
-  var known = evs.filter(function(e){ return e.snow_cm != null; });
-  var biggest = known.slice().sort(function(a, b){ return b.snow_cm - a.snow_cm; })[0];
-  var avgLen = n ? evs.reduce(function(a, e){ return a + (new Date(e.last_back) - new Date(e.first_out)); }, 0) / n / 3600000 : 0;
-  root.querySelector('#snt-tiles').innerHTML = [
-    [n, 'snow events'],
-    [n ? avgLen.toFixed(1) + ' h' : '–', 'average event, first tractor out to last one back'],
-    [biggest ? (+biggest.snow_cm) + ' cm' : '–', biggest ? 'biggest snowfall · ' + niceDate(biggest.event_date) : 'biggest snowfall'],
-    [sites().length, 'sites in the winter book']
-  ].map(function(t){ return '<div class="snt-tile"><div class="v">' + t[0] + '</div><div class="l">' + esc(t[1]) + '</div></div>'; }).join('');
+  var biggest = evs.filter(function(e){ return e.snow_cm != null; }).sort(function(a, b){ return b.snow_cm - a.snow_cm; })[0];
+  var avg = n ? evs.reduce(function(a, e){ return a + hours(e); }, 0) / n : 0;
+  root.querySelector('#snt-stats').innerHTML = '<span><b>' + n + '</b> snow event' + (n === 1 ? '' : 's') + '</span>'
+    + (n ? '<span>average <b>' + avg.toFixed(1) + ' h</b> first out to last back</span>' : '')
+    + (biggest ? '<span>biggest <b>' + (+biggest.snow_cm) + ' cm</b> on ' + niceDate(biggest.event_date) + '</span>' : '');
+  root.querySelectorAll('[data-mode]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.mode === st.mode); });
 }
 
 function paintEvents(){
-  var evs = seasonEvents(), total = sites().length;
-  root.querySelector('#snt-events').innerHTML = evs.length ? evs.map(function(e){
+  var evs = seasonEvents(), box = root.querySelector('#snt-events'), top = box.scrollTop;
+  box.innerHTML = evs.length ? evs.map(function(e){
     return '<button type="button" class="snt-ev' + (e.event_date === st.ev ? ' on' : '') + '" data-ev="' + e.event_date + '">'
       + '<span class="cm">' + (e.snow_cm == null ? '–' : +e.snow_cm) + '<small>cm</small></span>'
       + '<span class="t"><b>' + niceDate(e.event_date) + '</b>'
-      + '<span>' + e.tractors_out + ' of 5 tractors · ' + e.machines + ' machines</span>'
-      + '<span>' + e.sites_visited + ' of ' + total + ' sites · ' + clock(e.first_out) + ' to ' + clock(e.last_back) + '</span></span></button>';
+      + '<span>' + e.tractors_out + ' of 5 tractors · ' + e.sites_visited + ' sites · ' + hours(e).toFixed(1) + ' h</span></span></button>';
   }).join('') : '<div class="snt-empty">No snow events yet this winter. The first one shows up here the evening after the tractors go out.</div>';
+  box.scrollTop = top;
 }
 
-function paintEvent(){
-  var box = root.querySelector('#snt-event'), e = event();
+// The picked event: its heading, who went out, the map. fit re-frames the map.
+function paintEvent(fit){
+  var e = event(), head = root.querySelector('#snt-evhead'), m = MACH.find(function(x){ return x.device_id === st.mach; });
   cancelAnimationFrame(raf);
-  if(map){ map.remove(); map = null; }
-  if(!e){ box.hidden = true; return; }
-  box.hidden = false;
-  var m = MACH.find(function(x){ return x.device_id === st.mach; });
-  var h = '<div class="snt-two"><div>'
-    + '<div class="snt-bar"><div class="snt-h2">' + niceDate(e.event_date) + ' · ' + (e.snow_cm == null ? 'snowfall not reported yet' : (+e.snow_cm) + ' cm fell <span class="snt-hint">(' + esc(e.snow_station) + ')</span>') + '</div>'
-    +   '<div class="snt-acts">' + (m ? '<button type="button" class="snt-btn sm" data-mach="">Show every machine</button>' : '') + '<button type="button" class="snt-btn sm" data-play>&#9654; Play the event</button></div></div>'
-    + '<div id="snt-map"></div><div class="snt-info" id="snt-info"></div>'
-    + '<div class="snt-legend"><span><i class="dot"></i>Stop, coloured by machine</span><span><i class="ring"></i>No stop recorded</span><span><i class="yard"></i>The yard</span></div>'
-    + '</div><div><div class="snt-h2">Who went out</div><div class="snt-machs">';
-  MACH.forEach(function(x){
-    var n = visitsOf(x.device_id).length;
-    h += '<button type="button" class="snt-mach' + (x.device_id === st.mach ? ' on' : '') + '" data-mach="' + esc(x.device_id) + '">'
+  if(!e){
+    head.innerHTML = '<b>No event picked</b>';
+    root.querySelector('#snt-whohead').innerHTML = '<b>Who went out</b>';
+    root.querySelector('#snt-who').innerHTML = '';
+    root.querySelector('#snt-info').textContent = '';
+    return;
+  }
+  head.innerHTML = '<b>' + niceDate(e.event_date) + '</b><span class="snt-hint">'
+    + (e.snow_cm == null ? 'snowfall not reported yet' : (+e.snow_cm) + ' cm fell (' + esc(e.snow_station) + ')') + ' · out ' + clock(e.first_out) + ', back ' + clock(e.last_back) + '</span>'
+    + '<span class="snt-acts">' + (m ? '<button type="button" class="snt-btn" data-mach="">Show every machine</button>' : '') + '<button type="button" class="snt-btn go" data-play>&#9654; Play the event</button></span>';
+  root.querySelector('#snt-whohead').innerHTML = '<b>Who went out</b><span class="snt-hint">' + MACH.length + ' machine' + (MACH.length === 1 ? '' : 's') + ' · click one to follow it</span>';
+  var h = MACH.map(function(x){
+    var mine = visitsOf(x.device_id), n = mine.length, on = x.device_id === st.mach;
+    var row = '<button type="button" class="snt-mach' + (on ? ' on' : '') + '" data-mach="' + esc(x.device_id) + '">'
       + '<i style="background:' + colourOf(x.device_id) + '"></i><span><b>' + esc(x.device_name) + '</b><small>out ' + clock(x.first_out) + ', back ' + clock(x.last_back) + ' · ' + Math.round(x.km) + ' km</small></span>'
       + '<u>' + n + (n === 1 ? ' site' : ' sites') + '</u></button>';
-  });
-  h += '</div>';
-  if(m){
-    h += '<div class="snt-stops">' + visitsOf(m.device_id).map(function(v, i){
+    if(on) row += mine.map(function(v, i){
       var l = site(v.location_id);
-      return '<div class="snt-stop' + (i === st.stop ? ' on' : '') + '" data-stop="' + i + '"><i style="background:' + colourOf(m.device_id) + '">' + (i + 1) + '</i><em>' + clock(v.arrive) + '</em>'
-        + '<span>' + (siteCode(l) ? '<span class="snt-code">' + esc(siteCode(l)) + '</span>' : '') + esc(siteName(l)) + '</span><u>' + mins(v.dur_min) + '</u></div>';
-    }).join('') + '</div>';
-  }
+      return '<div class="snt-stop' + (i === st.stop ? ' on' : '') + '" data-stop="' + i + '"><i style="background:' + colourOf(x.device_id) + '">' + (i + 1) + '</i><em>' + clock(v.arrive) + '</em>'
+        + '<span>' + codeHtml(l) + esc(siteName(l)) + '</span><u>' + mins(v.dur_min) + '</u></div>';
+    }).join('');
+    return row;
+  }).join('');
   var missed = sites().filter(function(l){ return !VISITS.some(function(v){ return v.location_id === l.id; }); });
-  if(!m && missed.length){
-    h += '<div class="snt-missed"><b>No stop recorded at ' + missed.length + (missed.length === 1 ? ' site' : ' sites') + ':</b> ' + missed.map(function(l){ return esc(siteName(l)); }).join(', ') + '</div>';
-  }
-  box.innerHTML = h + '</div></div>';
-  drawMap(true);
+  if(missed.length) h += '<div class="snt-missed"><b>No stop recorded at ' + missed.length + (missed.length === 1 ? ' site' : ' sites') + ':</b> ' + missed.map(function(l){ return esc(siteName(l)); }).join(', ') + '</div>';
+  var box = root.querySelector('#snt-who'), top = box.scrollTop;
+  box.innerHTML = h;
+  box.scrollTop = top;
+  drawMap(fit);
   paintInfo();
 }
 
@@ -168,8 +183,9 @@ function pin(colour, label, big){
 }
 
 function drawMap(fit){
-  if(!map){
-    map = L.map('snt-map', {scrollWheelZoom: true});
+  var fresh = !map;
+  if(fresh){
+    map = L.map(root.querySelector('#snt-map'), {scrollWheelZoom: true});
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
   }
@@ -194,17 +210,17 @@ function drawMap(fit){
       var l = site(v.location_id);
       var mk = L.marker([l.lat, l.lng], {icon: pin(colour, focus ? i + 1 : '', focus), zIndexOffset: focus ? 500 : 0})
         .bindTooltip('<b>' + esc(siteName(l)) + '</b><br>' + esc(m.device_name) + ' · ' + clock(v.arrive) + ' · ' + mins(v.dur_min)).addTo(layer);
-      mk.on('click', function(){ st.mach = m.device_id; st.stop = i; paintEvent(); });
+      mk.on('click', function(){ var same = st.mach === m.device_id; st.mach = m.device_id; st.stop = i; paintEvent(!same); });
     });
   });
 
   L.marker(YARD, {icon: L.divIcon({className: 'snt-pin', iconSize: [20, 20], iconAnchor: [10, 10], html: '<span class="yard"></span>'}), zIndexOffset: 900})
     .bindTooltip('<b>The yard</b>').addTo(layer);
 
-  if(fit){
+  if(fit || fresh){
     var focusPts = st.mach ? [YARD].concat(visitsOf(st.mach).map(function(v){ var l = site(v.location_id); return [l.lat, l.lng]; })) : bounds;
+    map.invalidateSize();
     map.fitBounds(focusPts, {padding: [30, 30]});
-    requestAnimationFrame(function(){ if(map) map.invalidateSize(); });
   }
 }
 
@@ -234,52 +250,94 @@ function play(){
   })(started);
 }
 
+// ── site times ──
+// What each heading sorts on. "miss" is the events a site has no stop recorded for.
+var SORTS = {
+  name: function(r){ return siteName(r.l).toLowerCase(); },
+  avg: function(r){ return r.s.avg || 0; }, min: function(r){ return r.s.min || 0; }, max: function(r){ return r.s.max || 0; },
+  visits: function(r){ return r.s.visits; }, miss: function(r){ return r.miss; }
+};
 function paintSites(){
   var n = seasonEvents().length, by = {};
   STATS.forEach(function(s){ by[s.id] = s; });
-  var rows = sites().map(function(l){ return {l: l, s: by[l.id] || {visits: 0}}; })
-    .sort(function(a, b){ return (b.s.avg || 0) - (a.s.avg || 0); });
-  root.querySelector('#snt-sites').innerHTML = '<thead><tr><th>Site</th><th class="num">Events done</th><th class="num">Avg on site</th><th class="num">Shortest</th><th class="num">Longest</th><th>No stop recorded</th></tr></thead><tbody>'
+  var all = sites();
+  root.querySelector('#snt-areas').innerHTML = '<button type="button" class="snt-chip" data-tarea="" aria-pressed="' + !st.area + '">All ' + all.length + '</button>'
+    + W.groups.map(function(g){
+        return '<button type="button" class="snt-chip" data-tarea="' + esc(g.code) + '" aria-pressed="' + (st.area === g.code) + '" title="' + esc(g.name) + '"><i style="background:' + g.color + '"></i>' + esc(g.code) + '</button>';
+      }).join('');
+  var rows = all.filter(function(l){ return !st.area || l.winter_group === st.area; })
+    .map(function(l){ var s = by[l.id] || {visits: 0}; return {l: l, s: s, miss: n - s.visits}; });
+  var key = SORTS[st.sort];
+  rows.sort(function(a, b){ var x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * st.dir || siteName(a.l).localeCompare(siteName(b.l)); });
+  var longest = Math.max.apply(null, [1].concat(STATS.map(function(s){ return s.avg; })));
+  function th(k, label, num){
+    return '<th' + (num ? ' class="num"' : '') + '><button type="button" data-sort="' + k + '" aria-pressed="' + (st.sort === k) + '">' + label + (st.sort === k ? (st.dir < 0 ? ' ↓' : ' ↑') : '') + '</button></th>';
+  }
+  root.querySelector('#snt-sites').innerHTML = '<thead><tr>' + th('name', 'Site') + th('avg', 'Average on site') + th('min', 'Shortest', 1) + th('max', 'Longest', 1) + th('visits', 'Events done', 1) + th('miss', 'No stop recorded', 1) + '</tr></thead><tbody>'
     + rows.map(function(r){
-      var miss = n - r.s.visits;
-      return '<tr data-site="' + r.l.id + '"><td>' + (siteCode(r.l) ? '<span class="snt-code">' + esc(siteCode(r.l)) + '</span>' : '') + esc(siteName(r.l)) + '</td>'
+      var has = r.s.visits > 0;
+      return '<tr data-tsite="' + r.l.id + '"><td>' + codeHtml(r.l) + esc(siteName(r.l)) + '</td>'
+        + '<td>' + (has ? '<span class="snt-avg"><i style="width:' + Math.max(4, r.s.avg / longest * 220) + 'px"></i><b>' + mins(r.s.avg) + '</b></span>' : '–') + '</td>'
+        + '<td class="num">' + (has ? Math.round(r.s.min) : '–') + '</td><td class="num">' + (has ? Math.round(r.s.max) : '–') + '</td>'
         + '<td class="num">' + r.s.visits + ' of ' + n + '</td>'
-        + '<td class="num"><b>' + (r.s.visits ? mins(r.s.avg) : '–') + '</b></td><td class="num">' + (r.s.visits ? Math.round(r.s.min) : '–') + '</td><td class="num">' + (r.s.visits ? Math.round(r.s.max) : '–') + '</td>'
-        + '<td class="' + (miss ? 'warn' : '') + '">' + (miss ? miss + (miss === 1 ? ' event' : ' events') : '') + '</td></tr>';
+        + '<td class="num' + (r.miss ? ' warn' : '') + '">' + (r.miss ? r.miss + (r.miss === 1 ? ' event' : ' events') : '') + '</td></tr>';
     }).join('') + '</tbody>';
 }
 
 // ── wiring ──
+// Build the view that is showing. The map belongs to the Events view, so it goes
+// when that view does.
+function paintMode(){
+  cancelAnimationFrame(raf);
+  if(map){ map.remove(); map = null; layer = null; }
+  root.querySelector('#snt-body').innerHTML = st.mode === 'events' ? eventsFrame() : sitesFrame();
+  paintStats();
+  if(st.mode === 'events'){ paintEvents(); paintEvent(true); }
+  else paintSites();
+}
 function openEvent(date){
   st.ev = date; st.mach = null; st.stop = null;
-  paintEvents();
-  return loadEvent().then(paintEvent);
+  return loadEvent().then(function(){ if(st.mode === 'events'){ paintEvents(); paintEvent(true); } });
 }
 function openSeason(y){
   st.season = y;
   var first = seasonEvents()[0];
-  paintTiles();
-  return Promise.all([loadSeason().then(paintSites), openEvent(first ? first.event_date : null)]);
+  st.ev = first ? first.event_date : null; st.mach = null; st.stop = null;
+  return Promise.all([loadSeason(), loadEvent()]).then(paintMode);
 }
-function fail(e){ root.innerHTML = '<div class="snt-page"><div class="snt-empty">' + esc(e.message) + '</div></div>'; throw e; }
+function fail(e){ root.innerHTML = '<div class="snt"><div class="snt-empty">' + esc(e.message) + '</div></div>'; throw e; }
 
 function wire(){
-  root.querySelector('.snt-page').addEventListener('click', function(e){
+  var page = root.querySelector('.snt');
+  page.addEventListener('click', function(e){
+    // This sits inside the Snow & Ice page, whose own click handler listens for
+    // some of the same words (a site, an area). A click here is ours alone.
+    e.stopPropagation();
     var t = e.target, b;
-    if(t.closest('[data-back]')){ JWG.setWinterView('desk'); return; }
+    if((b = t.closest('[data-mode]'))){ if(st.mode !== b.dataset.mode){ st.mode = b.dataset.mode; paintMode(); } return; }
     if(t.closest('[data-play]')){ play(); return; }
     if((b = t.closest('[data-ev]'))){ openEvent(b.dataset.ev).catch(fail); return; }
-    if((b = t.closest('[data-stop]'))){ st.stop = +b.dataset.stop; paintEvent(); return; }
-    if((b = t.closest('[data-mach]'))){ st.mach = b.dataset.mach || null; st.stop = null; paintEvent(); return; }
-    if((b = t.closest('[data-site]')) && map){ var l = site(b.dataset.site); map.setView([l.lat, l.lng], 17); root.querySelector('#snt-event').scrollIntoView({behavior: 'smooth', block: 'start'}); }
+    if((b = t.closest('[data-stop]'))){ st.stop = +b.dataset.stop; paintEvent(false); return; }
+    if((b = t.closest('[data-mach]'))){ st.mach = st.mach === b.dataset.mach ? null : (b.dataset.mach || null); st.stop = null; paintEvent(true); return; }
+    if((b = t.closest('[data-tarea]'))){ st.area = b.dataset.tarea; paintSites(); return; }
+    if((b = t.closest('[data-sort]'))){
+      if(st.sort === b.dataset.sort) st.dir = -st.dir; else { st.sort = b.dataset.sort; st.dir = st.sort === 'name' ? 1 : -1; }
+      paintSites(); return; }
+    if((b = t.closest('[data-tsite]'))){
+      var l = site(b.dataset.tsite);
+      st.mode = 'events'; st.mach = null; st.stop = null;
+      paintMode();
+      if(map) map.setView([l.lat, l.lng], 17);
+    }
   });
-  root.querySelector('#snt-season').addEventListener('change', function(e){ openSeason(+e.target.value).catch(fail); });
+  page.querySelector('#snt-season').addEventListener('change', function(e){ openSeason(+e.target.value).catch(fail); });
 }
 
 function mount(el, win){
   if(!window.L) throw new Error('Snow Times needs Leaflet — check the script tag in index.html');
-  W = win; root = el; map = null; layer = null;
-  root.innerHTML = '<div class="snt-page"><div class="snt-empty">Loading snow times…</div></div>';
+  unmount();
+  W = win; root = el;
+  root.innerHTML = '<div class="snt"><div class="snt-empty">Loading snow times…</div></div>';
   return loadEvents().then(function(){
     // Open on this winter; before its first snowfall, on the last winter that had one.
     var now = new Date(), thisWinter = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
@@ -290,6 +348,11 @@ function mount(el, win){
     return openSeason(st.season);
   }).catch(fail);
 }
+// The tab is closing: stop the replay and let go of the map.
+function unmount(){
+  cancelAnimationFrame(raf);
+  if(map){ map.remove(); map = null; layer = null; }
+}
 
-return {mount: mount};
+return {mount: mount, unmount: unmount};
 })();

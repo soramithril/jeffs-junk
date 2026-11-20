@@ -6,6 +6,8 @@
 //   Site plans   build them: every site as a tile showing what is missing.
 //   Snow night   run one: the gauges, the areas, the Google map and the picked
 //                area's stops in driving order.
+//   Snow times   look back: what every machine did on each snow event, and how
+//                long each site takes (app-snowtimes.js draws it).
 // Nothing the Desk did was cut; it was sorted into the tab whose job it is.
 //
 // It has its own menu button, but it draws inside the Schedule page's
@@ -322,7 +324,7 @@ window.SnowDesk = (function(){
   }
 
   // ── the page ──
-  var TABS = {sites: sitesFrame, plans: plansFrame, night: nightFrame};
+  var TABS = {sites: sitesFrame, plans: plansFrame, night: nightFrame, times: function(){ return '<div id="sx-times"></div>'; }};
   function goTab(tab){ st.tab = tab; paint(true); }
   // Placing or moving a pin happens on the map, so it happens on Snow night.
   function placePin(){
@@ -342,7 +344,7 @@ window.SnowDesk = (function(){
   function frame(){
     root.innerHTML = '<div class="sx-page">'
       + '<div class="sx-head"><div><div class="sx-title">Snow &amp; Ice</div><div class="sx-sub" id="sx-sub"></div></div>'
-      +   '<div class="sx-acts"><button type="button" class="sx-btn" data-times>Snow Times</button><button type="button" class="sx-btn" data-book>Print book</button><button type="button" class="sx-btn" data-types>Service list</button>'
+      +   '<div class="sx-acts"><button type="button" class="sx-btn" data-book>Print book</button><button type="button" class="sx-btn" data-types>Service list</button>'
       +   '<button type="button" class="sx-btn primary" data-add>+ Add site</button></div></div>'
       + '<div class="sx-tabs" id="sx-tabs"></div><div id="sx-body"></div></div>';
     root.addEventListener('input', function(e){
@@ -366,7 +368,6 @@ window.SnowDesk = (function(){
         st.sel = loc.id; paintRun(); paintMap(false); WinterRoutes.panTo(loc); return; }
       if((b = t.closest('[data-open]'))){ st.sel = b.dataset.open; goTab('sites'); return; }
       if(t.closest('[data-cancel-place]')){ WinterRoutes.cancelPlacing(); return; }
-      if(t.closest('[data-times]')){ JWG.setWinterView('times'); return; }
       if(t.closest('[data-book]')){ WinterBook.choose(); return; }
       if(t.closest('[data-types]')){ if(document.getElementById('sx-types')) closeTypes(); else openTypes(); return; }
       if(t.closest('[data-add]')){ JWG.openAddWinterLocation(); return; }
@@ -387,17 +388,21 @@ window.SnowDesk = (function(){
   // search stay where they were.
   function paint(fit){
     var todo = W.locations.filter(unfinished).length;
-    root.querySelector('#sx-tabs').innerHTML = [['sites', 'Sites', W.locations.length], ['plans', 'Site plans', todo ? todo + ' to finish' : 'all done'], ['night', 'Snow night', '']].map(function(t){
+    root.querySelector('#sx-tabs').innerHTML = [['sites', 'Sites', W.locations.length], ['plans', 'Site plans', todo ? todo + ' to finish' : 'all done'], ['night', 'Snow night', ''], ['times', 'Snow times', '']].map(function(t){
       return '<button type="button" class="sx-tab" data-tab="' + t[0] + '" aria-pressed="' + (st.tab === t[0]) + '">' + t[1] + (t[2] !== '' ? '<small>' + t[2] + '</small>' : '') + '</button>';
     }).join('');
     var body = root.querySelector('#sx-body'), fresh = body.dataset.showing !== st.tab;
     if(fresh){
+      if(body.dataset.showing === 'times') SnowTimes.unmount();   // it holds a map and may be mid-replay
       body.dataset.showing = st.tab;   // not data-tab: that is what the tab buttons carry, and a click anywhere in here would match it
       body.innerHTML = TABS[st.tab]();
       if(st.tab === 'sites') root.querySelector('#sx-q').value = st.q;
     }
     if(st.tab === 'sites'){ paintList(); paintDetail(); }
     else if(st.tab === 'plans') paintPlans();
+    // Snow Times draws itself and reads nothing a save here changes, so it is
+    // mounted once, when its tab opens.
+    else if(st.tab === 'times'){ if(fresh) SnowTimes.mount(root.querySelector('#sx-times'), W); }
     else { paintGauges(); paintAreas(); paintRun(); paintMap(fit || fresh); }
   }
 
