@@ -107,6 +107,8 @@
       +   '<textarea id="sugg-new" rows="2" placeholder="What should we add or fix?"></textarea>'
       +   '<button class="btn btn-primary" onclick="SuggestBox.post()" style="align-self:flex-end;padding:10px 22px">📌 Post it</button>'
       + '</div>'
+      + '<div style="margin:-4px 0 18px;font-size:13px;color:#495057">Is it about a bin (damage, paint, decals)? '
+      +   '<button class="btn btn-ghost btn-sm" onclick="BinProblem.open()" style="margin-left:6px">⚠ Report it on the bin</button></div>'
       + (sorted.length
           ? '<div class="sugg-grid">'+sorted.map(noteCard).join('')+'</div>'
           : '<div style="padding:60px;text-align:center;color:var(--muted);font-size:14px">'+(done.length?'Nothing open — all caught up.':'Nothing on the board yet — be the first.')+'</div>')
