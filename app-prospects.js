@@ -548,6 +548,7 @@
 
       body = segRow([['near','Nearest'],['az','A–Z'],['count','Most doors']], S.tsort, 'setTsort')
         + dueCard
+        + JJPermitLeads.card()
         + '<div style="display:flex;flex-direction:column;gap:8px;padding:0 14px">'
         + order.map(function(t){
             var m = minutesFor(t);
