@@ -78,10 +78,11 @@
   // already under target margin at list, so there is nothing to give away.
   var ZONE_FLOOR = { 1: 165, 2: 210 };
 
-  // town = the town whose doors are open (towns list when empty). due = the
-  // cross-town follow-up view. tsort orders the towns, dsort the doors inside one.
+  // tab = Today, Towns or Follow-ups (Permit leads is its own screen, see
+  // app-permit-leads.js). town = the town whose doors are open on the Towns tab.
+  // log = every contact ever logged, for businesses and permit leads. tsort orders the towns, dsort the doors inside one.
   var S = { rows:[], visits:{}, drive:[], prices:[], q:'', cat:'', band:'',
-            town:'', due:false, tsort:'near', dsort:'pri', sel:null, loaded:false };
+            town:'', tab:'today', screen:'', log:[], tsort:'near', dsort:'pri', sel:null, loaded:false };
 
   function esc(s){
     return String(s==null?'':s).replace(/[&<>"]/g,function(c){
@@ -94,7 +95,15 @@
     return (typeof currentUser!=='undefined' && currentUser)
       ? (currentUser.displayName || String(currentUser.email||'').split('@')[0]) : 'Unknown';
   }
-  function today(){ return new Date().toISOString().slice(0,10); }
+  // Local dates throughout: toISOString() is UTC, which is already tomorrow
+  // after 7pm here.
+  function ymd(d){
+    return d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2);
+  }
+  function today(){ return ymd(new Date()); }
+  function plusDays(n){ var d = new Date(); d.setDate(d.getDate() + n); return ymd(d); }
+  // Monday of this week: where the scoreboard starts counting.
+  function weekStart(){ var d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); }
   function fdate(d){
     if(!d) return '';
     var p = String(d).split('-');
@@ -169,9 +178,12 @@
     S.drive  = r[2].data || [];
     S.prices = r[3].data || [];
     S.visits = {};
-    (r[1].data||[]).forEach(function(v){
-      (S.visits[v.prospect_id] = S.visits[v.prospect_id] || []).push(v);
+    S.log = r[1].data || [];
+    S.log.forEach(function(v){
+      if(v.prospect_id) (S.visits[v.prospect_id] = S.visits[v.prospect_id] || []).push(v);
     });
+    // Permit leads ride on the Today list, so they load with the page.
+    if(!(await JJPermitLeads.rows())) return false;
     S.loaded = true;
     return true;
   }
@@ -324,6 +336,37 @@
     +   'border:1px solid rgba(255,255,255,.1);font-family:\'Plus Jakarta Sans\',\'Inter\',system-ui,sans-serif;}'
     + '.jjp-sheet *{box-sizing:border-box;}'
     + '.jjp-g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}'
+    // Tabs across the top, then the two panes under them.
+    + '.jjp-shell{display:flex;flex-direction:column;height:100%;position:relative;}'
+    + '.jjp-shell .jjp-grid{flex:1;min-height:0;height:auto;}'
+    + '.jjp-tabs{display:flex;gap:7px;flex-wrap:wrap;flex:none;padding:14px 16px 12px;border-bottom:1px solid var(--jjp-line);}'
+    + '.jpl-top .jjp-tabs{padding:0 0 12px;border-bottom:none;}'
+    + '.jjp-tab{font:inherit;font-size:13.5px;font-weight:600;padding:9px 16px;border-radius:999px;cursor:pointer;'
+    +   'background:rgba(255,255,255,.055);border:1px solid var(--jjp-line);color:rgba(232,239,234,.72);white-space:nowrap;}'
+    + '.jjp-tab:hover{background:rgba(255,255,255,.1);}'
+    + '.jjp-tab.on{background:rgba(34,197,94,.24);border-color:rgba(34,197,94,.44);color:var(--jjp-green-lt);}'
+    + '.jjp-tab .n{opacity:.65;font-weight:500;margin-left:7px;font-variant-numeric:tabular-nums;}'
+    // Today and Follow-ups: the scoreboard and the call rows.
+    + '.jjp-score{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;padding:16px 14px 4px;}'
+    + '.jjp-score > div{border-radius:16px;padding:12px 14px;}'
+    + '.jjp-score b{display:block;font-size:30px;font-weight:300;letter-spacing:-1.4px;line-height:1;color:#F4F8F5;'
+    +   'font-variant-numeric:tabular-nums;}'
+    + '.jjp-score span{display:block;font-size:12px;color:var(--jjp-dim);margin-top:5px;}'
+    + '.jjp-call{border-radius:20px;padding:13px 15px;}'
+    + '.jjp-call.on{background:rgba(34,197,94,.14);border-color:rgba(34,197,94,.34);}'
+    + '.jjp-call-top{cursor:pointer;}'
+    + '.jjp-call-name{font-size:16.5px;font-weight:600;letter-spacing:-.35px;color:#F4F8F5;display:flex;gap:9px;align-items:baseline;}'
+    + '.jjp-call-name > span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
+    + '.jjp-pill{flex:none;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;letter-spacing:0;}'
+    + '.jjp-call-sub{font-size:12.5px;color:var(--jjp-dim);margin-top:4px;line-height:1.4;}'
+    + '.jjp-call-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px;}'
+    + '.jjp-cb{font:inherit;font-size:12.5px;font-weight:600;padding:8px 12px;min-height:36px;border-radius:999px;cursor:pointer;'
+    +   'background:rgba(255,255,255,.07);border:1px solid var(--jjp-line);color:rgba(232,239,234,.88);white-space:nowrap;'
+    +   'text-decoration:none;display:inline-flex;align-items:center;gap:6px;}'
+    + '.jjp-cb:hover{background:rgba(255,255,255,.14);}'
+    + '.jjp-cb.go{background:var(--jjp-green);border-color:var(--jjp-green);color:#062412;}'
+    + '.jjp-cb svg{width:15px;height:15px;}'
+    + '@media(min-width:900px){.jjp-grid.jjp-calls{grid-template-columns:minmax(440px,580px) 1fr;}}'
     + '@media(prefers-reduced-motion:reduce){.jjp-btn{transition:none;}}';
     var el = document.createElement('style');
     el.id = 'jjp-style';
@@ -434,7 +477,148 @@
     return c;
   }
 
+  // ── Today and Follow-ups ─────────────────────────────────────────────────
+  // A business and a permit lead become the same row shape, so one list can
+  // hold both: { src:'p' prospect | 'l' permit lead, id, name, phone, pill, sub }.
+  function leads(){ return JJPermitLeads.list(); }
+  function hasPhone(v){ return String(v||'').replace(/[^0-9]/g,'').length >= 7; }
+
+  function prospectRow(p, due){
+    var cat = catOf(p.biz_type), m = minutesFor(p.city), lv = lastVisit(p.id), pri = prioOf(p);
+    return { src:'p', id:p.id, name:p.business_name || '(no name)', phone:p.phone || '',
+      pill: due ? ['Follow-up due', '#fbbf24'] : (pri ? ['Priority ' + pri, PRI[pri][2]] : null),
+      sub: [ p.biz_type ? cat[1] : '', p.city || '', m !== null ? m + ' min out' : '',
+             lv ? 'last ' + fdate(lv.visited_on) + (lv.outcome ? ', ' + lv.outcome : '') : 'never called' ]
+           .filter(Boolean).join(' · ') };
+  }
+  function leadRow(x){
+    var i = JJPermitLeads.callInfo(x);
+    return { src:'l', id:x.id, name:i.title, phone:i.phone, sub:i.sub,
+      pill: i.pot === 'due' ? ['Follow-up due', '#fbbf24']
+          : (i.past ? ['Past customer', '#86efac'] : ['Permit · ' + i.age, '#fb923c']) };
+  }
+
+  // Every follow-up whose day has come, businesses and permit leads together.
+  function followRows(){
+    var out = dueList().map(function(p){ return prospectRow(p, true); });
+    leads().forEach(function(x){ if(JJPermitLeads.callInfo(x).pot === 'due') out.push(leadRow(x)); });
+    return out;
+  }
+
+  // The day's short list. Follow-ups come first because a promise was made;
+  // then up to five fresh permit leads there is a number for (past customers
+  // ahead of companies, newest permit first); then the best businesses nobody
+  // has called yet: A before B before C, nearest first. A call logged today
+  // takes its row off the list, so the next one moves up.
+  var TODAY_SIZE = 10, TODAY_LEADS = 5;
+  function todayRows(){
+    var out = followRows();
+    var hot = leads().filter(function(x){
+      var i = JJPermitLeads.callInfo(x);
+      return i.open && !i.waiting && i.pot === 'hot' && hasPhone(i.phone);
+    }).sort(function(a,b){
+      var d = (JJPermitLeads.callInfo(b).past ? 1 : 0) - (JJPermitLeads.callInfo(a).past ? 1 : 0);
+      return d || String(b.issued_on).localeCompare(String(a.issued_on));
+    });
+    var fresh = S.rows.filter(function(p){
+      return !p.self_hauls && (p.stage||'new') === 'new' && !lastVisit(p.id)
+        && !p.next_action_date && hasPhone(p.phone);
+    }).sort(function(a,b){
+      var d = priRank(a) - priRank(b);
+      if(d) return d;
+      var am = minutesFor(a.city), bm = minutesFor(b.city);
+      d = (am === null ? 9999 : am) - (bm === null ? 9999 : bm);
+      return d || String(a.business_name||'').localeCompare(String(b.business_name||''));
+    });
+    var i;
+    for(i=0; i<hot.length && i<TODAY_LEADS && out.length<TODAY_SIZE; i++) out.push(leadRow(hot[i]));
+    for(i=0; i<fresh.length && out.length<TODAY_SIZE; i++) out.push(prospectRow(fresh[i], false));
+    for(i=TODAY_LEADS; i<hot.length && out.length<TODAY_SIZE; i++) out.push(leadRow(hot[i]));
+    return out;
+  }
+
+  function callHtml(c){
+    var t = String(c.phone||'').replace(/[^0-9+]/g,'');
+    var arg = '\'' + c.src + '\',\'' + c.id + '\'';
+    var b = function(label, out){
+      return '<button class="jjp-cb" onclick="JJProspects.quick(' + arg + ',\'' + out + '\')">' + label + '</button>';
+    };
+    return '<div class="jjp-call jjp-fr' + (c.src === 'p' && S.sel === c.id ? ' on' : '') + '">'
+      + '<div class="jjp-call-top" onclick="JJProspects.pickRow(' + arg + ')">'
+        + '<div class="jjp-call-name"><span>' + esc(c.name) + '</span>'
+          + (c.pill ? '<span class="jjp-pill" style="background:' + c.pill[1] + '22;color:' + c.pill[1] + '">'
+              + esc(c.pill[0]) + '</span>' : '')
+        + '</div>'
+        + '<div class="jjp-call-sub">' + esc(c.sub) + '</div>'
+      + '</div>'
+      + '<div class="jjp-call-acts">'
+        + (t ? '<a class="jjp-cb go" href="tel:' + attr(t) + '">' + ICON.phone + esc(c.phone) + '</a>' : '')
+        + b('Booked','booked') + b('No answer','noanswer') + b('Call back','callback') + b('Not interested','no')
+      + '</div></div>';
+  }
+  function callsBlock(rows, empty){
+    if(!rows.length){
+      return '<div style="padding:36px 24px;text-align:center;color:var(--jjp-dim);font-size:14px;line-height:1.5">'
+        + empty + '</div>';
+    }
+    return '<div style="display:flex;flex-direction:column;gap:9px;padding:0 14px">' + rows.map(callHtml).join('') + '</div>';
+  }
+  function callsHead(title, sub){
+    return '<div style="padding:14px 18px 12px">'
+      + '<div style="font-size:20px;font-weight:700;letter-spacing:-.5px;color:#F4F8F5">' + title + '</div>'
+      + '<div style="font-size:12.5px;color:var(--jjp-dim);margin-top:3px;line-height:1.45">' + sub + '</div></div>';
+  }
+
+  // This week's activity, Monday on. Counts contacts, never dollars.
+  function scoreHtml(){
+    var from = weekStart(), calls = 0, reached = 0, booked = 0;
+    S.log.forEach(function(v){
+      if(String(v.visited_on) < from) return;
+      calls++;
+      if(v.outcome !== 'no answer' && v.spoke_to !== 'nobody in') reached++;
+      if(v.outcome === 'booked') booked++;
+    });
+    var t = function(n, cap){ return '<div class="jjp-fr"><b>' + n + '</b><span>' + cap + '</span></div>'; };
+    return '<div class="jjp-score">' + t(calls, 'calls and visits this week')
+      + t(reached, 'reached someone') + t(booked, 'booked a bin') + '</div>';
+  }
+
+  function todayHtml(){
+    return scoreHtml()
+      + callsHead('Today’s best calls', 'Follow-ups first, then fresh permits, then the top businesses nobody has called. '
+          + 'Tap how it went and the next one moves up.')
+      + callsBlock(todayRows(), 'Nothing left to call today. The Towns tab has the full list.')
+      + '<div class="jjp-fade"></div>';
+  }
+  function followHtml(){
+    var rows = followRows();
+    return callsHead('Follow-ups', rows.length + (rows.length === 1 ? ' call' : ' calls') + ' whose day has come')
+      + callsBlock(rows, 'Nothing due. Tap “Call back” or “No answer” on a call and it lands here on its day.')
+      + '<div class="jjp-fade"></div>';
+  }
+
+  function townCount(){
+    var seen = {};
+    S.rows.forEach(function(p){ if(!p.self_hauls) seen[p.city || 'No town yet'] = 1; });
+    return Object.keys(seen).length;
+  }
+  // The tab bar. The permit leads screen draws the same one (JJProspects.tabs).
+  function tabsHtml(active){
+    var t = function(key, label, n){
+      return '<button class="jjp-tab' + (active === key ? ' on' : '') + '" onclick="JJProspects.tab(\'' + key + '\')">'
+        + label + '<span class="n">' + n + '</span></button>';
+    };
+    return '<div class="jjp-tabs">'
+      + t('today', 'Today', todayRows().length)
+      + t('permits', 'Permit leads', leads().filter(function(x){ return JJPermitLeads.callInfo(x).open; }).length)
+      + t('towns', 'Towns', townCount())
+      + t('due', 'Follow-ups', followRows().length)
+      + '</div>';
+  }
+
   function listHtml(){
+    if(S.tab === 'today') return todayHtml();
+    if(S.tab === 'due') return followHtml();
     var q = S.q.trim();
 
     // ── Search: flat matches across every town ─────────────────────────────
@@ -449,16 +633,6 @@
           + ' · <span style="color:var(--jjp-green-lt);cursor:pointer" onclick="JJProspects.setQ(\'\')">clear</span></div>'
         + '</div>'
         + rowsBlock(sortedDoors(hits), true)
-        + '<div class="jjp-fade"></div>';
-    }
-
-    // ── Due now: the cross-town call list ──────────────────────────────────
-    if(S.due){
-      var due = dueList();
-      return backBar('Due now', due.length + (due.length===1?' follow-up':' follow-ups') + ' whose date has come')
-        + (due.length ? rowsBlock(due, true)
-            : '<div style="padding:36px 24px;text-align:center;color:var(--jjp-dim);font-size:14px;line-height:1.5">'
-              + 'Nothing due. Set a "come back on" date when you log a visit and it lands here.</div>')
         + '<div class="jjp-fade"></div>';
     }
 
@@ -478,7 +652,6 @@
 
     // ── Towns: the starting screen ─────────────────────────────────────────
     var r = round();
-    var overdue = dueList().length;
 
     var head = '<div style="padding:20px 18px 4px">'
       + '<div style="display:flex;align-items:flex-end;gap:16px">'
@@ -534,21 +707,7 @@
       else if(S.tsort==='count') order.sort(function(a,b){ return r.byTown[b].length - r.byTown[a].length; });
       // 'near' keeps round()'s nearest-first order.
 
-      var dueCard = '<div class="jjp-row" style="margin:2px 14px 9px;'
-        + 'background:linear-gradient(140deg,rgba(251,191,36,.16),rgba(251,191,36,.04));'
-        + 'border:1px solid rgba(251,191,36,' + (overdue?'.4':'.18') + ')" onclick="JJProspects.openDue()">'
-        + '<div style="flex:1;min-width:0">'
-          + '<div style="font-size:16px;font-weight:600;letter-spacing:-.3px;color:'
-            + (overdue?'#fbbf24':'rgba(251,191,36,.55)') + '">Due now</div>'
-          + '<div style="font-size:12px;margin-top:3px;color:var(--jjp-faint)">follow-ups whose date has come</div>'
-        + '</div>'
-        + '<span style="font-size:24px;font-weight:300;letter-spacing:-1px;color:'
-          + (overdue?'#fbbf24':'rgba(251,191,36,.45)') + '">' + overdue + '</span>'
-        + '<span style="color:rgba(232,239,234,.42);flex:none">' + ICON.chev + '</span></div>';
-
       body = segRow([['near','Nearest'],['az','A–Z'],['count','Most doors']], S.tsort, 'setTsort')
-        + dueCard
-        + JJPermitLeads.card()
         + '<div style="display:flex;flex-direction:column;gap:8px;padding:0 14px">'
         + order.map(function(t){
             var m = minutesFor(t);
@@ -710,28 +869,31 @@
     // so the first door on the round is always open. Narrow screens keep the list
     // to themselves until the rep taps something.
     var wide = (typeof window !== 'undefined' && window.innerWidth >= 900);
-    var r = round();
-    var onRound = false;
-    r.order.forEach(function(t){
-      r.byTown[t].forEach(function(x){ if(x.id === S.sel) onRound = true; });
-    });
-    if(!onRound) S.sel = (wide && r.count) ? r.byTown[r.order[0]][0].id : null;
+    var shown = [];
+    if(S.tab === 'towns'){
+      var r = round();
+      r.order.forEach(function(t){ r.byTown[t].forEach(function(x){ shown.push(x.id); }); });
+    } else {
+      (S.tab === 'due' ? followRows() : todayRows()).forEach(function(c){ if(c.src === 'p') shown.push(c.id); });
+    }
+    if(shown.indexOf(S.sel) === -1) S.sel = (wide && shown.length) ? shown[0] : null;
 
     // Rebuilding innerHTML resets pane scroll and steals focus from the search
     // box mid-word; both get put back so typing and picking a door feel inert.
     var oldList = el.querySelector('.jjp-list');
     // Same view re-rendering (a door picked, a letter typed) keeps its scroll;
     // moving between views (towns → a town → due) starts at the top.
-    var viewKey = S.town + '|' + S.due + '|' + (S.q.trim() ? 'search' : '');
+    var viewKey = S.tab + '|' + S.town + '|' + (S.q.trim() ? 'search' : '');
     var keepScroll = (oldList && viewKey === _viewKey) ? oldList.scrollTop : 0;
     _viewKey = viewKey;
     var hadFocus = document.activeElement && document.activeElement.id === 'jjp-q';
 
     el.innerHTML = wash()
-    + '<div class="jjp-grid">'
+    + '<div class="jjp-shell">' + tabsHtml(S.tab)
+    + '<div class="jjp-grid' + (S.tab === 'towns' ? '' : ' jjp-calls') + '">'
       + '<div class="jjp-list" style="position:relative">' + listHtml() + '</div>'
       + '<div class="jjp-door' + (S.sel ? ' open' : '') + '">' + doorHtml() + '</div>'
-    + '</div>';
+    + '</div></div>';
 
     var list = el.querySelector('.jjp-list');
     if(list){
@@ -1039,8 +1201,22 @@
   }
 
   // ── Public API ───────────────────────────────────────────────────────────
+  // One-tap outcomes for a business: what goes in the log, and what changes on
+  // the record so the lists know where it belongs next.
+  var QUICK = {
+    booked:   { log:'booked',         say:'✓ Booked. Book the bin from New Job as usual.',
+                patch:function(){ return { stage:'won', next_action_date:null }; } },
+    noanswer: { log:'no answer',      say:'✓ No answer. It comes back tomorrow.',
+                patch:function(){ return { next_action_date:plusDays(1) }; } },
+    callback: { log:'call back',      say:'✓ Call back set for a week from today.',
+                patch:function(){ return { stage:'contacted', next_action_date:plusDays(7) }; } },
+    no:       { log:'not interested', say:'✓ Not interested. Off the call list.',
+                patch:function(){ return { stage:'lost', next_action_date:null }; } }
+  };
+
   var API = {
     async open(){
+      S.screen = '';
       var el = host();
       styles();
       if(el && !S.loaded){
@@ -1054,10 +1230,58 @@
     setTown(v){ S.town=v; render(); },
     setTsort(v){ S.tsort=v; render(); },
     setDsort(v){ S.dsort=v; render(); },
-    openTown(t){ S.town=t; S.due=false; render(); },
-    openDue(){ S.due=true; S.town=''; render(); },
-    back(){ S.town=''; S.due=false; render(); },
-    clear(){ S.q=''; S.cat=''; S.band=''; S.town=''; S.due=false; render(); },
+    openTown(t){ S.town=t; render(); },
+    back(){ S.town=''; render(); },
+    clear(){ S.q=''; S.cat=''; S.band=''; S.town=''; render(); },
+
+    // Today / Towns / Follow-ups draw here; Permit leads is its own screen in
+    // the same page. Coming back from it reloads, because calls were logged there.
+    tabs(active){ return tabsHtml(active); },
+    tab(key){
+      if(key === 'permits'){ S.screen = 'permits'; JJPermitLeads.open(); return; }
+      S.tab = key; S.town = '';
+      if(S.screen === 'permits') API.open(); else render();
+    },
+    // A tap on a row's name: a business opens beside the list, a permit lead
+    // opens its own call card.
+    pickRow(src, id){
+      if(src === 'l'){ S.screen = 'permits'; JJPermitLeads.open(+id); return; }
+      API.select(id);
+    },
+    // One tap on Booked / No answer / Call back / Not interested.
+    async quick(src, id, out){
+      if(src === 'l'){
+        if(!(await JJPermitLeads.outcome(+id, out))) return;
+      } else {
+        var q = QUICK[out];
+        if(!q) throw new Error('Unknown call outcome: ' + out);
+        var r = await db.from('prospect_visits').insert({
+          prospect_id: id, visited_on: today(), kind: 'call',
+          spoke_to: out === 'noanswer' ? 'nobody in' : '', outcome: q.log, created_by: me()
+        });
+        if(r.error){ toast('Couldn’t log that: ' + r.error.message, 'error'); return; }
+        var r2 = await db.from('prospects').update(q.patch()).eq('id', id);
+        if(r2.error){ toast('Logged, but the record didn’t update: ' + r2.error.message, 'error'); return; }
+        toast(q.say);
+      }
+      await API.open();
+      API.badge();
+    },
+    // The number beside Prospects in the menu: follow-ups whose day has come.
+    async badge(){
+      var el = document.getElementById('nav-prospects-badge');
+      if(!el) return;
+      var r = await Promise.all([
+        db.from('prospects').select('id', { count:'exact', head:true })
+          .lte('next_action_date', today()).not('self_hauls', 'is', true),
+        db.from('permit_leads').select('id', { count:'exact', head:true })
+          .eq('state', 'callback').lte('call_back', today())
+      ]);
+      if(r[0].error || r[1].error) throw new Error('follow-up count: ' + (r[0].error || r[1].error).message);
+      var n = r[0].count + r[1].count;
+      el.textContent = n;
+      el.style.display = n ? 'inline-flex' : 'none';
+    },
     select(id){ S.sel = id || null; render(); },
 
     // One handler for every tap-to-choose control in the visit sheet.
@@ -1067,10 +1291,8 @@
       for(var i=0;i<sibs.length;i++) sibs[i].classList.remove('on');
       el.classList.add('on');
       if(group==='back'){
-        var d = new Date();
-        d.setDate(d.getDate() + (+val||0));
         var f = document.getElementById('pv-next');
-        if(f) f.value = d.toISOString().slice(0,10);
+        if(f) f.value = plusDays(+val||0);
       }
     },
 

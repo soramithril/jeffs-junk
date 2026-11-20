@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '760';
+var APP_VERSION = '761';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -6695,7 +6695,7 @@ var PALETTE_PAGES=[
   {p:'utilization',   n:'Bin Utilization',   h:'Analytics > Utilization', a:'busy bins'},
   {p:'leaderboard',   n:'Leaderboard',       h:'Analytics > Leaderboard', a:'drivers scores'},
   {p:'advisor',       n:'AI Advisor',        h:'Analytics > Advisor', a:'ai gemini'},
-  {p:'prospects',     n:'Prospects',         h:'Admin > People', a:'leads'},
+  {p:'prospects',     n:'Prospects',         h:'Today’s sales calls and permit leads', a:'leads permit permits sales calls follow-ups'},
   {p:'team',          n:'Team',              h:'Admin > People', a:'staff employees crew'},
   {p:'staffcheckin',  n:'Staff Check-In',    h:'Who is in today', a:'punch in out hours'},
   {p:'usage',         n:'Usage',             h:'Who opens what', a:'views'},
@@ -14795,6 +14795,8 @@ function applySettingsVisibility(){
   document.querySelectorAll('.admin-only').forEach(function(el){
     el.style.display=show?'':'none';
   });
+  // The follow-ups-due number beside Prospects in the menu.
+  if(show && window.JJProspects) JJProspects.badge();
   // Staff check-in and user management live inside the settings section but sit a
   // tier above it: owners and the dev, not the marketing or sales lead.
   var owner=canAccessOwner();
