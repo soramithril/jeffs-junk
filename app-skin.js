@@ -1,4 +1,4 @@
-/* ── THE LOOK BUTTON: NORMAL / GREEN / DARK GLASS / FROSTED GLASS (v759) ─────────────
+/* ── THE LOOK BUTTON: NORMAL / GREEN / DARK GLASS / FROSTED GLASS (v760) ─────────────
    Jake 2026-11-20: the two looks from his videos go in as options everyone can flip, so
    he can go over them with the office and see which they like best. The earlier frosted
    glass look (app-glass.js) stays as the fourth choice, on his word.

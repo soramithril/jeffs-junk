@@ -1,4 +1,4 @@
-/* ── THE FROSTED GLASS LOOK (one of the four Look choices, v759) ───────────────────
+/* ── THE FROSTED GLASS LOOK (one of the four Look choices, v760) ───────────────────
    It was homepage option E (2026-11-05 to 11-10, removed in v736), then came back on
    2026-11-19 behind a Glass on/off switch only Jake could see. Since 2026-11-20 it is
    the fourth choice on the Look button everyone gets: app-skin.js owns that button and
