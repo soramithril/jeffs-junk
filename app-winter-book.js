@@ -143,7 +143,7 @@ window.WinterBook = (function(){
   // Where the map goes on a site page, in printed inches: the slot's width is fixed by
   // the page; its height moves a little with a long address, so this is a close guess
   // used only to pick how heavy the marks are drawn (the CSS does the real fitting).
-  var SLOT_W = 5.24, SLOT_H = 8.5;
+  var SLOT_W = 5.24, SLOT_H = 9;
 
   // Every sheet reads upright, like the cover and the dividers (Jake, 2026-11-13). The
   // map takes the left of the page from header to footer; a photo that is wider than
@@ -210,7 +210,8 @@ window.WinterBook = (function(){
       + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=Saira+Stencil+One&family=Bebas+Neue&family=IBM+Plex+Mono:wght@500;600&display=swap">'
       + '<style>' + BOOK_CSS + '</style></head><body>'
       + '<div class="bar"><b>Winter book · ' + esc(label) + '</b><span>' + (test ? 'The cover and one site page.' : n + ' site page' + (n === 1 ? '' : 's') + ' plus a cover and a divider for each group.')
-      + ' Letter paper, Margins: None, Background graphics: on. For colour right to the edge of the paper, turn on Borderless in your printer settings.</span>'
+      + ' Letter paper, Margins: None, Background graphics: on. It prints with a paper margin so nothing is cut off.</span>'
+      + '<label title="Fills the whole sheet. A desk printer cuts off the outer edge; use this for a print shop or a borderless printer."><input type="checkbox" onchange="document.body.classList.toggle(\x27bleed\x27,this.checked)"> Edge to edge</label>'
       + '<button onclick="print()">Print</button></div>'
       + pages + '</body></html>';
   }
@@ -226,15 +227,19 @@ window.WinterBook = (function(){
     '.page{width:8.5in;height:11in;margin:24px auto;background:#fff;color:#14201a;container-type:inline-size;display:flex;flex-direction:column;overflow:hidden;font-family:var(--ui);font-size:1.75cqw;line-height:1.35;page-break-after:always;break-after:page;box-shadow:0 8px 30px rgba(0,0,0,.18)}',
     '.bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--deep);color:#e6f2ea;font:14px var(--ui)}',
     '.bar span{flex:1;opacity:.8}',
+    '.bar label{display:flex;align-items:center;gap:7px;white-space:nowrap;cursor:pointer}',
     '.bar button{font:700 14px var(--ui);background:#22c55e;color:#012b1f;border:0;border-radius:8px;padding:9px 22px;cursor:pointer}',
     '@media print{html,body{background:#fff}.page{margin:0;box-shadow:none}.bar{display:none}}',
-    // The safe zone (Jake, 2026-11-20: "WINTER OPS at the top was cut off"). A desk
-    // printer cannot print the outer quarter inch of a sheet, and the first and last
-    // strips sat inside it. Their colour still runs to the paper's edge, so a borderless
-    // printer or a print shop gives a page that bleeds like a book's; their words now
-    // sit .3in in, where every printer can reach. Sides were already .31in clear.
-    '.page>.class:first-child{padding-top:.3in}',
-    '.page>.class:last-child,.page>.foot:last-child{padding-bottom:.3in}',
+    // Fit to the printer (Jake, 2026-11-20, after a test sheet: "still cuts off"). A desk
+    // printer cannot print the outer edge of a sheet (the office SHARP loses .16in all
+    // round), so a page drawn edge to edge lost the outside of its strips, its colour
+    // band and the cover's border. Each page is now drawn at 94% in the middle of its
+    // sheet: a quarter inch of paper shows at the sides and a third at top and bottom,
+    // and the whole page is inside it, nothing clipped. The layout box stays one Letter
+    // sheet, so every page still starts on its own sheet. "Edge to edge" on the preview
+    // bar turns this off, for a print shop or a borderless printer.
+    '.page{transform:scale(.94);transform-origin:50% 50%}',
+    'body.bleed .page{transform:none}',
     '.class{flex:none;background:var(--deep);color:#e6f2ea;font-family:var(--mono);font-weight:600;font-size:1.35cqw;letter-spacing:.32em;text-align:center;padding:.9cqw 2cqw;white-space:nowrap;overflow:hidden}',
     // ── site page (Jake, 2026-11-13): a compact header, then the map as big as the sheet
     // allows with services, key and notes in a column beside it ──
