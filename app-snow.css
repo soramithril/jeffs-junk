@@ -52,7 +52,7 @@
 #view-jwgscheduler .sx-bar i.warn{background:var(--warn)}
 
 /* list | map | site */
-#view-jwgscheduler .sx-desk{display:grid;grid-template-columns:290px minmax(0,1fr) 360px;gap:16px;align-items:start}
+#view-jwgscheduler .sx-desk{display:grid;grid-template-columns:270px minmax(0,1fr) 330px;gap:16px;align-items:start}
 #view-jwgscheduler .sx-panel{background:#fff;border:1px solid var(--n6);border-radius:12px;box-shadow:var(--shadow-sm)}
 #view-jwgscheduler .sx-list{padding:8px;display:flex;flex-direction:column;height:calc(100vh - 262px);min-height:460px}
 #view-jwgscheduler .sx-search{width:100%;font:500 14px 'Inter',system-ui,sans-serif;padding:9px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--n7);background:#fff;color:var(--n12)}
@@ -67,10 +67,6 @@
 #view-jwgscheduler .sx-stop:hover{background:var(--n3)}
 #view-jwgscheduler .sx-stop.on{background:#f0fdf4;box-shadow:inset 0 0 0 1.5px var(--green-s2)}
 #view-jwgscheduler .sx-stop-t{flex:1;min-width:0}
-#view-jwgscheduler .sx-check-n{flex:none;align-self:center;background:#fff7e6;color:#92400e;border:1px solid #fcd38d;border-radius:999px;padding:2px 8px;font-size:11.5px;font-weight:700;white-space:nowrap}
-#view-jwgscheduler .sx-check{display:block;width:100%;margin:0 0 6px;text-align:left;font:700 12.5px 'Inter',system-ui,sans-serif;padding:7px 11px;border-radius:8px;border:1px solid #fcd38d;background:#fff7e6;color:#92400e;cursor:pointer;min-height:0}
-#view-jwgscheduler .sx-check[aria-pressed="true"]{background:#92400e;border-color:#92400e;color:#fff}
-#view-jwgscheduler .sx-check[hidden]{display:none}
 #view-jwgscheduler .sx-stop .a{display:block;font-weight:600;font-size:13px;line-height:1.3}
 #view-jwgscheduler .sx-stop .n{display:block;font-size:12px;color:var(--n11)}
 #view-jwgscheduler .sx-code{display:inline-flex;align-items:center;justify-content:center;min-width:46px;padding:3px 7px;border-radius:6px;color:#fff;font-weight:800;font-size:12px;letter-spacing:.3px;font-variant-numeric:tabular-nums;flex:none}
@@ -87,11 +83,6 @@
 #view-jwgscheduler .sx-placing button{margin-left:10px;font:700 13px 'Inter',system-ui,sans-serif;padding:5px 10px;border-radius:6px;border:1px solid var(--n7);background:#fff;color:var(--n12);cursor:pointer;min-height:0}
 #view-jwgscheduler .wr-pin.on{transform:translate(-50%,-50%) scale(1.3);z-index:3;box-shadow:0 0 0 3px #fff,0 0 0 5px rgba(0,0,0,.45),0 2px 8px rgba(0,0,0,.5)}
 
-#view-jwgscheduler .sx-detail{padding:18px;max-height:calc(100vh - 262px);min-height:460px;overflow:auto}
-#view-jwgscheduler .sx-detail h3{font:800 19px/1.2 'Inter',system-ui,sans-serif;color:var(--n12);margin:10px 0 2px}
-#view-jwgscheduler .sx-detail .nick{color:var(--n11);font-size:13px;font-weight:600}
-#view-jwgscheduler .sx-sec{margin-top:16px}
-#view-jwgscheduler .sx-sec .l{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--n11);margin-bottom:7px}
 #view-jwgscheduler .sx-seg{display:inline-flex;border-radius:8px;overflow:hidden;border:1px solid var(--n7)}
 #view-jwgscheduler .sx-seg button{background:#fff;border:0;color:var(--text-secondary);font:700 13px 'Inter',system-ui,sans-serif;padding:8px 14px;cursor:pointer;min-height:0}
 #view-jwgscheduler .sx-seg button[aria-pressed="true"]{background:var(--warn);color:#fff}
@@ -115,21 +106,83 @@
 #view-jwgscheduler .sx-photo svg{position:absolute;inset:0;width:100%;height:100%}
 #view-jwgscheduler .sx-photo .cap{position:absolute;right:8px;bottom:8px;background:rgba(15,24,20,.8);color:#fff;font:700 11.5px/1 'Inter',system-ui,sans-serif;padding:5px 8px;border-radius:6px}
 #view-jwgscheduler .sx-photo.none{background:var(--n3);border-style:dashed;border-color:var(--n8);color:var(--warn-ink);font:700 13px/1.3 'Inter',system-ui,sans-serif;padding:26px 12px;text-align:center}
-#view-jwgscheduler .sx-row{display:flex;gap:8px;margin-top:18px}
-#view-jwgscheduler .sx-row .sx-btn{flex:1}
-#view-jwgscheduler .sx-row.quiet{justify-content:space-between;margin-top:12px}
 #view-jwgscheduler .sx-link{background:none;border:0;font:600 13px 'Inter',system-ui,sans-serif;color:var(--n11);cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:0;padding:4px 0}
 #view-jwgscheduler .sx-link:hover{color:var(--n12)}
 #view-jwgscheduler .sx-link.bad:hover{color:var(--bad-ink)}
 
-@media (max-width:1180px){
-  #view-jwgscheduler .sx-desk{grid-template-columns:270px minmax(0,1fr)}
-  #view-jwgscheduler .sx-detail{grid-column:1 / -1;max-height:none;min-height:0}
+/* ── three tabs (2026-11-20) ── */
+#view-jwgscheduler .sx-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+#view-jwgscheduler .sx-tab{font:700 14px 'Inter',system-ui,sans-serif;padding:9px 18px;border-radius:999px;border:1px solid var(--n6);background:#fff;color:var(--n11);cursor:pointer;min-height:0}
+#view-jwgscheduler .sx-tab:hover{border-color:var(--n8)}
+#view-jwgscheduler .sx-tab[aria-pressed="true"]{background:var(--green-s2);border-color:var(--green-s2);color:#fff}
+#view-jwgscheduler .sx-tab small{font-weight:600;font-size:12.5px;opacity:.85;margin-left:7px}
+#view-jwgscheduler .sx-chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+#view-jwgscheduler .sx-chips:empty{display:none}
+#view-jwgscheduler .sx-chip{display:inline-flex;align-items:center;gap:5px;font:700 12px 'Inter',system-ui,sans-serif;padding:5px 9px;border-radius:999px;border:1px solid var(--n6);background:#fff;color:var(--n11);cursor:pointer;min-height:0;white-space:nowrap}
+#view-jwgscheduler .sx-chip i{width:9px;height:9px;border-radius:50%;flex:none}
+#view-jwgscheduler .sx-chip[aria-pressed="true"]{background:#f0fdf4;border-color:var(--green-s2);color:var(--green-s4)}
+#view-jwgscheduler .sx-chip.warn{border-color:#fcd38d;background:#fff7e6;color:#92400e}
+#view-jwgscheduler .sx-chip.warn[aria-pressed="true"]{background:#92400e;border-color:#92400e;color:#fff}
+#view-jwgscheduler .sx-tag.warn{background:#fff7e6;color:#92400e}
+#view-jwgscheduler .sx-stop .sx-tag{flex:none;align-self:center;white-space:nowrap}
+#view-jwgscheduler .sx-grp{font:700 11px 'Inter',system-ui,sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--n11);padding:12px 8px 4px}
+#view-jwgscheduler .sx-card{border:1px solid var(--n6);border-radius:10px;padding:14px;background:#fff}
+#view-jwgscheduler .sx-card .l{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--n11);margin-bottom:8px}
+
+/* Sites: the list, then the picked site round its photo */
+#view-jwgscheduler .sx-sites{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}
+#view-jwgscheduler .sx-sites .sx-list{height:calc(100vh - 196px)}
+#view-jwgscheduler .sx-site{padding:20px;height:calc(100vh - 196px);min-height:460px;overflow:auto}
+#view-jwgscheduler .sx-site-h{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
+#view-jwgscheduler .sx-site-h .t{flex:1;min-width:220px}
+#view-jwgscheduler .sx-site-h h3{font:800 22px/1.2 'Inter',system-ui,sans-serif;color:var(--n12)}
+#view-jwgscheduler .sx-site-h .nick{color:var(--n11);font-size:13px;font-weight:600;margin-top:2px}
+#view-jwgscheduler .sx-site-h .sx-code{margin-top:3px}
+#view-jwgscheduler .sx-site-b{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start;margin-top:16px}
+#view-jwgscheduler .sx-steps{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+#view-jwgscheduler .sx-step{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--n11)}
+#view-jwgscheduler .sx-step i{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--n7);flex:none;display:inline-flex;align-items:center;justify-content:center;font:800 12px 'Inter',system-ui,sans-serif;color:transparent}
+#view-jwgscheduler .sx-step span{flex:1}
+#view-jwgscheduler .sx-step.done{color:var(--n12)}
+#view-jwgscheduler .sx-step.done i{background:var(--green-s2);border-color:var(--green-s2);color:#fff}
+#view-jwgscheduler .sx-step.next{color:var(--n12);font-weight:700}
+#view-jwgscheduler .sx-step .sx-btn{padding:6px 12px;font-size:12.5px}
+#view-jwgscheduler .sx-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:16px}
+#view-jwgscheduler .sx-quiet{display:flex;justify-content:space-between;gap:12px;margin-top:16px}
+
+/* Site plans: every site as a tile */
+#view-jwgscheduler .sx-plans-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;margin-bottom:16px}
+#view-jwgscheduler .sx-plans-h b{font:800 15px 'Inter',system-ui,sans-serif;color:var(--n12);margin-right:auto}
+#view-jwgscheduler .sx-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;align-items:start}
+#view-jwgscheduler .sx-tile{display:flex;flex-direction:column;text-align:left;background:#fff;border:1px solid var(--n6);border-radius:10px;overflow:hidden;cursor:pointer;min-height:0;font-family:'Inter',system-ui,sans-serif;color:var(--n12)}
+#view-jwgscheduler .sx-tile:hover{border-color:var(--green-s2);box-shadow:0 0 0 1px var(--green-s2)}
+#view-jwgscheduler .sx-tile .ph{display:block;position:relative;background:#22301f;line-height:0;min-height:120px}
+#view-jwgscheduler .sx-tile .ph img{display:block;width:100%;height:auto}
+#view-jwgscheduler .sx-tile .ph svg{position:absolute;inset:0;width:100%;height:100%}
+#view-jwgscheduler .sx-tile .ph.none{display:flex;align-items:center;justify-content:center;background:var(--n3);color:var(--warn-ink);font:700 13px/1.3 'Inter',system-ui,sans-serif}
+#view-jwgscheduler .sx-tile .m{display:flex;flex-direction:column;gap:6px;padding:10px 12px}
+#view-jwgscheduler .sx-tile .a{font:700 13.5px/1.3 'Inter',system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-jwgscheduler .sx-tile .s{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:12.5px;color:var(--n11)}
+
+/* Snow night: areas | map | the picked area's stops */
+#view-jwgscheduler .sx-night .sx-list{height:calc(100vh - 322px)}
+#view-jwgscheduler .sx-night .sx-mapbox .wr-map{height:calc(100vh - 324px)}
+#view-jwgscheduler .sx-run{padding:8px;height:calc(100vh - 322px);min-height:460px;overflow:auto}
+#view-jwgscheduler .sx-runrow{display:flex;align-items:center;gap:6px;border-radius:8px;padding-right:8px}
+#view-jwgscheduler .sx-runrow.on{background:#f0fdf4;box-shadow:inset 0 0 0 1.5px var(--green-s2)}
+#view-jwgscheduler .sx-runrow .sx-stop{flex:1;min-width:0}
+#view-jwgscheduler .sx-runrow .sx-stop:hover{background:none}
+
+@media (max-width:1280px){
+  #view-jwgscheduler .sx-site-b{grid-template-columns:minmax(0,1fr)}
+  #view-jwgscheduler .sx-desk{grid-template-columns:250px minmax(0,1fr)}
+  #view-jwgscheduler .sx-run{grid-column:1 / -1;height:auto;min-height:0;max-height:none}
 }
 @media (max-width:900px){
   #view-jwgscheduler .sx-page{padding:16px 14px 24px}
   #view-jwgscheduler .sx-gauges{grid-template-columns:minmax(0,1fr)}
-  #view-jwgscheduler .sx-desk{grid-template-columns:minmax(0,1fr)}
-  #view-jwgscheduler .sx-list{height:auto;min-height:0;max-height:50vh}
-  #view-jwgscheduler .sx-mapbox .wr-map{height:55vh;min-height:300px}
+  #view-jwgscheduler .sx-desk,#view-jwgscheduler .sx-sites{grid-template-columns:minmax(0,1fr)}
+  #view-jwgscheduler .sx-list,#view-jwgscheduler .sx-sites .sx-list,#view-jwgscheduler .sx-night .sx-list{height:auto;min-height:0;max-height:46vh}
+  #view-jwgscheduler .sx-site{height:auto;min-height:0;padding:16px}
+  #view-jwgscheduler .sx-mapbox .wr-map,#view-jwgscheduler .sx-night .sx-mapbox .wr-map{height:55vh;min-height:300px}
 }
