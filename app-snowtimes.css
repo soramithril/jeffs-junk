@@ -8,7 +8,8 @@
 #view-jwgscheduler .snt-seg{display:inline-flex;border:1px solid var(--n7);border-radius:8px;overflow:hidden}
 #view-jwgscheduler .snt-seg button{background:#fff;border:0;color:var(--n11);font:700 13.5px 'Inter',system-ui,sans-serif;padding:8px 16px;cursor:pointer;min-height:0}
 #view-jwgscheduler .snt-seg button[aria-pressed="true"]{background:var(--n12);color:#fff}
-#view-jwgscheduler .snt-select{padding:7px 12px;border-radius:8px;font:600 13.5px 'Inter',system-ui,sans-serif;cursor:pointer;background:#fff;color:var(--n12);border:1px solid var(--n6)}
+#view-jwgscheduler .snt-seg{flex:none}
+#view-jwgscheduler .snt-select{width:auto;flex:none;padding:7px 12px;border-radius:8px;font:600 13.5px 'Inter',system-ui,sans-serif;cursor:pointer;background:#fff;color:var(--n12);border:1px solid var(--n6)}
 #view-jwgscheduler .snt-stats{display:flex;gap:16px;flex-wrap:wrap;font-size:13.5px;color:var(--n11)}
 #view-jwgscheduler .snt-stats b{color:var(--n12);font-weight:700;font-variant-numeric:tabular-nums}
 #view-jwgscheduler .snt-how{margin-left:auto;font-size:13px}
