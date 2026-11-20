@@ -372,7 +372,7 @@ window.WinterSitePlan = (function(){
   }
   async function leave(to){
     finish();
-    if(st.dirty && !await JWG.jwgConfirm({title: 'Unsaved changes', message: 'The changes to this site plan are not saved yet.', confirmLabel: 'Leave without saving'})) return;
+    if((st.dirty || (st.turn && st.turn.deg)) && !await JWG.jwgConfirm({title: 'Unsaved changes', message: 'The changes to this site plan are not saved yet.', confirmLabel: 'Leave without saving'})) return;
     if(to === 'back'){ close(); await JWG.reloadWinter(); }
     else await open(to === 'prev' ? st.prev : st.next);
   }
@@ -968,6 +968,17 @@ window.WinterSitePlan = (function(){
     finish();
     var btns = document.querySelectorAll('#sp-save,#sp-save-next');
     btns.forEach(function(b){ b.disabled = true; });
+    // Save keeps what is on the screen. A turn still leaning on the slider, or a crop
+    // box still drawn, has not been applied yet, so Save applies it first (Jake,
+    // 2026-11-20: he set the angle, pressed Save, and the photo came back unturned).
+    try {
+      if(st.turn && st.turn.deg) await turnPhoto(st.turn.deg);
+      else if(st.crop && st.crop.box) await applyCrop();
+      st.turn = null; st.crop = null;
+    } catch(e){
+      btns.forEach(function(b){ b.disabled = false; });
+      throw e;   // turnPhoto and applyCrop have already said what went wrong
+    }
     var next = st.next;
     var loc = st.loc, oldPath = loc.photo_path, path = oldPath;
     var r4 = function(v){ return Math.round(v * 10000) / 10000; };
