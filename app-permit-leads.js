@@ -5,7 +5,9 @@
 // public.permit_leads every morning from Barrie's permit map (about a week
 // behind) and Innisfil's monthly list (posted around the 12th).
 //
-// The public lists carry an address, the work and a date. No name, no phone.
+// The public lists carry an address, the work and a date. No person's name, no
+// phone. Oro-Medonte's also names the COMPANY on the permit (builder or the
+// applicant's firm), which the fetcher keeps - the office looks it up and calls.
 // So the screen is two piles:
 //   • Past customers — a permit at an address we have done a job at. The only
 //     pile that can be phoned straight away; permit_leads_list() finds them.
@@ -61,9 +63,9 @@
     return S.rows.filter(function(x){
       if(S.town && x.town !== S.town) return false;
       if(!S.done && x.state !== 'new') return false;
-      // A past customer is worth a call even for a deck, so "bin-sized" only
-      // thins out the strangers.
-      if(S.big && !x.client_name && SMALL.test(x.work)) return false;
+      // A past customer or a named company is worth a call even for a deck, so
+      // "bin-sized" only thins out the address-only strangers.
+      if(S.big && !x.client_name && !x.company && SMALL.test(x.work)) return false;
       return true;
     });
   }
@@ -88,12 +90,22 @@
     +   'background:rgba(255,255,255,.08);color:var(--jjp-dim);margin-left:6px;vertical-align:1px;}'
     + '.jpl-cust{background:linear-gradient(140deg,rgba(34,197,94,.16),rgba(34,197,94,.04));'
     +   'border:1px solid rgba(34,197,94,.4);}'
+    + '.jpl-co{color:#7dd3fc;font-weight:600;}'
     + '.jpl-tel{color:var(--jjp-green-lt);text-decoration:none;font-weight:600;}'
     + '@media(max-width:640px){.jpl-lead{flex-direction:column;align-items:stretch;}'
     +   '.jpl-acts{justify-content:flex-start;}}';
     var st = document.createElement('style');
     st.id = 'jpl-style'; st.textContent = css;
     document.head.appendChild(st);
+  }
+
+  var ROLE_LABEL = { 'Builder':'builder', 'Applicant':'applied for the permit', 'Payer':'paid for the permit',
+                     'Sewage system installer':'septic installer', 'Property owner':'owns the property' };
+  // "Smith Homes Ltd. · builder" - the company to look up and call.
+  function companyLine(x){
+    if(!x.company) return '';
+    return '<div class="jpl-s"><span class="jpl-co">' + esc(x.company) + '</span>'
+      + (ROLE_LABEL[x.company_role] ? ' · ' + ROLE_LABEL[x.company_role] : '') + '</div>';
   }
 
   var DONE_LABEL = { called:'Called', hanger:'Door hanger left', prospect:'In Prospects', skip:'Skipped' };
@@ -125,6 +137,7 @@
           + ' · permit ' + esc(fdate(x.issued_on))
           + (x.client_phone ? ' · <a class="jpl-tel" href="tel:' + esc(String(x.client_phone).replace(/[^0-9+]/g,'')) + '">'
               + esc(x.client_phone) + '</a>' : ' · no phone on file') + '</div>'
+        + companyLine(x)
       + '</div>'
       + '<div class="jpl-acts">'
         + (x.state === 'new' ? btn('Called', x.id, 'called', 'go') + btn('Skip', x.id, 'skip') : undoBtn(x))
@@ -137,6 +150,7 @@
         + '<div class="jpl-t">' + esc(nice(x.address)) + '<span class="jpl-tag">' + esc(x.town) + '</span>' + doneTag(x) + '</div>'
         + '<div class="jpl-s">' + esc(x.work) + (x.value ? ' · ' + money(x.value) : '')
           + ' · permit ' + esc(fdate(x.issued_on)) + '</div>'
+        + companyLine(x)
       + '</div>'
       + '<div class="jpl-acts">'
         + (x.state === 'new'
@@ -159,7 +173,8 @@
 
     var list = visible();
     var cust = list.filter(function(x){ return x.client_name; });
-    var rest = list.filter(function(x){ return !x.client_name; });
+    var named = list.filter(function(x){ return !x.client_name && x.company; });
+    var rest = list.filter(function(x){ return !x.client_name && !x.company; });
     var towns = {};
     S.rows.forEach(function(x){ towns[x.town] = 1; });
 
@@ -189,6 +204,10 @@
     } else {
       body = '<div class="jjp-lab" style="padding:0 4px 9px">Past customers with a new permit · ' + cust.length + '</div>'
         + (cust.length ? cust.map(custRow).join('')
+            : '<div class="jpl-s" style="padding:0 4px 14px">None right now.</div>')
+        + '<div class="jjp-lab" style="padding:16px 4px 9px">A company is named · ' + named.length
+          + ' · look it up and call</div>'
+        + (named.length ? named.map(otherRow).join('')
             : '<div class="jpl-s" style="padding:0 4px 14px">None right now.</div>')
         + '<div class="jjp-lab" style="padding:16px 4px 9px">Everyone else · ' + rest.length
           + ' · address only, no name or phone</div>'
@@ -236,7 +255,7 @@
     async toProspects(id){
       var x = find(id);
       var r = await db.from('prospects').insert({
-        business_name: nice(x.address) + ' (permit)',
+        business_name: x.company || (nice(x.address) + ' (permit)'),
         address: nice(x.address),
         city: x.town,
         biz_type: 'building',

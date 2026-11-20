@@ -1,5 +1,5 @@
 /**
- * Supabase Edge Function: permit-leads-sync (v1, 2026-11-19)
+ * Supabase Edge Function: permit-leads-sync (v2, 2026-11-20)
  *
  * Pulls the building permits the towns publish into public.permit_leads, which
  * the Prospects page shows as "Permit leads". Called once a morning by pg_cron
@@ -13,11 +13,14 @@
  *   Oro-Medonte  the township's permit layer on the County's map server, fed
  *             from its permit system the same day a permit is issued.
  *
- * Only the address, the work, the value and the date are taken. The Oro-Medonte
- * layer also carries a raw record with people's names, emails and phone numbers
- * in it (original_json, creator, projectName). That looks like a mistake on the
- * township's side and it is deliberately NEVER requested here - the query names
- * its fields, and must keep naming them.
+ * What is kept: the address, the work, the value, the date and - v2, on Jake's
+ * word - the COMPANY named on the permit (Oro-Medonte only; the builder first,
+ * then the applicant's firm). The Oro-Medonte layer's raw record (original_json)
+ * also holds people's names, emails and phone numbers. That looks like a mistake
+ * on the township's side: it is read here only to pick out the company name, and
+ * no person's name, email or phone is ever kept or written anywhere. The raw
+ * record is cut off at 2,000 characters, so it is walked party by party instead
+ * of parsed whole.
  *
  * A permit is written once and never touched again (unique town + permit_no,
  * duplicates ignored), so whatever the office marked on a lead survives every
@@ -51,6 +54,8 @@ interface Lead {
   work: string;
   value: number | null;
   issued_on: string; // YYYY-MM-DD
+  company: string | null;
+  company_role: string | null;
 }
 
 const clean = (s: unknown) => String(s ?? "").replace(/\s+/g, " ").trim();
@@ -87,9 +92,53 @@ async function barrie(today: Date): Promise<Lead[]> {
       work: clean(a.Description) || clean(a.Sub_Type) || "Building permit",
       value: null,
       issued_on: date,
+      company: null,
+      company_role: null,
     });
   }
   return leads;
+}
+
+const BACKSLASH = String.fromCharCode(92);
+// Whose company is worth a call, best first. Designers and consultants are left
+// out: they draw the job, they do not order the bin.
+const COMPANY_ROLES = ["Builder", "Applicant", "Payer", "Sewage system installer", "Property owner"];
+
+/** The complete party records at the start of a (possibly cut-off) raw permit
+ *  record. A party that the 2,000-character cut lands inside is dropped. */
+function partiesIn(raw: string): Array<Record<string, unknown>> {
+  const start = raw.indexOf('"parties":[');
+  if (start < 0) return [];
+  const out: Array<Record<string, unknown>> = [];
+  let depth = 0, inStr = false, esc = false, objStart = -1;
+  for (let i = start + 11; i < raw.length; i++) {
+    const ch = raw[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === BACKSLASH) esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === "{") { if (depth === 0) objStart = i; depth++; }
+    else if (ch === "}") { depth--; if (depth === 0) out.push(JSON.parse(raw.slice(objStart, i + 1))); }
+    else if (ch === "]" && depth === 0) break;
+  }
+  return out;
+}
+
+/** The one company to show for a permit, and its role. Company name only. */
+function companyOn(raw: string): { company: string | null; company_role: string | null } {
+  const parties = partiesIn(raw);
+  for (const role of COMPANY_ROLES) {
+    for (const p of parties) {
+      const name = clean(p.corporationOrPartnership);
+      if (name && Array.isArray(p.roles) && p.roles.includes(role)) {
+        return { company: name, company_role: role };
+      }
+    }
+  }
+  return { company: null, company_role: null };
 }
 
 /** Oro-Medonte: permits issued in the lookback window. `issued` is a real
@@ -98,7 +147,7 @@ async function oroMedonte(today: Date): Promise<Lead[]> {
   const from = new Date(today.getTime() - ORO_LOOKBACK_DAYS * 86400000);
   const q = new URLSearchParams({
     where: `issued >= DATE '${from.toISOString().slice(0, 10)}'`,
-    outFields: "municipalCaseId,address,title,projectValue,issued",
+    outFields: "municipalCaseId,address,title,projectValue,issued,original_json",
     returnGeometry: "false",
     f: "json",
   });
@@ -123,6 +172,7 @@ async function oroMedonte(today: Date): Promise<Lead[]> {
       work: clean(a.title) || "Building permit",
       value: Number.isFinite(value) && value > 0 ? value : null,
       issued_on: ontarioDay.format(new Date(a.issued)),
+      ...companyOn(String(a.original_json ?? "")),
     });
   }
   return leads;
@@ -166,6 +216,8 @@ async function innisfilMonth(month: number, year: number): Promise<Lead[]> {
       work: r[cTitle] || "Building permit",
       value: Number.isFinite(value) && value > 0 ? value : null,
       issued_on: date,
+      company: null,
+      company_role: null,
     });
   }
   return leads;
