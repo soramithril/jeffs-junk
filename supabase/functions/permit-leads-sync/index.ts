@@ -5,13 +5,19 @@
  * the Prospects page shows as "Permit leads". Called once a morning by pg_cron
  * (permit-leads-daily).
  *
- * Sources - both public, no key, no sign-in:
+ * Sources - all public, no key, no sign-in:
  *   Barrie    the city's own "Issued Building Permits" map layer. Runs about a
  *             week behind. No construction value.
  *   Innisfil  one web page per month, posted around the 12th of the NEXT month.
  *             Before that the page says "no report found", which is normal.
+ *   Oro-Medonte  the township's permit layer on the County's map server, fed
+ *             from its permit system the same day a permit is issued.
  *
- * Neither list carries an owner, a builder or a phone number.
+ * Only the address, the work, the value and the date are taken. The Oro-Medonte
+ * layer also carries a raw record with people's names, emails and phone numbers
+ * in it (original_json, creator, projectName). That looks like a mistake on the
+ * township's side and it is deliberately NEVER requested here - the query names
+ * its fields, and must keep naming them.
  *
  * A permit is written once and never touched again (unique town + permit_no,
  * duplicates ignored), so whatever the office marked on a lead survives every
@@ -28,7 +34,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const BARRIE_URL =
   "https://gispublic.barrie.ca/arcgis/rest/services/Open_Data/APLI/MapServer/1/query";
 const INNISFIL_URL = "https://eservices.innisfil.ca/BuildingIssuedReports/GetReport";
+const ORO_URL =
+  "https://maps2.simcoe.ca/arcgis/rest/services/SimcoeCounty/Oro_Medonte_Building_Permits/MapServer/0/query";
 const BARRIE_LOOKBACK_DAYS = 45;
+const ORO_LOOKBACK_DAYS = 45;
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -78,6 +87,42 @@ async function barrie(today: Date): Promise<Lead[]> {
       work: clean(a.Description) || clean(a.Sub_Type) || "Building permit",
       value: null,
       issued_on: date,
+    });
+  }
+  return leads;
+}
+
+/** Oro-Medonte: permits issued in the lookback window. `issued` is a real
+ *  timestamp; the day is read on the Ontario clock. */
+async function oroMedonte(today: Date): Promise<Lead[]> {
+  const from = new Date(today.getTime() - ORO_LOOKBACK_DAYS * 86400000);
+  const q = new URLSearchParams({
+    where: `issued >= DATE '${from.toISOString().slice(0, 10)}'`,
+    outFields: "municipalCaseId,address,title,projectValue,issued",
+    returnGeometry: "false",
+    f: "json",
+  });
+  const res = await fetch(`${ORO_URL}?${q}`);
+  if (!res.ok) throw new Error(`Oro-Medonte answered ${res.status}`);
+  const body = await res.json();
+  if (body.error) throw new Error(`Oro-Medonte: ${body.error.message}`);
+  if (!Array.isArray(body.features)) throw new Error("Oro-Medonte: no features in the answer");
+  if (body.exceededTransferLimit) throw new Error("Oro-Medonte: more rows than one page holds");
+
+  const ontarioDay = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto" });
+  const leads: Lead[] = [];
+  for (const f of body.features) {
+    const a = f.attributes;
+    const permit = clean(a.municipalCaseId), address = clean(a.address);
+    if (!permit || !address || typeof a.issued !== "number") continue;
+    const value = Number(a.projectValue);
+    leads.push({
+      town: "Oro-Medonte",
+      permit_no: permit,
+      address,
+      work: clean(a.title) || "Building permit",
+      value: Number.isFinite(value) && value > 0 ? value : null,
+      issued_on: ontarioDay.format(new Date(a.issued)),
     });
   }
   return leads;
@@ -159,7 +204,7 @@ Deno.serve(async (req) => {
     const summary: Record<string, unknown> = {};
     const leads: Lead[] = [];
     const failures: string[] = [];
-    for (const [town, fetchTown] of [["Barrie", barrie], ["Innisfil", innisfil]] as const) {
+    for (const [town, fetchTown] of [["Barrie", barrie], ["Innisfil", innisfil], ["Oro-Medonte", oroMedonte]] as const) {
       try {
         const got = await fetchTown(today);
         summary[town] = got.length;

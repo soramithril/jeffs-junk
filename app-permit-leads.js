@@ -170,7 +170,7 @@
       + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:20px;font-weight:700;letter-spacing:-.5px;color:#F4F8F5">Permit leads</div>'
         + '<div style="font-size:12.5px;color:var(--jjp-dim);margin-top:1px">'
-          + S.newCount + ' not dealt with yet · Barrie runs about a week behind, Innisfil posts once a month</div>'
+          + S.newCount + ' not dealt with yet · Oro-Medonte is same-day, Barrie about a week behind, Innisfil once a month</div>'
       + '</div></div>';
 
     var filters = '<div style="display:flex;gap:7px;flex-wrap:wrap;padding:0 2px 16px">'
