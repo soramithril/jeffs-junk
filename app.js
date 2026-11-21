@@ -8983,9 +8983,8 @@ function binActions(b){
   // every signed-in user, and the crew who find the damage aren't admins. "Mark bin
   // fixed" is the way back out for those same people -- without it the flag was a
   // one-way door and only the three admins could undo a mis-click.
-  a.push(b.damage==='damage'
-    ? {lbl:'✅ Mark bin fixed',fn:"clearBinDamage('"+b.bid+"')"}
-    : {lbl:'⚠ Report damage',fn:"openBinDamageReport('"+b.bid+"')"});
+  a.push({lbl:'⚠ Report a problem',fn:"BinProblem.open('"+b.bid+"')"});
+  if(b.damage==='damage') a.push({lbl:'✅ Mark bin fixed',fn:"BinProblem.done('"+b.bid+"','damage')"});
   if(canDelete){
     a.push({lbl:'✏️ Edit',fn:"editBinItem('"+b.bid+"')"});
     a.push({lbl:'🗑️ Delete',fn:"delBinItem('"+b.bid+"')",danger:true});
@@ -9035,8 +9034,9 @@ function _renderBinPeekTop(b){
     +(flags.length
       ?'<div style="display:flex;flex-wrap:wrap;gap:5px">'+flags.join('')+'</div>'
       :'<div style="font-size:13px;color:var(--muted)">Nothing flagged.</div>')
+    +BinProblem.todoHtml(b)
     +'<div class="peek-sec">Note</div>'
-    +'<div style="font-size:13px;line-height:1.5'+(b.notes?'':';color:var(--muted)')+'">'
+    +'<div style="font-size:13px;line-height:1.5;white-space:pre-line'+(b.notes?'':';color:var(--muted)')+'">'
       +(b.notes?escHtml(b.notes):'No note yet.')+'</div>'
     +'<button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="closeM(\'bin-peek\');openBinNote(\''+b.bid+'\')">✏️ '
       +(b.notes?'Edit note':'Add a note')+'</button>'
