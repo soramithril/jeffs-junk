@@ -329,6 +329,7 @@
         + (callable ? 'How did the call go?' : 'No name or number on this one') + '</div>'
       + '<div class="jpl-acts">'
         + (callable ? b('Booked a bin', 'mark(' + x.id + ',\'booked\')', 'go')
+                    + b('No answer', 'mark(' + x.id + ',\'noanswer\')')
                     + b('Call back in a week', 'mark(' + x.id + ',\'callback\')')
                     + b('Not interested', 'mark(' + x.id + ',\'no\')') : '')
         + b('Door hanger left', 'mark(' + x.id + ',\'hanger\')')
@@ -395,15 +396,9 @@
     });
 
     var top = '<div class="jpl-top">'
-      + '<div style="display:flex;align-items:center;gap:11px">'
-        + '<div class="jjp-fr" style="width:40px;height:40px;border-radius:999px;display:flex;align-items:center;'
-          + 'justify-content:center;flex:none;cursor:pointer;color:var(--jjp-ink);font-size:20px" '
-          + 'onclick="JJPermitLeads.back()" title="Back to Prospects">&#8592;</div>'
-        + '<div style="flex:1;min-width:0">'
-          + '<div style="font-size:20px;font-weight:700;letter-spacing:-.5px;color:#F4F8F5">Permit leads</div>'
-          + '<div style="font-size:12.5px;color:var(--jjp-dim);margin-top:1px">'
-            + 'New building permits, best calls first. Oro-Medonte is same-day, Barrie about a week behind, Innisfil once a month.</div>'
-        + '</div></div>'
+      + JJProspects.tabs('permits')
+      + '<div style="font-size:12.5px;color:var(--jjp-dim);padding:0 2px">'
+        + 'New building permits, best calls first. Oro-Medonte is same-day, Barrie about a week behind, Innisfil once a month.</div>'
       + '<div class="jpl-tiles">'
         + tile(live.filter(function(x){ return x.pot === 'hot' || x.pot === 'due'; }).length, 'hot · call today', '#fb923c')
         + tile(live.filter(function(x){ return x.client_name; }).length, 'past customers', '#86efac')
@@ -448,31 +443,74 @@
     return true;
   }
 
+  // What each button does to the lead, and what it writes in the call log
+  // (prospect_visits, the one log the Prospects scoreboard counts). Only a real
+  // call is logged: a door hanger or a skip is not a call.
+  var OUTCOME = {
+    booked:   { state:'booked',   log:'booked',         say:'✓ Marked as booked. Book the bin from New Job as usual.' },
+    callback: { state:'callback', log:'call back',      say:'✓ It comes back to the top in a week.', days:7 },
+    noanswer: { state:'callback', log:'no answer',      say:'✓ No answer. It comes back tomorrow.', days:1 },
+    no:       { state:'no',       log:'not interested', say:'✓ Not interested. Off the list.' },
+    hanger:   { state:'hanger' },
+    skip:     { state:'skip' },
+    'new':    { state:'new' }
+  };
+  async function setOutcome(id, key){
+    var o = OUTCOME[key];
+    if(!o) throw new Error('Unknown permit lead outcome: ' + key);
+    var fresh = o.state === 'new';
+    var ok = await patch(id, {
+      state: o.state,
+      state_by: fresh ? null : me(),
+      state_at: fresh ? null : new Date().toISOString(),
+      call_back: o.days ? plusDays(o.days) : null
+    });
+    if(!ok) return false;
+    if(o.log){
+      var r = await db.from('prospect_visits').insert({
+        permit_lead_id: id, visited_on: today(), kind: 'call',
+        spoke_to: key === 'noanswer' ? 'nobody in' : '', outcome: o.log, created_by: me()
+      });
+      if(r.error){ toast('Saved, but the call didn’t reach the log: ' + r.error.message, 'error'); return true; }
+    }
+    if(o.say) toast(o.say);
+    return true;
+  }
+
   var API = {
-    async open(){
+    // id: a lead to open straight away (tapped on the Today list).
+    async open(id){
       var el = host(); if(!el) return;
       styles();
       el.innerHTML = '<div style="padding:60px;text-align:center;color:rgba(232,239,234,.45);font-size:14px">Loading…</div>';
-      if(await load()) render();
+      if(!(await load())) return;
+      if(id){ S.town = ''; S.kind = ''; S.sel = id; }
+      render();
     },
-    back(){ JJProspects.open(); },
     setTown(t){ S.town = t; S.kind = ''; render(); },
     setKind(k){ S.kind = k; render(); },
     toggleDone(){ S.done = !S.done; render(); },
     select(id){ S.sel = id; render(); },
 
-    async mark(id, state){
-      var fresh = state === 'new';
-      var ok = await patch(id, {
-        state: state,
-        state_by: fresh ? null : me(),
-        state_at: fresh ? null : new Date().toISOString(),
-        call_back: state === 'callback' ? plusDays(7) : null
-      });
-      if(!ok) return;
-      if(state === 'booked') toast('✓ Marked as booked. Book the bin from New Job as usual.');
-      if(state === 'callback') toast('✓ It comes back to the top on ' + fdate(plusDays(7)));
-      render();
+    // For the Prospects page, which shows permit leads on its Today list.
+    async rows(){ return (await load()) ? S.rows : null; },
+    list(){ return S.rows; },
+    callInfo(x){
+      var m = mins(x.town);
+      return {
+        title: titleOf(x),
+        phone: (x.client_name ? x.client_phone : x.company_phone) || '',
+        past: !!x.client_name, pot: x.pot, open: isOpen(x), age: ago(x.issued_on),
+        // Set aside for a later day: a call back whose date has not come yet.
+        waiting: x.state === 'callback' && x.pot !== 'due',
+        sub: KIND_LABEL[x.kind] + ' permit · ' + x.town + (m !== null ? ' · ' + m + ' min out' : '')
+          + (x.client_name && x.client_last_job ? ' · had us out in ' + String(x.client_last_job).slice(0,4) : '')
+      };
+    },
+    outcome: setOutcome,
+
+    async mark(id, key){
+      if(await setOutcome(id, key)) render();
     },
 
     async saveNote(id, text){
@@ -504,31 +542,8 @@
         toast('✓ Added to Prospects under ' + x.town);
         render();
       }
-    },
-
-    // The card Prospects shows on its towns screen. The number arrives a moment
-    // after the card does, the first time.
-    card(){
-      if(S.newCount === null && !S.counting){
-        S.counting = true;
-        db.from('permit_leads').select('id', { count:'exact', head:true }).in('state', ['new','callback'])
-          .then(function(r){
-            if(r.error) throw new Error('permit lead count: ' + r.error.message);
-            S.newCount = r.count;
-            var n = document.getElementById('jpl-card-n');
-            if(n) n.textContent = r.count;
-          });
-      }
-      return '<div class="jjp-row" style="margin:2px 14px 9px;'
-        + 'background:linear-gradient(140deg,rgba(56,189,248,.16),rgba(56,189,248,.04));'
-        + 'border:1px solid rgba(56,189,248,.35)" onclick="JJPermitLeads.open()">'
-        + '<div style="flex:1;min-width:0">'
-          + '<div style="font-size:16px;font-weight:600;letter-spacing:-.3px;color:#7dd3fc">Permit leads</div>'
-          + '<div style="font-size:12px;margin-top:3px;color:var(--jjp-faint)">new building permits from the towns</div>'
-        + '</div>'
-        + '<span id="jpl-card-n" style="font-size:24px;font-weight:300;letter-spacing:-1px;color:#7dd3fc">'
-          + (S.newCount === null ? '' : S.newCount) + '</span></div>';
     }
+
   };
 
   window.JJPermitLeads = API;
